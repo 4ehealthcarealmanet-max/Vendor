@@ -1,0 +1,28 @@
+# Python bytecode/cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local SQLite database
+backend/db.sqlite3
+
+# Local uploaded media
+backend/media/
+
+# Migration bytecode (keep migration .py files tracked)
+backend/**/migrations/__pycache__/
+backend/**/migrations/*.pyc
+__pycache__/
+*.pyc
+
+# Python
+__pycache__/
+*.pyc
+
+# Env files
+.env
+backend/.env
+frontend/.env
+# OS files
+.DS_Store
+Thumbs.db
