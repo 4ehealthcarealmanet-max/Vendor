@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 
-type SupplierSection = "dashboard" | "rfqs" | "orders" | "analytics" | "supplies"
+type SupplierSection = "dashboard" | "rfqs" | "orders" | "supplies"
 
 type SupplierSidebarProps = {
   active: SupplierSection
@@ -14,7 +14,6 @@ const navItems: Array<{ key: SupplierSection; href: string; label: string; glyph
   { key: "dashboard", href: "/supplier/dashboard", label: "Dashboard", glyph: "DB" },
   { key: "rfqs", href: "/supplier/rfq", label: "RFQs", glyph: "RF" },
   { key: "orders", href: "/supplier/orders", label: "Orders", glyph: "OR" },
-  { key: "analytics", href: "/supplier/dashboard#intelligence-feed", label: "Analytics", glyph: "AN" },
   { key: "supplies", href: "/supplier/products", label: "Supplies", glyph: "MD" },
 ]
 

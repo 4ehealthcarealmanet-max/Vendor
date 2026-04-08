@@ -5,9 +5,17 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import BuyerSidebar from "@/components/buyer/BuyerSidebar"
 import SupplierSidebar from "@/components/supplier/SupplierSidebar"
-import { clearToken, getCurrentUser, isAuthSessionError, logoutUser } from "@/services/authService"
-import { createOrder, getApiErrorMessage, getOrders, getProducts } from "@/services/vendorService"
-import { VendorOrder, VendorOrderInput, VendorProductService } from "@/types/vendor"
+import {
+  clearToken,
+  createOrder,
+  getApiErrorMessage,
+  getCurrentUser,
+  getOrders,
+  getProducts,
+  isAuthSessionError,
+  logoutUser,
+} from "@/services"
+import type { VendorOrder, VendorOrderInput, VendorProductService } from "@/services"
 
 export default function OrderPage() {
   const pathname = usePathname()

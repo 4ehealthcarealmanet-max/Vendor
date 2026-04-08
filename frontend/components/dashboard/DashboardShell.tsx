@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ReactNode } from "react"
-import { clearToken, logoutUser } from "@/services/authService"
+import { clearToken, logoutUser } from "@/services"
 
 type DashboardLink = {
   href: string

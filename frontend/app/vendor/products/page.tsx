@@ -2,16 +2,24 @@
 
 import { type ReactNode, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import BuyerSidebar from "@/components/buyer/BuyerSidebar"
 import SupplierSidebar from "@/components/supplier/SupplierSidebar"
-import { clearToken, getCurrentUser, isAuthSessionError, logoutUser } from "@/services/authService"
-import { deleteProduct, getProducts, updateProduct } from "@/services/vendorService"
-import { VendorProductService } from "@/types/vendor"
+import {
+  clearToken,
+  getCurrentUser,
+  isAuthSessionError,
+  logoutUser,
+  deleteProduct,
+  getProducts,
+  updateProduct,
+} from "@/services"
+import type { VendorProductService } from "@/services"
 
 export default function ProductsPage() {
   const pathname = usePathname()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [products, setProducts] = useState<VendorProductService[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -32,6 +40,7 @@ export default function ProductsPage() {
   })
   const [query, setQuery] = useState("")
   const [category, setCategory] = useState<"all" | "product" | "service">("all")
+  const [highlightedProductId, setHighlightedProductId] = useState<number | null>(null)
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -67,6 +76,24 @@ export default function ProductsPage() {
     }
     fetchProducts()
   }, [pathname, router])
+
+  // Handle highlight parameter from search
+  useEffect(() => {
+    const highlightId = searchParams.get("highlight")
+    if (highlightId && products.length > 0) {
+      const id = Number(highlightId)
+      if (!isNaN(id) && products.some((p) => p.id === id)) {
+        setHighlightedProductId(id)
+        // Scroll to the item
+        setTimeout(() => {
+          const element = document.getElementById(`product-${id}`)
+          if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "center" })
+          }
+        }, 100)
+      }
+    }
+  }, [searchParams, products])
 
   const signOut = async () => {
     try {
@@ -413,8 +440,11 @@ export default function ProductsPage() {
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {filteredProducts.map((product, index) => (
                   <article
+                    id={`product-${product.id}`}
                     key={product.id}
-                    className="soft-panel pulse-entry rounded-[18px] p-5"
+                    className={`soft-panel pulse-entry rounded-[18px] p-5 ${
+                      highlightedProductId === product.id ? "ring-2 ring-[#0f4fb6] shadow-[0_0_0_3px_rgba(15,79,182,0.1)]" : ""
+                    }`}
                     style={{ animationDelay: `${index * 40}ms` }}
                   >
                   <div className="flex items-start justify-between gap-2">
