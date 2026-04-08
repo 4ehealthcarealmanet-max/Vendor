@@ -1,4 +1,4 @@
-import { VendorRfq } from "@/types/vendor"
+import type { VendorRfq } from "@/services"
 
 export const heroImage =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuAZwKgxsahgiq_RXiwj7XPTbRvdKx0cDsH3F3OHNKdmkGS43xnglu-59cyPys1PsdnhhGWqdN4fkDKR5X2qX6sfwDnydQI1QcmLXEBQm9AZnYDEhFnCZf2fT30mYHzhJxvVCmZIUTaIbOp-zlrQxACp04IgEA1MHqcDMDmV8z8CmUX6b6qNOqm5x2iBh5XAnX0qM66DN0pCoyoshp_FV2G_GCI4D0KO8J1kWlbGH_nesKdMcK3d8_qXglrLCrqk9o-jDWFkWNX0tg"

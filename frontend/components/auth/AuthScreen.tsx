@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { FormEvent, ReactNode, useState } from "react"
-import { loginUser, registerUser, setToken } from "@/services/authService"
+import { loginUser, registerUser, setToken } from "@/services"
 
 type AuthMode = "login" | "register"
 
@@ -160,7 +160,7 @@ export default function AuthScreen({
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#f6f8fb_0%,#eef3f8_100%)] px-4 py-10 text-[#1b2330]">
       <div className="mx-auto flex w-full max-w-[520px] flex-col items-center">
-        <div className="w-full rounded-[28px] border border-[#e3e8ef] bg-white p-5 shadow-[0_24px_60px_rgba(36,54,86,0.12)] sm:p-6 md:p-8">
+        <div className="glass-card interactive-card w-full rounded-[28px] p-5 sm:p-6 md:p-8">
           <div className="grid grid-cols-2 gap-2 rounded-xl bg-[#f1f4f8] p-1.5">
             <Link
               href={buildAuthHref("login")}
@@ -303,7 +303,7 @@ export default function AuthScreen({
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0f4fb6] px-5 py-3.5 text-sm font-bold text-white shadow-[0_14px_28px_rgba(15,79,182,0.22)] transition hover:bg-[#0c45a0] disabled:cursor-not-allowed disabled:opacity-70"
+              className="solid-action inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-70"
             >
               <span>{loading ? "Please wait..." : activePanel.primaryAction}</span>
               <ArrowLineIcon />
@@ -364,7 +364,7 @@ function FieldShell({
   return (
     <label className="grid gap-2">
       <span className="text-[11px] font-bold text-[#6f7a8c]">{label}</span>
-      <div className="flex items-center gap-3 border-b border-[#d9e0e8] pb-3 text-[#7a8497]">
+      <div className="flex items-center gap-3 border-b border-[#d9e0e8] pb-3 text-[#7a8497] transition-colors duration-200 focus-within:border-[#2563eb] focus-within:text-[#0f4fb6]">
         <span className="shrink-0">{icon}</span>
         <div className="min-w-0 flex-1">{input}</div>
       </div>

@@ -1,13 +1,20 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useDeferredValue, useEffect, useMemo, useState } from "react"
 import SupplierSidebar from "@/components/supplier/SupplierSidebar"
-import { clearToken, getCurrentUser, isAuthSessionError, logoutUser } from "@/services/authService"
-import { getOrders, getProducts, getRfqs } from "@/services/vendorService"
-import { AuthUser } from "@/types/auth"
-import { VendorOrder, VendorProductService, VendorQuotation, VendorRfq } from "@/types/vendor"
+import SupplierDashboardHeader from "@/components/supplier/SupplierDashboardHeader"
+import {
+  clearToken,
+  getCurrentUser,
+  getOrders,
+  getProducts,
+  getRfqs,
+  isAuthSessionError,
+  logoutUser,
+} from "@/services"
+import type { AuthUser, VendorOrder, VendorProductService, VendorQuotation, VendorRfq } from "@/services"
 
 type Opportunity = { rfq: VendorRfq; matches: VendorProductService[] }
 type BidRow = { rfq: VendorRfq; quote: VendorQuotation }
@@ -201,6 +208,7 @@ const bidStatus = (rfq: VendorRfq, quote: VendorQuotation) => {
 
 export default function SupplierDashboardPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [user, setUser] = useState<AuthUser | null>(null)
   const [products, setProducts] = useState<VendorProductService[]>([])
   const [orders, setOrders] = useState<VendorOrder[]>([])
@@ -208,7 +216,32 @@ export default function SupplierDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [searchText, setSearchText] = useState("")
+  const [focusId, setFocusId] = useState<number | null>(null)
   const deferredSearch = useDeferredValue(searchText)
+
+  // Read URL search params
+  useEffect(() => {
+    const urlSearch = searchParams.get("search")
+    const urlFocusId = searchParams.get("focusId")
+    if (urlSearch) {
+      setSearchText(decodeURIComponent(urlSearch))
+    }
+    if (urlFocusId) {
+      setFocusId(Number(urlFocusId))
+    }
+  }, [searchParams])
+
+  // Auto-scroll to focused item
+  useEffect(() => {
+    if (focusId) {
+      setTimeout(() => {
+        const element = document.getElementById(`opportunity-${focusId}`)
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "center" })
+        }
+      }, 100)
+    }
+  }, [focusId])
 
   useEffect(() => {
     const load = async () => {
@@ -371,37 +404,7 @@ export default function SupplierDashboardPage() {
           "radial-gradient(at 0% 0%, rgba(0,86,210,0.04) 0px, transparent 45%), radial-gradient(at 100% 0%, rgba(213,227,252,0.08) 0px, transparent 45%), radial-gradient(at 100% 100%, rgba(178,197,255,0.08) 0px, transparent 45%), radial-gradient(at 0% 100%, rgba(242,244,246,0.08) 0px, transparent 45%)",
       }}
     >
-      <header className="sticky top-0 z-30 border-b border-white/70 bg-white/80 shadow-[0_10px_30px_rgba(15,23,42,0.04)] backdrop-blur">
-        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:pl-[calc(18rem+2rem)] lg:pr-8">
-          <label className="flex min-w-0 basis-full items-center gap-3 rounded-full border border-[#e6ebf2] bg-[#f8fafc] px-4 py-2.5 text-sm text-[#94a3b8] focus-within:ring-2 focus-within:ring-[#0f4fb6]/15 sm:flex-1 sm:basis-auto">
-            <Icon type="search" className="h-4 w-4 text-[#0f4fb6]" />
-            <input
-              value={searchText}
-              onChange={(event) => setSearchText(event.target.value)}
-              placeholder="Search RFQs, buyers, or contracts..."
-              className="w-full min-w-0 border-0 bg-transparent p-0 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8]"
-              aria-label="Search supplier dashboard"
-            />
-          </label>
-          <div className="flex items-center gap-2 md:gap-4">
-            <button type="button" onClick={() => document.getElementById("intelligence-feed")?.scrollIntoView({ behavior: "smooth" })} className="relative rounded-full bg-[#edf1f6] p-2" aria-label="View alerts">
-              <Icon type="bell" className="h-4 w-4 text-[#475569]" />
-              {alerts > 0 ? <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#ba1a1a] ring-2 ring-white" /> : null}
-            </button>
-            <button type="button" onClick={() => document.getElementById("bid-tracker")?.scrollIntoView({ behavior: "smooth" })} className="rounded-full bg-[#edf1f6] p-2" aria-label="View bid tracker">
-              <Icon type="history" className="h-4 w-4 text-[#475569]" />
-            </button>
-            <div className="hidden text-right md:block">
-              <p className="text-sm font-semibold text-[#0f172a]">{user.username}</p>
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7b8798]">Account Manager</p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,#dbe8ff,#fff1e8)] text-sm font-black text-[#0f4fb6] ring-2 ring-[#0f4fb6]/10">
-              {initials(user.username)}
-            </div>
-          </div>
-        </div>
-      </header>
-
+      <SupplierDashboardHeader user={user} rfqs={rfqs} products={products} />
       <SupplierSidebar active="dashboard" username={user.username} onSignOut={signOut} />
 
       <main className="px-4 py-8 pb-24 sm:px-6 lg:pl-[calc(18rem+2.5rem)] lg:pr-10 lg:py-10">
@@ -458,7 +461,11 @@ export default function SupplierDashboardPage() {
                     </thead>
                     <tbody className="divide-y divide-[#f1f5f9]">
                       {shownOpportunities.slice(0, 4).map((item) => (
-                        <tr key={item.rfq.id} className="group hover:bg-[#fbfcff]">
+                        <tr 
+                          key={item.rfq.id} 
+                          id={`opportunity-${item.rfq.id}`}
+                          className={`group hover:bg-[#fbfcff] transition ${focusId === item.rfq.id ? "bg-blue-50 ring-2 ring-[#0f4fb6]" : ""}`}
+                        >
                           <td className="px-6 py-4">
                             <p className="font-bold text-[#0f172a]">{item.rfq.buyer_company || item.rfq.buyer_name}</p>
                             <p className="text-xs text-[#94a3b8]">{item.rfq.buyer_type ? `${item.rfq.buyer_type} buyer` : "Institution"}</p>
@@ -474,9 +481,14 @@ export default function SupplierDashboardPage() {
                           <td className="px-6 py-4 text-right font-bold text-[#0f172a]">{money(item.rfq.target_budget)}</td>
                           <td className="px-6 py-4 text-xs font-bold text-[#475569]">{deadlineLabel(item.rfq.quote_deadline)}</td>
                           <td className="px-6 py-4 text-right">
-                            <Link href="/supplier/rfq" className="inline-flex rounded-lg bg-[linear-gradient(135deg,#0f4fb6,#1d72ff)] px-3 py-1.5 text-xs font-bold text-white">
+                            <button
+                              onClick={() => {
+                                router.push(`/supplier/rfq?rfqId=${item.rfq.id}`)
+                              }}
+                              className="inline-flex rounded-lg bg-[linear-gradient(135deg,#0f4fb6,#1d72ff)] px-3 py-1.5 text-xs font-bold text-white hover:shadow-lg transition cursor-pointer"
+                            >
                               Review and Bid
-                            </Link>
+                            </button>
                           </td>
                         </tr>
                       ))}

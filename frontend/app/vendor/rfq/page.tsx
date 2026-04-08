@@ -5,25 +5,29 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Suspense, type ChangeEvent, useEffect, useMemo, useState } from "react"
 import BuyerSidebar from "@/components/buyer/BuyerSidebar"
 import SupplierSidebar from "@/components/supplier/SupplierSidebar"
-import { clearToken, getCurrentUser, getToken, isAuthSessionError, logoutUser } from "@/services/authService"
 import {
   awardQuotation,
+  clearToken,
   closeRfq,
   createOrder,
   createRfq,
   deleteRfq,
   editQuotation,
   getApiErrorMessage,
+  getCurrentUser,
   getPublicRfqs,
   getProducts,
   getRfqs,
+  getToken,
   getUniqueVendorsFromProducts,
+  isAuthSessionError,
   rejectQuotation,
   reopenRfq,
   submitQuotation,
   updateRfq,
-} from "@/services/vendorService"
-import { VendorProductService, VendorQuotationInput, VendorRfq, VendorRfqInput } from "@/types/vendor"
+  logoutUser,
+} from "@/services"
+import type { VendorProductService, VendorQuotationInput, VendorRfq, VendorRfqInput } from "@/services"
 
 const emptyRfqForm: VendorRfqInput = {
   title: "",
@@ -263,6 +267,43 @@ function RfqPageContent() {
 
     return () => window.clearInterval(interval)
   }, [userRole])
+
+  // Handle highlight parameter from search
+  useEffect(() => {
+    const highlightId = searchParams.get("highlight")
+    if (highlightId && rfqs.length > 0) {
+      const id = Number(highlightId)
+      if (!isNaN(id) && rfqs.some((r) => r.id === id)) {
+        setExpandedRfqIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
+        // Scroll to the item
+        setTimeout(() => {
+          const element = document.getElementById(`rfq-${id}`)
+          if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "center" })
+          }
+        }, 100)
+      }
+    }
+  }, [searchParams, rfqs])
+
+  // Handle rfqId parameter from dashboard search - auto-open quote form
+  useEffect(() => {
+    const rfqIdParam = searchParams.get("rfqId")
+    if (rfqIdParam && rfqs.length > 0) {
+      const id = Number(rfqIdParam)
+      if (!isNaN(id) && rfqs.some((r) => r.id === id)) {
+        setActiveQuoteRfqId(id)
+        setExpandedRfqIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
+        // Scroll to the item
+        setTimeout(() => {
+          const element = document.getElementById(`rfq-${id}`)
+          if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "center" })
+          }
+        }, 100)
+      }
+    }
+  }, [searchParams, rfqs])
 
   const signOut = async () => {
     try {
@@ -1315,6 +1356,7 @@ function RfqPageContent() {
 
               return (
                 <article
+                  id={`rfq-${rfq.id}`}
                   key={rfq.id}
                   className={`rounded-2xl border bg-white p-5 ${
                     recentlyPublishedRfqId === rfq.id ? "border-[#57a56d] shadow-[0_10px_26px_rgba(47,92,69,0.10)]" : "border-[#dbe8ea]"

@@ -4,10 +4,16 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useDeferredValue, useEffect, useMemo, useState } from "react"
 import BuyerSidebar from "@/components/buyer/BuyerSidebar"
-import { clearToken, getCurrentUser, isAuthSessionError, logoutUser } from "@/services/authService"
-import { getOrders, getProducts, getRfqs } from "@/services/vendorService"
-import { AuthUser } from "@/types/auth"
-import { VendorOrder, VendorProductService, VendorRfq } from "@/types/vendor"
+import {
+  clearToken,
+  getCurrentUser,
+  getOrders,
+  getProducts,
+  getRfqs,
+  isAuthSessionError,
+  logoutUser,
+} from "@/services"
+import type { AuthUser, VendorOrder, VendorProductService, VendorRfq } from "@/services"
 
 type DashboardActivity = {
   id: string

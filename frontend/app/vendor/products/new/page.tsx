@@ -3,8 +3,7 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { clearToken, getCurrentUser, isAuthSessionError } from "@/services/authService"
-import { createProduct } from "@/services/vendorService"
+import { clearToken, createProduct, getCurrentUser, isAuthSessionError } from "@/services"
 
 export default function NewProductPage() {
   const pathname = usePathname()
