@@ -224,9 +224,9 @@ export default function PublicLandingPage() {
         </div>
       </section>
 
-      <section id="suppliers" className="mx-auto max-w-7xl px-6 py-12 md:px-8 md:py-16">
-        <div className="grid gap-6 md:grid-cols-2">
-          <article className="interactive-card relative overflow-hidden rounded-[2rem] border border-[#d9e7ff] bg-white p-6 shadow-[0_18px_40px_rgba(15,79,182,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(15,79,182,0.1)] md:p-8">
+      <section id="suppliers" className="mx-auto max-w-6xl px-6 py-8 md:px-8 md:py-10">
+        <div className="grid gap-5 md:grid-cols-2">
+          <article className="interactive-card relative overflow-hidden rounded-[1.5rem] border border-[#d9e7ff] bg-white p-5 shadow-[0_14px_32px_rgba(15,79,182,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_42px_rgba(15,79,182,0.1)] md:p-6">
             <div className="pointer-events-none absolute inset-0 hidden md:block">
               <Image
                 src="/images/for buyer.jpeg"
@@ -241,23 +241,23 @@ export default function PublicLandingPage() {
             </div>
             <div className="relative z-10 max-w-[25rem]">
               <div className="max-w-[25rem]">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0056d2] text-white shadow-[0_10px_26px_rgba(0,86,210,0.18)]">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0056d2] text-white shadow-[0_10px_26px_rgba(0,86,210,0.18)]">
                   <HospitalIcon />
                 </div>
-                <h2 className="mt-8 font-[family-name:var(--font-display)] text-3xl font-bold tracking-[-0.04em] text-[#12356b]">
+                <h2 className="mt-5 font-[family-name:var(--font-display)] text-2xl font-bold tracking-[-0.04em] text-[#12356b]">
                   For Buyers
                 </h2>
-                <ul className="mt-8 space-y-4">
+                <ul className="mt-5 space-y-2.5">
               {buyerBenefits.map((benefit) => (
-                <li key={benefit} className="flex items-center gap-3 text-[15px] text-[#596171]">
+                <li key={benefit} className="flex items-center gap-2.5 text-sm text-[#596171]">
                   <span className="text-[#0056d2]">
                     <CheckCircleIcon />
                   </span>
-                  <span className="leading-7">{benefit}</span>
+                  <span className="leading-6">{benefit}</span>
                 </li>
               ))}
                 </ul>
-                <Link href={protectedHref("/buyer/dashboard")} className="mt-10 inline-flex items-center gap-2 text-sm font-bold text-[#0056d2] transition hover:gap-3">
+                <Link href={protectedHref("/buyer/dashboard")} className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-[#0056d2] transition hover:gap-3">
                   Explore Buyer Solutions
                   <ArrowRightIcon />
                 </Link>
@@ -265,7 +265,7 @@ export default function PublicLandingPage() {
             </div>
           </article>
 
-          <article className="interactive-card relative overflow-hidden rounded-[2rem] border border-[#d9e7ff] bg-white p-6 shadow-[0_18px_40px_rgba(15,79,182,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(15,79,182,0.1)] md:p-8">
+          <article className="interactive-card relative overflow-hidden rounded-[1.5rem] border border-[#d9e7ff] bg-white p-5 shadow-[0_14px_32px_rgba(15,79,182,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_42px_rgba(15,79,182,0.1)] md:p-6">
             <div className="pointer-events-none absolute inset-0 hidden md:block">
               <Image
                 src="/images/for supplier.jpeg"
@@ -280,23 +280,23 @@ export default function PublicLandingPage() {
             </div>
             <div className="relative z-10 max-w-[25rem]">
               <div className="max-w-[25rem]">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0056d2] text-white shadow-[0_10px_26px_rgba(0,86,210,0.18)]">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0056d2] text-white shadow-[0_10px_26px_rgba(0,86,210,0.18)]">
                   <InventoryIcon />
                 </div>
-                <h2 className="mt-8 font-[family-name:var(--font-display)] text-3xl font-bold tracking-[-0.04em] text-[#12356b]">
+                <h2 className="mt-5 font-[family-name:var(--font-display)] text-2xl font-bold tracking-[-0.04em] text-[#12356b]">
                   For Suppliers
                 </h2>
-                <ul className="mt-8 space-y-4">
+                <ul className="mt-5 space-y-2.5">
               {supplierBenefits.map((benefit) => (
-                <li key={benefit} className="flex items-center gap-3 text-[15px] text-[#596171]">
+                <li key={benefit} className="flex items-center gap-2.5 text-sm text-[#596171]">
                   <span className="text-[#0056d2]">
                     <CheckCircleIcon />
                   </span>
-                  <span className="leading-7">{benefit}</span>
+                  <span className="leading-6">{benefit}</span>
                 </li>
               ))}
                 </ul>
-                <Link href={protectedHref("/supplier/dashboard")} className="mt-10 inline-flex items-center gap-2 text-sm font-bold text-[#0056d2] transition hover:gap-3">
+                <Link href={protectedHref("/supplier/dashboard")} className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-[#0056d2] transition hover:gap-3">
                   Join Supplier Network
                   <ArrowRightIcon />
                 </Link>

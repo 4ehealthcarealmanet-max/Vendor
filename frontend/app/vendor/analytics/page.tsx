@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import BuyerSidebar from "@/components/buyer/BuyerSidebar"
 import SupplierSidebar from "@/components/supplier/SupplierSidebar"
 import {
   clearToken,
@@ -60,7 +59,6 @@ export default function AnalyticsPage() {
   const [rfqs, setRfqs] = useState<VendorRfq[]>([])
   const [username, setUsername] = useState("")
   const [userRole, setUserRole] = useState<"supplier" | "buyer" | "">("")
-  const [buyerType, setBuyerType] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState("")
 
@@ -70,18 +68,17 @@ export default function AnalyticsPage() {
         setIsLoading(true)
         setError("")
         const me = await getCurrentUser()
-        if (pathname?.startsWith("/buyer") && me.role === "supplier") {
-          router.replace("/supplier/analytics")
+        if (me.role === "buyer") {
+          router.replace("/buyer/dashboard")
           return
         }
-        if (pathname?.startsWith("/supplier") && me.role === "buyer") {
-          router.replace("/buyer/analytics")
+        if (!pathname?.startsWith("/supplier")) {
+          router.replace("/supplier/analytics")
           return
         }
 
         setUsername(me.username)
         setUserRole(me.role)
-        setBuyerType(me.buyer_type || "")
         const [orderData, productData, rfqData] = await Promise.all([getOrders(), getProducts(), getRfqs()])
         setOrders(orderData)
         setProducts(productData)
@@ -111,7 +108,6 @@ export default function AnalyticsPage() {
     }
   }
 
-  const isBuyerRoute = pathname?.startsWith("/buyer") || userRole === "buyer"
   const isSupplierRoute = pathname?.startsWith("/supplier") || userRole === "supplier"
 
   const spendingTrend = useMemo(() => {
@@ -211,12 +207,10 @@ export default function AnalyticsPage() {
 
   return (
     <>
-      {isBuyerRoute ? (
-        <BuyerSidebar active="analytics" username={username} buyerType={buyerType || null} onSignOut={signOut} />
-      ) : isSupplierRoute ? (
+      {isSupplierRoute ? (
         <SupplierSidebar active="analytics" username={username} onSignOut={signOut} />
       ) : null}
-      <main className={`px-4 py-8 md:px-6 md:py-12 ${(isBuyerRoute || isSupplierRoute) ? "pb-24 lg:pl-[calc(18rem+2.5rem)]" : ""}`}>
+      <main className={`px-4 py-8 md:px-6 md:py-12 ${isSupplierRoute ? "pb-24 lg:pl-[calc(18rem+2.5rem)]" : ""}`}>
         <div className="health-container space-y-5">
           <header className="analytics-card rounded-xl border border-[#dbe4ef] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
             <h1 className="text-2xl font-black tracking-[-0.03em] text-[#0f172a] md:text-3xl">

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 
-type BuyerSection = "dashboard" | "orders" | "rfqs" | "marketplace" | "analytics"
+type BuyerSection = "dashboard" | "orders" | "rfqs" | "marketplace"
 
 type BuyerSidebarProps = {
   active: BuyerSection
@@ -16,7 +16,6 @@ const navItems: Array<{ key: BuyerSection; href: string; label: string; glyph: s
   { key: "orders", href: "/buyer/orders", label: "Orders", glyph: "OR" },
   { key: "rfqs", href: "/buyer/rfq", label: "RFQs", glyph: "RF" },
   { key: "marketplace", href: "/buyer/products", label: "Marketplace", glyph: "MK" },
-  { key: "analytics", href: "/buyer/analytics", label: "Analytics", glyph: "AN" },
 ]
 
 const getProfileInitials = (value?: string | null) => {
@@ -192,17 +191,6 @@ function SidebarGlyphIcon({ label, className }: { label: string; className: stri
         <circle cx="9" cy="19" r="1.5" />
         <circle cx="18" cy="19" r="1.5" />
         <path d="M3 4h2l2.4 9.6a1 1 0 0 0 1 .8h9.7a1 1 0 0 0 1-.8L21 7H7" />
-      </svg>
-    )
-  }
-
-  if (label === "AN") {
-    return (
-      <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M4 19V9" />
-        <path d="M10 19V5" />
-        <path d="M16 19v-7" />
-        <path d="M22 19v-3" />
       </svg>
     )
   }
