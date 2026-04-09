@@ -786,9 +786,6 @@ function RfqPageContent() {
   const showCreateForm = userRole === "buyer" && (searchParams.get("view") !== "my" || editingRfqId !== null)
   const isBuyerRoute = pathname?.startsWith("/buyer") || userRole === "buyer"
   const isSupplierRoute = pathname?.startsWith("/supplier") || userRole === "supplier"
-  const currentAuthNext = encodeURIComponent(pathname || "/supplier/rfq")
-  const productsPath = isBuyerRoute ? "/buyer/products" : isSupplierRoute ? "/supplier/products" : `/login?next=${currentAuthNext}`
-  const ordersPath = isBuyerRoute ? "/buyer/orders" : isSupplierRoute ? "/supplier/orders" : `/login?next=${currentAuthNext}`
   const supplierRfqAuthNext = encodeURIComponent("/supplier/rfq")
 
   const filterTabs: Array<{ key: "all" | VendorRfq["status"]; label: string; count: number }> = [
@@ -815,55 +812,8 @@ function RfqPageContent() {
           onSignOut={signOut}
         />
       ) : null}
-      <main className={`py-8 md:py-12 ${(isBuyerRoute || isSupplierRoute) ? "pb-24 lg:pl-[calc(18rem+2.5rem)]" : ""}`}>
+      <main className={`rfq-experience-page py-8 md:py-12 ${(isBuyerRoute || isSupplierRoute) ? "pb-24 lg:pl-[calc(18rem+2.5rem)]" : ""}`}>
       <div className="health-container space-y-6">
-        <header className="glass-card pulse-entry rounded-[22px] p-6 md:p-8">
-          <p className="inline-flex rounded-full border border-[#dbe7ff] bg-[#edf3ff] px-3 py-1 text-xs font-semibold tracking-[0.1em] text-[#2563eb] uppercase">
-            B2B Procurement
-          </p>
-          <h1 className="mt-4 max-w-3xl text-5xl leading-tight font-extrabold md:text-6xl">RFQ and Tender Workspace</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)] md:text-base">
-            Buyers can raise institutional purchase requests, shortlist vendors, compare commercial bids,
-            award the requirement, and convert the approved quotation into a live order.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-4 text-sm text-[var(--text-muted)]">
-            <p>Signed in as: {username || "Guest"}</p>
-            <p>Role: {userRole || "Public Viewer"}</p>
-            {buyerType ? <p>Buyer Type: {buyerType}</p> : null}
-          </div>
-
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Link
-              href={productsPath}
-              className="rounded-xl border border-[#cdd9f4] bg-white px-4 py-3 text-sm font-semibold text-[#1e40af] transition hover:bg-[#f1f5ff]"
-            >
-              Marketplace
-            </Link>
-            <Link
-              href={ordersPath}
-              className="rounded-xl border border-[#cdd9f4] bg-white px-4 py-3 text-sm font-semibold text-[#1e40af] transition hover:bg-[#f1f5ff]"
-            >
-              Orders
-            </Link>
-            {userRole ? (
-              <button
-                type="button"
-                onClick={signOut}
-                className="rounded-xl border border-[#cdd9f4] bg-white px-4 py-3 text-sm font-semibold text-[#51617a] transition hover:bg-[#f7faff]"
-              >
-                Logout
-              </button>
-            ) : (
-              <Link
-                href={`/register?next=${supplierRfqAuthNext}`}
-                className="blue-btn px-4 py-3 text-sm"
-              >
-                Register to Respond
-              </Link>
-            )}
-          </div>
-        </header>
-
         <section>
           {showCreateForm ? (
             <article className="soft-panel rounded-[20px] p-5">
@@ -1358,7 +1308,7 @@ function RfqPageContent() {
                 <article
                   id={`rfq-${rfq.id}`}
                   key={rfq.id}
-                  className={`rounded-2xl border bg-white p-5 ${
+                  className={`rfq-record-card rounded-2xl border bg-white p-5 ${
                     recentlyPublishedRfqId === rfq.id ? "border-[#57a56d] shadow-[0_10px_26px_rgba(47,92,69,0.10)]" : "border-[#dbe8ea]"
                   }`}
                 >
@@ -1387,7 +1337,6 @@ function RfqPageContent() {
                       <p>Buyer: {rfq.buyer_company || rfq.buyer_name}</p>
                       <p>Institution Type: {formatBuyerType(rfq.buyer_type)}</p>
                       <p>Published: {formatDisplayDate(rfq.created_at)}</p>
-                      <p className="mt-2 font-semibold text-[#123f49]">{isExpanded ? "Hide details" : "View details"}</p>
                     </div>
                   </button>
 
@@ -1856,7 +1805,11 @@ function RfqPageContent() {
                   </div>
                     </>
                   ) : (
-                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#e0ecee] bg-[#fbfeff] px-4 py-3 text-sm text-[#48666f]">
+                    <button
+                      type="button"
+                      onClick={() => toggleRfqExpansion(rfq.id)}
+                      className="mt-4 flex w-full flex-wrap items-center justify-between gap-3 rounded-xl border border-[#e0ecee] bg-[#fbfeff] px-4 py-3 text-left text-sm text-[#48666f] hover:border-[#9db7f5] hover:bg-[#f8faff]"
+                    >
                       <p>
                         {rfq.quantity} units | {formatTenderType(rfq.tender_type)} | Quote due {formatDisplayDate(rfq.quote_deadline)}
                       </p>
@@ -1864,10 +1817,10 @@ function RfqPageContent() {
                         {rfq.status === "closed" || rfq.status === "awarded"
                           ? "Read-only record"
                           : userRole === "supplier"
-                            ? "Open to review"
-                            : "Expand to manage"}
+                            ? "View details"
+                            : "View details"}
                       </p>
-                    </div>
+                    </button>
                   )}
                 </article>
               )
@@ -1946,14 +1899,199 @@ function RfqPageContent() {
           </div>
         </div>
       ) : null}
+      <style jsx>{`
+        .rfq-experience-page {
+          position: relative;
+          overflow: hidden;
+        }
+
+        .rfq-experience-page::before {
+          content: "";
+          position: fixed;
+          inset: 0;
+          z-index: -1;
+          pointer-events: none;
+          background-image:
+            linear-gradient(rgba(15, 79, 182, 0.035) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(15, 79, 182, 0.035) 1px, transparent 1px),
+            radial-gradient(circle at 82% 18%, rgba(15, 79, 182, 0.08), transparent 28%),
+            radial-gradient(circle at 8% 82%, rgba(29, 114, 255, 0.06), transparent 30%);
+          background-size:
+            42px 42px,
+            42px 42px,
+            auto,
+            auto;
+          animation: rfq-grid-drift 18s linear infinite;
+        }
+
+        .rfq-experience-page :global(.soft-panel) {
+          position: relative;
+          overflow: hidden;
+          transform: translateZ(0);
+          box-shadow: 0 18px 48px rgba(15, 23, 42, 0.07);
+          animation: rfq-panel-rise 420ms ease both;
+        }
+
+        .rfq-experience-page :global(.soft-panel::before),
+        .rfq-record-card::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background: linear-gradient(110deg, transparent 0%, rgba(15, 79, 182, 0.045) 45%, transparent 74%);
+          opacity: 0;
+          transform: translateX(-45%);
+          transition:
+            opacity 220ms ease,
+            transform 760ms ease;
+        }
+
+        .rfq-experience-page :global(.soft-panel:hover::before),
+        .rfq-record-card:hover::before {
+          opacity: 1;
+          transform: translateX(45%);
+        }
+
+        .rfq-record-card {
+          position: relative;
+          overflow: hidden;
+          box-shadow: 0 10px 28px rgba(15, 23, 42, 0.045);
+          transition:
+            transform 220ms ease,
+            box-shadow 220ms ease,
+            border-color 220ms ease;
+          animation: rfq-panel-rise 460ms ease both;
+        }
+
+        .rfq-record-card:hover {
+          transform: translateY(-3px);
+          border-color: rgba(15, 79, 182, 0.24);
+          box-shadow: 0 22px 54px rgba(15, 23, 42, 0.1);
+        }
+
+        .rfq-record-card :global(button:first-child) {
+          position: relative;
+          z-index: 1;
+        }
+
+        .rfq-record-card :global(button:first-child::after) {
+          content: "";
+          position: absolute;
+          right: 0;
+          bottom: -10px;
+          left: 0;
+          height: 2px;
+          border-radius: 999px;
+          background: linear-gradient(90deg, transparent, rgba(15, 79, 182, 0.42), transparent);
+          opacity: 0;
+          transform: scaleX(0.35);
+          transition:
+            opacity 220ms ease,
+            transform 300ms ease;
+        }
+
+        .rfq-record-card:hover :global(button:first-child::after) {
+          opacity: 1;
+          transform: scaleX(1);
+        }
+
+        .rfq-experience-page :global(input),
+        .rfq-experience-page :global(select),
+        .rfq-experience-page :global(textarea) {
+          transition:
+            border-color 180ms ease,
+            box-shadow 180ms ease,
+            transform 180ms ease,
+            background-color 180ms ease;
+        }
+
+        .rfq-experience-page :global(input:focus),
+        .rfq-experience-page :global(select:focus),
+        .rfq-experience-page :global(textarea:focus) {
+          transform: translateY(-1px);
+          box-shadow: 0 0 0 4px rgba(15, 79, 182, 0.08);
+        }
+
+        .rfq-experience-page :global(.blue-btn),
+        .rfq-experience-page :global(button),
+        .rfq-experience-page :global(a) {
+          transition:
+            transform 180ms ease,
+            box-shadow 180ms ease,
+            background-color 180ms ease,
+            border-color 180ms ease,
+            color 180ms ease;
+        }
+
+        .rfq-experience-page :global(button:hover),
+        .rfq-experience-page :global(a:hover) {
+          transform: translateY(-1px);
+        }
+
+        .rfq-experience-page :global(table tbody tr) {
+          transition:
+            background-color 160ms ease,
+            transform 160ms ease;
+        }
+
+        .rfq-experience-page :global(table tbody tr:hover) {
+          transform: translateX(2px);
+          background-color: rgba(248, 251, 255, 0.92);
+        }
+
+        .rfq-experience-page :global(.rounded-full) {
+          transition:
+            transform 180ms ease,
+            box-shadow 180ms ease;
+        }
+
+        .rfq-record-card:hover :global(.rounded-full) {
+          transform: translateY(-1px);
+        }
+
+        @keyframes rfq-grid-drift {
+          from {
+            background-position:
+              0 0,
+              0 0,
+              0 0,
+              0 0;
+          }
+          to {
+            background-position:
+              42px 42px,
+              42px 42px,
+              0 0,
+              0 0;
+          }
+        }
+
+        @keyframes rfq-panel-rise {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
       </main>
     </>
   )
 }
 
 function MetricCard({ label, value }: { label: string; value: number | string }) {
+  const normalizedLabel = label.toLowerCase()
+  const tone = normalizedLabel.includes("active")
+    ? "border-[#d7e5ff] bg-[linear-gradient(135deg,#eef4ff_0%,#f8fbff_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_10px_24px_rgba(15,79,182,0.06)]"
+    : normalizedLabel.includes("listing")
+      ? "border-[#d8f3e5] bg-[linear-gradient(135deg,#ecfdf5_0%,#f8fffb_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_10px_24px_rgba(16,185,129,0.06)]"
+      : "border-[#fde7c7] bg-[linear-gradient(135deg,#fff7ed_0%,#fffdf8_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_10px_24px_rgba(245,158,11,0.06)]"
+
   return (
-    <div className="rounded-xl border border-[#e0e8f8] bg-[#f8faff] p-4">
+    <div className={`rounded-xl border p-4 ${tone}`}>
       <p className="text-xs font-semibold tracking-[0.08em] text-[#5b6b85] uppercase">{label}</p>
       <p className="mt-2 text-3xl font-extrabold text-[#0b1426]">{value}</p>
     </div>

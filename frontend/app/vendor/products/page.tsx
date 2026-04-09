@@ -10,7 +10,9 @@ import {
   getCurrentUser,
   isAuthSessionError,
   logoutUser,
+  createProduct,
   deleteProduct,
+  getApiErrorMessage,
   getProducts,
   updateProduct,
 } from "@/services"
@@ -30,7 +32,17 @@ export default function ProductsPage() {
   const [deleteTarget, setDeleteTarget] = useState<VendorProductService | null>(null)
   const [updating, setUpdating] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [creating, setCreating] = useState(false)
   const [actionMessage, setActionMessage] = useState<string>("")
+  const [createMessage, setCreateMessage] = useState<string>("")
+  const [createForm, setCreateForm] = useState({
+    name: "",
+    description: "",
+    product_type: "product" as "product" | "service",
+    price: "",
+    stock: "0",
+  })
   const [editForm, setEditForm] = useState({
     name: "",
     description: "",
@@ -106,6 +118,71 @@ export default function ProductsPage() {
 
   const isBuyerRoute = pathname?.startsWith("/buyer") || userRole === "buyer"
   const isSupplierRoute = pathname?.startsWith("/supplier") || userRole === "supplier"
+
+  const resetCreateForm = () => {
+    setCreateForm({
+      name: "",
+      description: "",
+      product_type: "product",
+      price: "",
+      stock: "0",
+    })
+  }
+
+  const openCreateModal = () => {
+    setActionMessage("")
+    setCreateMessage("")
+    resetCreateForm()
+    setShowCreateModal(true)
+  }
+
+  const closeCreateModal = () => {
+    if (creating) return
+    setShowCreateModal(false)
+    setCreateMessage("")
+    resetCreateForm()
+  }
+
+  const handleCreateProduct = async () => {
+    if (!createForm.name.trim() || !createForm.description.trim()) {
+      setCreateMessage("Name and description are required.")
+      return
+    }
+
+    const price = Number(createForm.price)
+    const stock = Number(createForm.stock)
+
+    if (!Number.isFinite(price) || price <= 0) {
+      setCreateMessage("Enter a valid price greater than 0.")
+      return
+    }
+
+    if (!Number.isInteger(stock) || stock < 0) {
+      setCreateMessage("Stock must be a non-negative integer.")
+      return
+    }
+
+    try {
+      setCreating(true)
+      setCreateMessage("")
+      const created = await createProduct({
+        name: createForm.name.trim(),
+        description: createForm.description.trim(),
+        product_type: createForm.product_type,
+        price,
+        stock,
+        is_active: true,
+      })
+      setProducts((prev) => [created, ...prev])
+      setShowCreateModal(false)
+      resetCreateForm()
+      setActionMessage("Product added to catalog.")
+    } catch (error) {
+      setCreateMessage(getApiErrorMessage(error, "Could not add product/service. Check inputs and try again."))
+    } finally {
+      setCreating(false)
+    }
+  }
 
   const startEditing = (product: VendorProductService) => {
     setActionMessage("")
@@ -264,29 +341,18 @@ export default function ProductsPage() {
       ) : null}
       <main className={`px-4 py-8 md:px-6 md:py-12 ${(isBuyerRoute || isSupplierRoute) ? "pb-24 lg:pl-[calc(18rem+2.5rem)]" : ""}`}>
       <div className="health-container space-y-6">
-        <header className="glass-card pulse-entry rounded-[22px] p-6 md:p-8">
-          <p className="inline-flex rounded-full border border-[#dbe7ff] bg-[#edf3ff] px-3 py-1 text-xs font-semibold tracking-[0.1em] text-[#2563eb] uppercase">
-            Healthcare Procurement
-          </p>
-          <h1 className="mt-4 max-w-3xl text-4xl font-extrabold leading-tight sm:text-5xl md:text-6xl">
-            Vendor Module
+        <header className="glass-card pulse-entry rounded-[18px] p-4 md:p-5">
+          <h1 className="max-w-full whitespace-nowrap text-2xl font-extrabold leading-tight tracking-[-0.03em] text-[#0f172a] md:text-3xl">
+            {userRole === "supplier" ? "Supplier Product Catalog Management" : "Vendor Module"}
           </h1>
-          <p className="mt-4 max-w-4xl text-base leading-7 text-[var(--text-muted)]">
-            Build and operate a verified medical marketplace with compliance-aware onboarding,
-            product and service listings, RFQ tendering, and complete B2B order lifecycle visibility.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-4 text-sm text-[var(--text-muted)]">
-            <p>Signed in as: {username || "..."}</p>
-            <p>Role: {userRole || "..."}</p>
-          </div>
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <StatCard label="Listings" value={stats.total} />
             <StatCard label="Active" value={stats.active} />
             <StatCard label="In Stock" value={stats.inStock} />
           </div>
 
-          <div className="mt-5 flex flex-wrap gap-3">
+          <div className="mt-4 flex flex-wrap gap-3">
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -308,20 +374,13 @@ export default function ProductsPage() {
               ))}
             </div>
             {userRole === "supplier" ? (
-              <>
-                <Link
-                  href="/supplier/rfq"
-                  className="rounded-xl border border-[#cdd9f4] bg-white px-4 py-3 text-sm font-semibold text-[#1e40af] transition hover:bg-[#f1f5ff]"
-                >
-                  Supplier RFQ Desk + PDFs
-                </Link>
-                <Link
-                  href="/supplier/products/new"
-                  className="blue-btn px-4 py-3 text-sm"
-                >
-                  Add Product or Service
-                </Link>
-              </>
+              <button
+                type="button"
+                onClick={openCreateModal}
+                className="blue-btn px-4 py-3 text-sm"
+              >
+                Add Product or Service
+              </button>
             ) : (
               <>
                 <Link
@@ -344,13 +403,15 @@ export default function ProductsPage() {
                 </Link>
               </>
             )}
-            <button
-              type="button"
-              onClick={signOut}
-              className="rounded-xl border border-[#cdd9f4] bg-white px-4 py-3 text-sm font-semibold text-[#51617a] transition hover:bg-[#f7faff]"
-            >
-              Logout
-            </button>
+            {userRole !== "supplier" ? (
+              <button
+                type="button"
+                onClick={signOut}
+                className="rounded-xl border border-[#cdd9f4] bg-white px-4 py-3 text-sm font-semibold text-[#51617a] transition hover:bg-[#f7faff]"
+              >
+                Logout
+              </button>
+            ) : null}
           </div>
         </header>
 
@@ -358,7 +419,6 @@ export default function ProductsPage() {
           {!isLoading && !error && userRole === "supplier" ? (
             <div className="mb-4">
               <h2 className="text-2xl font-bold">My Products & Services</h2>
-              <p className="text-sm text-[var(--text-muted)]">Manage your listed catalog items.</p>
             </div>
           ) : null}
           {actionMessage ? (
@@ -434,9 +494,6 @@ export default function ProductsPage() {
 
           {!isLoading && !error && userRole !== "buyer" && filteredProducts.length > 0 ? (
             <>
-              <div className="mb-4 rounded-2xl border border-[#e0e8f8] bg-[#f8faff] p-4 text-sm text-[#51617a]">
-                Tender PDF download is available in the <Link href="/supplier/rfq" className="font-semibold text-[#1d4ed8] underline-offset-4 hover:underline">Supplier RFQ Desk</Link> whenever a buyer attaches a tender document.
-              </div>
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {filteredProducts.map((product, index) => (
                   <article
@@ -595,6 +652,114 @@ export default function ProductsPage() {
                 className="rounded-lg bg-[#b91c1c] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
               >
                 {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {showCreateModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4">
+          <div className="w-full max-w-2xl rounded-2xl border border-[#d8e3f5] bg-white p-5 shadow-[0_24px_70px_rgba(16,35,74,0.24)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#0f4fb6]">Supplier Catalog</p>
+                <h2 className="mt-1 text-2xl font-black text-[#0f172a]">Add Product or Service</h2>
+              </div>
+              <button
+                type="button"
+                onClick={closeCreateModal}
+                disabled={creating}
+                className="rounded-lg border border-[#cdd9f4] bg-white px-3 py-2 text-sm font-semibold text-[#51617a] disabled:opacity-60"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              <label className="grid gap-1 text-sm md:col-span-2">
+                <span className="font-semibold text-[#0f172a]">Name</span>
+                <input
+                  value={createForm.name}
+                  onChange={(event) => setCreateForm((prev) => ({ ...prev, name: event.target.value }))}
+                  className="rounded-lg border border-[#cdd9f4] bg-white px-3 py-2 outline-none transition focus:border-[#0f4fb6]"
+                  placeholder="Oxygen cylinder, nebulizer..."
+                />
+              </label>
+
+              <label className="grid gap-1 text-sm md:col-span-2">
+                <span className="font-semibold text-[#0f172a]">Description</span>
+                <textarea
+                  value={createForm.description}
+                  onChange={(event) => setCreateForm((prev) => ({ ...prev, description: event.target.value }))}
+                  className="min-h-24 rounded-lg border border-[#cdd9f4] bg-white px-3 py-2 outline-none transition focus:border-[#0f4fb6]"
+                  placeholder="Add catalog details buyers should see"
+                  rows={3}
+                />
+              </label>
+
+              <label className="grid gap-1 text-sm">
+                <span className="font-semibold text-[#0f172a]">Type</span>
+                <select
+                  value={createForm.product_type}
+                  onChange={(event) =>
+                    setCreateForm((prev) => ({
+                      ...prev,
+                      product_type: event.target.value as "product" | "service",
+                    }))
+                  }
+                  className="rounded-lg border border-[#cdd9f4] bg-white px-3 py-2 outline-none transition focus:border-[#0f4fb6]"
+                >
+                  <option value="product">Product</option>
+                  <option value="service">Service</option>
+                </select>
+              </label>
+
+              <label className="grid gap-1 text-sm">
+                <span className="font-semibold text-[#0f172a]">Price (INR)</span>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={createForm.price}
+                  onChange={(event) => setCreateForm((prev) => ({ ...prev, price: event.target.value }))}
+                  className="rounded-lg border border-[#cdd9f4] bg-white px-3 py-2 outline-none transition focus:border-[#0f4fb6]"
+                />
+              </label>
+
+              <label className="grid gap-1 text-sm">
+                <span className="font-semibold text-[#0f172a]">Stock</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={createForm.stock}
+                  onChange={(event) => setCreateForm((prev) => ({ ...prev, stock: event.target.value }))}
+                  className="rounded-lg border border-[#cdd9f4] bg-white px-3 py-2 outline-none transition focus:border-[#0f4fb6]"
+                />
+              </label>
+            </div>
+
+            {createMessage ? (
+              <p className="mt-4 rounded-xl border border-[#f4caca] bg-[#fff7f7] px-4 py-3 text-sm font-semibold text-[#991b1b]">
+                {createMessage}
+              </p>
+            ) : null}
+
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={handleCreateProduct}
+                disabled={creating}
+                className="rounded-xl bg-[#0f4fb6] px-4 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(15,79,182,0.2)] transition hover:bg-[#0d46a3] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {creating ? "Saving..." : "Add to Catalog"}
+              </button>
+              <button
+                type="button"
+                onClick={closeCreateModal}
+                disabled={creating}
+                className="rounded-xl border border-[#cdd9f4] bg-white px-4 py-3 text-sm font-semibold text-[#51617a] disabled:opacity-60"
+              >
+                Cancel
               </button>
             </div>
           </div>

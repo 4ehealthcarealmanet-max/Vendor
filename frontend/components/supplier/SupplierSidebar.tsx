@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 
-type SupplierSection = "dashboard" | "rfqs" | "orders" | "supplies"
+type SupplierSection = "dashboard" | "rfqs" | "orders" | "supplies" | "analytics" | "settings"
 
 type SupplierSidebarProps = {
   active: SupplierSection
@@ -15,6 +15,7 @@ const navItems: Array<{ key: SupplierSection; href: string; label: string; glyph
   { key: "rfqs", href: "/supplier/rfq", label: "RFQs", glyph: "RF" },
   { key: "orders", href: "/supplier/orders", label: "Orders", glyph: "OR" },
   { key: "supplies", href: "/supplier/products", label: "Supplies", glyph: "MD" },
+  { key: "analytics", href: "/supplier/analytics", label: "Analytics", glyph: "AN" },
 ]
 
 const getProfileInitials = (value?: string | null) => {
@@ -27,7 +28,7 @@ export default function SupplierSidebar({ active, username, onSignOut }: Supplie
 
   return (
     <>
-      <aside className="fixed left-0 top-0 hidden h-screen w-[18rem] overflow-y-auto border-r border-[#e5ebf3] bg-[#f6f8fb]/95 pt-8 shadow-[0_18px_40px_rgba(15,23,42,0.04)] backdrop-blur lg:flex">
+      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-[18rem] overflow-y-auto border-r border-[#e5ebf3] bg-[#f6f8fb]/95 pt-8 shadow-[0_18px_40px_rgba(15,23,42,0.04)] backdrop-blur lg:flex">
         <div className="flex min-h-full flex-1 flex-col px-4 pb-8">
           <Link href="/supplier/dashboard" className="mb-8 flex items-center gap-3 px-2">
             <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#0f4fb6,#1d72ff)] text-white shadow-[0_18px_28px_rgba(15,79,182,0.2)]">
@@ -79,20 +80,16 @@ export default function SupplierSidebar({ active, username, onSignOut }: Supplie
             ))}
           </nav>
 
-          <Link
-            href="/supplier/rfq"
-            className="mt-8 inline-flex items-center justify-center gap-2 rounded-[1rem] bg-[linear-gradient(135deg,#0f4fb6,#1d72ff)] px-5 py-3.5 text-sm font-black text-white shadow-[0_18px_30px_rgba(15,79,182,0.22)] transition hover:shadow-[0_20px_36px_rgba(15,79,182,0.3)]"
-          >
-            <span className="text-base leading-none">+</span>
-            New Bid
-          </Link>
-
           <div className="mt-auto border-t border-[#e5ebf3] pt-6">
             <Link
-              href="/supplier/dashboard#settings"
-              className="flex items-center gap-4 rounded-xl px-4 py-3 text-sm font-bold text-[#64748b] transition hover:bg-white hover:text-[#0f172a]"
+              href="/supplier/settings"
+              className={`flex items-center gap-4 rounded-xl px-4 py-3 text-sm font-bold transition ${
+                active === "settings"
+                  ? "border border-[#dbe8ff] bg-white text-[#0f4fb6] shadow-[inset_4px_0_0_0_#0f4fb6]"
+                  : "text-[#64748b] hover:bg-white hover:text-[#0f172a]"
+              }`}
             >
-              <SidebarGlyph label="ST" tone="slate" />
+              <SidebarGlyph label="ST" tone={active === "settings" ? "blue" : "slate"} />
               Settings
             </Link>
             <Link
@@ -117,9 +114,7 @@ export default function SupplierSidebar({ active, username, onSignOut }: Supplie
       </aside>
 
       <nav className="fixed bottom-0 left-0 z-40 flex w-full items-center justify-around border-t border-white/80 bg-white/90 px-4 py-3 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
-        {navItems
-          .filter((item) => item.key !== "analytics")
-          .map((item) => (
+        {navItems.map((item) => (
             <Link
               key={item.key}
               href={item.href}
@@ -152,8 +147,8 @@ function SidebarGlyph({
         ? "bg-[#fff1e8] text-[#a93802]"
         : "bg-[#edf1f6] text-[#475569]"
 
-  const sizeClass = small ? "h-8 w-8" : "h-9 w-9"
-  const iconSize = small ? "h-3.5 w-3.5" : "h-4 w-4"
+  const sizeClass = small ? "h-7 w-7" : "h-8 w-8"
+  const iconSize = small ? "h-3 w-3" : "h-3.5 w-3.5"
 
   return (
     <span className={`inline-flex items-center justify-center rounded-xl ${palette} ${sizeClass}`}>

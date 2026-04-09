@@ -1,5 +1,5 @@
 import axios from "axios"
-import { AuthResponse, AuthUser, LoginInput, RegisterInput } from "./types"
+import { AuthResponse, AuthUser, LoginInput, RegisterInput, ResetPasswordInput, ResetPasswordResponse } from "./types"
 import { API_URLS } from "../utils/apiConfig"
 
 const TOKEN_KEY = "vendor_auth_token"
@@ -59,4 +59,16 @@ export const logoutUser = async () => {
       headers: { Authorization: `Token ${token}` },
     }
   )
+}
+
+export const resetPassword = async (data: ResetPasswordInput) => {
+  const token = getToken()
+  if (!token) {
+    throw new Error("Missing auth token")
+  }
+  const res = await axios.post<ResetPasswordResponse>(`${API_URLS.AUTH}/reset-password/`, data, {
+    headers: { Authorization: `Token ${token}` },
+  })
+  setToken(res.data.token)
+  return res.data
 }

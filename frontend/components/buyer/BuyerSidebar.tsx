@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 
-type BuyerSection = "dashboard" | "orders" | "rfqs" | "marketplace"
+type BuyerSection = "dashboard" | "orders" | "rfqs" | "marketplace" | "analytics"
 
 type BuyerSidebarProps = {
   active: BuyerSection
@@ -16,6 +16,7 @@ const navItems: Array<{ key: BuyerSection; href: string; label: string; glyph: s
   { key: "orders", href: "/buyer/orders", label: "Orders", glyph: "OR" },
   { key: "rfqs", href: "/buyer/rfq", label: "RFQs", glyph: "RF" },
   { key: "marketplace", href: "/buyer/products", label: "Marketplace", glyph: "MK" },
+  { key: "analytics", href: "/buyer/analytics", label: "Analytics", glyph: "AN" },
 ]
 
 const getProfileInitials = (value?: string | null) => {
@@ -38,7 +39,7 @@ export default function BuyerSidebar({
 
   return (
     <>
-      <aside className="fixed left-0 top-0 hidden h-screen w-[18rem] overflow-y-auto border-r border-white/70 bg-white/70 pt-24 shadow-[0_20px_50px_rgba(15,23,42,0.04)] backdrop-blur lg:flex">
+      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-[18rem] overflow-y-auto border-r border-white/70 bg-white/70 pt-24 shadow-[0_20px_50px_rgba(15,23,42,0.04)] backdrop-blur lg:flex">
         <div className="flex min-h-full flex-1 flex-col px-5 pb-8">
           <div className="mb-8 rounded-[1.5rem] border border-white/90 bg-white/70 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.04)]">
             <div className="flex items-center gap-4">
@@ -140,8 +141,8 @@ function SidebarGlyph({
         ? "bg-[#fff1e8] text-[#a93802]"
         : "bg-[#f2f4f7] text-[#475569]"
 
-  const sizeClass = small ? "h-8 w-8" : "h-9 w-9"
-  const iconSize = small ? "h-3.5 w-3.5" : "h-4 w-4"
+  const sizeClass = small ? "h-7 w-7" : "h-8 w-8"
+  const iconSize = small ? "h-3 w-3" : "h-3.5 w-3.5"
 
   return (
     <span className={`inline-flex items-center justify-center rounded-xl ${palette} ${sizeClass}`}>
@@ -191,6 +192,17 @@ function SidebarGlyphIcon({ label, className }: { label: string; className: stri
         <circle cx="9" cy="19" r="1.5" />
         <circle cx="18" cy="19" r="1.5" />
         <path d="M3 4h2l2.4 9.6a1 1 0 0 0 1 .8h9.7a1 1 0 0 0 1-.8L21 7H7" />
+      </svg>
+    )
+  }
+
+  if (label === "AN") {
+    return (
+      <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M4 19V9" />
+        <path d="M10 19V5" />
+        <path d="M16 19v-7" />
+        <path d="M22 19v-3" />
       </svg>
     )
   }

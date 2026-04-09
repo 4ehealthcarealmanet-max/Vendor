@@ -12,7 +12,7 @@ interface DashboardHeaderProps {
   onRefresh?: () => void
 }
 
-export default function DashboardHeader({ user, rfqs = [], products = [], onRefresh }: DashboardHeaderProps) {
+export default function DashboardHeader({ user, rfqs = [], products = [] }: DashboardHeaderProps) {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState("")
   const [searchResults, setSearchResults] = useState<(VendorRfq | VendorProductService)[]>([])
@@ -90,7 +90,7 @@ export default function DashboardHeader({ user, rfqs = [], products = [], onRefr
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[#e5e9f0]/50 bg-white/95 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-sm">
+    <header className="sticky top-0 z-30 border-b border-[#e5e9f0]/50 bg-white/95 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-sm lg:ml-[18rem]">
       <div className="flex items-center justify-between gap-6 px-6 py-4 md:px-8">
         {/* Search Bar */}
         <div ref={searchRef} className="relative flex-1 max-w-lg">
@@ -101,12 +101,11 @@ export default function DashboardHeader({ user, rfqs = [], products = [], onRefr
             </svg>
             <input
               type="text"
-              placeholder="Search RFQs, buyers, or products…"
+              placeholder="Search RFQs, buyers, or products..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onFocus={() => {
                 setShowSearch(true)
-                console.log("Search focused, term:", searchTerm)
               }}
               className="w-full border-0 bg-transparent text-sm text-[#1f2937] placeholder:text-[#a0aab8] outline-none font-medium"
             />
@@ -136,11 +135,10 @@ export default function DashboardHeader({ user, rfqs = [], products = [], onRefr
                     const itemName = isRfq ? (item as VendorRfq).title : (item as VendorProductService).name
                     
                     const handleNavigate = () => {
-                      console.log("Navigating to", isRfq ? "RFQ" : "Product", itemId, itemName)
-                    const searchQuery = encodeURIComponent(itemName)
-                    const url = isRfq 
-                      ? `/supplier/dashboard?search=${searchQuery}&focus=rfq&focusId=${itemId}`
-                      : `/supplier/dashboard?search=${searchQuery}&focus=product&focusId=${itemId}`
+                      const searchQuery = encodeURIComponent(itemName)
+                      const url = isRfq
+                        ? `/supplier/dashboard?search=${searchQuery}&focus=rfq&focusId=${itemId}`
+                        : `/supplier/dashboard?search=${searchQuery}&focus=product&focusId=${itemId}`
                       setTimeout(() => {
                         router.push(url)
                       }, 50)
