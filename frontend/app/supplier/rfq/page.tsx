@@ -1,1 +1,1 @@
-export { default } from "@/app/vendor/rfq/page"
+export { default } from "@/components/rfq/RfqWorkspacePage"

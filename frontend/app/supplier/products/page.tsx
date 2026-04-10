@@ -1,1 +1,1 @@
-export { default } from "@/app/vendor/products/page"
+export { default } from "@/components/products/ProductWorkspacePage"

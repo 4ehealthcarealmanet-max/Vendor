@@ -34,6 +34,7 @@ INSTALLED_APPS = [
 # MIDDLEWARE
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -66,12 +67,14 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 database_url = os.getenv("DATABASE_URL")
+use_remote_db = os.getenv("USE_REMOTE_DB", "False").lower() == "true"
 
 if database_url:
+    ssl_required = database_url.startswith(("postgres://", "postgresql://"))
     DATABASES = {
-        "default": dj_database_url.parse(database_url, conn_max_age=600, ssl_require=True),
+        "default": dj_database_url.parse(database_url, conn_max_age=600, ssl_require=ssl_required),
     }
-elif all(
+elif use_remote_db and all(
     os.getenv(key)
     for key in ("SUPABASE_DB", "SUPABASE_USER", "SUPABASE_PASSWORD", "SUPABASE_HOST", "SUPABASE_DB_PORT")
 ):
@@ -103,6 +106,11 @@ TIME_ZONE = 'UTC'
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -114,6 +122,17 @@ cors_allowed_origins = [
 
 CORS_ALLOW_ALL_ORIGINS = DEBUG and not cors_allowed_origins
 CORS_ALLOWED_ORIGINS = cors_allowed_origins
+
+csrf_trusted_origins = [
+    origin.strip()
+    for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
+CSRF_TRUSTED_ORIGINS = csrf_trusted_origins
+CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SECURE = not DEBUG
+SECURE_SSL_REDIRECT = os.getenv("DJANGO_SECURE_SSL_REDIRECT", "False").lower() == "true"
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

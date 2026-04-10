@@ -1,1 +1,1 @@
-export { default } from "@/app/vendor/products/new/page"
+export { default } from "@/components/supplier/SupplierNewProductPage"

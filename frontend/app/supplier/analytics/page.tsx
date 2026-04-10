@@ -1,1 +1,1 @@
-export { default } from "@/app/vendor/analytics/page"
+export { default } from "@/components/supplier/SupplierAnalyticsPage"

@@ -222,7 +222,7 @@ export default function BuyerDashboardPage() {
       await logoutUser()
     } finally {
       clearToken()
-      router.push("/login")
+      router.push("/")
     }
   }
 

@@ -8,7 +8,6 @@ import type { VendorRfq } from "@/services"
 import {
   buyerBenefits,
   formatCompactCurrency,
-  heroImage,
   lifecycleSteps,
   mapRfqToTender,
   marketplaceImage,

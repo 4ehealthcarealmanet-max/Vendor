@@ -1,18 +1,11 @@
+import type { CSSProperties } from "react"
 import type { Metadata } from "next"
-import { Inter, Manrope } from "next/font/google"
 import "./globals.css"
 
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-body",
-})
-
-const manrope = Manrope({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-display",
-})
+const fontVariables: CSSProperties = {
+  ["--font-body" as string]: '"Segoe UI", "Helvetica Neue", Arial, sans-serif',
+  ["--font-display" as string]: '"Aptos", "Trebuchet MS", "Segoe UI", sans-serif',
+}
 
 export const metadata: Metadata = {
   title: "MedVendor | Premium Healthcare Procurement Marketplace",
@@ -26,7 +19,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="scroll-smooth">
-      <body className={`${inter.variable} ${manrope.variable} antialiased`}>{children}</body>
+      <body className="antialiased" style={fontVariables}>{children}</body>
     </html>
   )
 }
