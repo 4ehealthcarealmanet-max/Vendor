@@ -29,6 +29,8 @@ Create a local env file before starting the app:
 NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 ```
 
+If you do not want to use env, open [services/utils/apiConfig.ts](/d:/Vendor/frontend/services/utils/apiConfig.ts) and set `MANUAL_API_BASE_URL`.
+
 Then open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 ## Vercel Deployment
@@ -49,6 +51,8 @@ Example:
 ```bash
 NEXT_PUBLIC_API_BASE_URL=https://your-backend-service.onrender.com
 ```
+
+You can also set the backend URL directly in [services/utils/apiConfig.ts](/d:/Vendor/frontend/services/utils/apiConfig.ts) by updating `MANUAL_API_BASE_URL`.
 
 Production command:
 
