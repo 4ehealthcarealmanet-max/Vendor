@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter
 from vendor.views.vendor_product_service_view import VendorProductServiceViewSet
 from vendor.views.vendor_order_view import VendorOrderViewSet
 from vendor.views.vendor_rfq_view import VendorRfqViewSet
-from vendor.views.auth_view import login_view, logout_view, me_view, register_view
+from vendor.views.auth_view import login_view, logout_view, me_view, register_view, reset_password_view
 
 router = DefaultRouter()
 
@@ -17,5 +17,6 @@ urlpatterns = [
     path("auth/login/", login_view),
     path("auth/me/", me_view),
     path("auth/logout/", logout_view),
+    path("auth/reset-password/", reset_password_view),
     path("", include(router.urls)),
 ]

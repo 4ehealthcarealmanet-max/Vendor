@@ -18,65 +18,6 @@ import type { AuthUser, VendorOrder, VendorProductService, VendorQuotation, Vend
 
 type Opportunity = { rfq: VendorRfq; matches: VendorProductService[] }
 type BidRow = { rfq: VendorRfq; quote: VendorQuotation }
-type FeedItem = {
-  id: string
-  title: string
-  detail: string
-  timestamp: string
-  tone: "blue" | "amber" | "slate"
-  icon: "rfq" | "bid" | "award" | "alert" | "catalog"
-}
-
-function KpiCard({
-  label,
-  value,
-  hint,
-  trend,
-  tone,
-  icon,
-}: {
-  label: string
-  value: string
-  hint: string
-  trend: number[]
-  tone: "blue" | "amber" | "slate"
-  icon: "trend" | "award" | "bid" | "truck" | "invoice"
-}) {
-  return (
-    <article className="group rounded-[1.6rem] border border-white/80 bg-white/90 p-5 shadow-[0_15px_40px_rgba(15,23,42,0.05)] transition hover:-translate-y-1">
-      <div className="flex items-start justify-between">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#98a2b3]">{label}</p>
-        <span className={`rounded-xl p-2 ${tone === "blue" ? "bg-[#eef4ff] text-[#0f4fb6]" : tone === "amber" ? "bg-[#fff1e8] text-[#a93802]" : "bg-[#edf1f6] text-[#475569]"}`}>
-          <Icon type={icon} className="h-4 w-4" />
-        </span>
-      </div>
-      <div className="mt-4">
-        <h3 className="font-[family-name:var(--font-display)] text-3xl font-black tracking-[-0.04em] text-[#0f172a]">{value}</h3>
-        <p className="mt-1 text-xs font-semibold text-[#64748b]">{hint}</p>
-      </div>
-      <div className="mt-4 flex h-9 items-end gap-1">
-        {trend.map((height, index) => (
-          <span key={`${label}-${index}-${height}`} className={`block w-full rounded-t-sm ${tone === "blue" ? "bg-[#0f4fb6]/18 group-hover:bg-[#0f4fb6]/30" : tone === "amber" ? "bg-[#f59e0b]/18 group-hover:bg-[#f59e0b]/30" : "bg-[#475569]/18 group-hover:bg-[#475569]/30"}`} style={{ height: `${height}%` }} />
-        ))}
-      </div>
-    </article>
-  )
-}
-
-function SignalRow({ item }: { item: FeedItem }) {
-  const bg = item.tone === "blue" ? "bg-[#eef4ff] text-[#0f4fb6]" : item.tone === "amber" ? "bg-[#fff1e8] text-[#a93802]" : "bg-[#edf1f6] text-[#475569]"
-  return (
-    <div className="flex gap-4">
-      <span className={`shrink-0 rounded-xl p-2 ${bg}`}>
-        <Icon type={item.icon} className="h-4 w-4" />
-      </span>
-      <div className="min-w-0">
-        <p className="text-sm font-bold text-[#0f172a]">{item.title}</p>
-        <p className="mt-1 text-xs text-[#94a3b8]">{relativeTime(item.timestamp)} | {item.detail}</p>
-      </div>
-    </div>
-  )
-}
 
 function Icon({
   type,
@@ -124,22 +65,6 @@ const shortDate = (value?: string | null) => {
   return parsed.toLocaleDateString("en-IN", { month: "short", day: "2-digit" })
 }
 
-const relativeTime = (value?: string | null) => {
-  if (!value) return "Just now"
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return value
-  const minutes = Math.round((parsed.getTime() - Date.now()) / 60_000)
-  const formatter = new Intl.RelativeTimeFormat("en", { numeric: "auto" })
-  if (Math.abs(minutes) < 60) return formatter.format(minutes, "minute")
-  const hours = Math.round(minutes / 60)
-  if (Math.abs(hours) < 24) return formatter.format(hours, "hour")
-  return formatter.format(Math.round(hours / 24), "day")
-}
-
-const initials = (value?: string | null) => {
-  const cleaned = (value ?? "").replace(/[^a-z0-9]/gi, "").slice(0, 2).toUpperCase()
-  return cleaned || "SP"
-}
 
 const rfqId = (id: number) => `RFQ-${new Date().getFullYear()}-${String(id).padStart(3, "0")}`
 
@@ -149,49 +74,6 @@ const matchesTitle = (rfqTitle: string, listingName: string) => {
   return Boolean(title && listing && (title.includes(listing) || listing.includes(title)))
 }
 
-const deadlineLabel = (value: string) => {
-  if (!value) return "Not set"
-  const deadline = new Date(value)
-  if (Number.isNaN(deadline.getTime())) return value
-  const diff = deadline.getTime() - Date.now()
-  if (diff <= 0) return "Closed"
-  const hours = Math.floor(diff / 3_600_000)
-  const minutes = Math.floor((diff % 3_600_000) / 60_000)
-  const days = Math.floor(diff / 86_400_000)
-  if (hours < 24) return `${hours}h ${minutes}m`
-  if (days < 7) return `${days} days`
-  return shortDate(value)
-}
-
-const spark = (values: number[], fallback: number[]) => {
-  const source = values.length > 0 ? values : fallback
-  const max = Math.max(...source, 1)
-  return source.map((value) => Math.min(100, Math.max(18, Math.round((value / max) * 68) + 24)))
-}
-
-const monthlyRevenue = (orders: VendorOrder[]) =>
-  Array.from({ length: 6 }, (_, index) => {
-    const date = new Date()
-    date.setMonth(date.getMonth() - (5 - index))
-    const key = `${date.getFullYear()}-${date.getMonth()}`
-    return {
-      key,
-      label: date.toLocaleDateString("en-IN", { month: "short" }).toUpperCase(),
-      total: orders.reduce((sum, order) => {
-        const created = new Date(order.created_at)
-        return `${created.getFullYear()}-${created.getMonth()}` === key ? sum + toNumber(order.total_amount) : sum
-      }, 0),
-    }
-  })
-
-const fulfillmentDays = (order: VendorOrder) => {
-  const endAt = order.goods_received_at || order.delivered_at
-  if (!endAt) return null
-  const start = new Date(order.created_at).getTime()
-  const end = new Date(endAt).getTime()
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null
-  return (end - start) / 86_400_000
-}
 
 const opportunityMatches = (rfq: VendorRfq, listings: VendorProductService[]) => {
   const live = listings.filter((item) => item.is_active && item.stock > 0 && item.product_type === rfq.product_type)
@@ -204,6 +86,30 @@ const bidStatus = (rfq: VendorRfq, quote: VendorQuotation) => {
   if (quote.status === "rejected") return { label: "Rejected", chip: "bg-[#fff1e8] text-[#a93802]", border: "border-l-[#f97316]" }
   if (rfq.status === "under_review") return { label: "Pending Review", chip: "bg-[#fff7e8] text-[#ad6a08]", border: "border-l-[#f59e0b]" }
   return { label: "Negotiating", chip: "bg-[#eef4ff] text-[#0f4fb6]", border: "border-l-[#0f4fb6]" }
+}
+
+const orderStageIndex = (order?: VendorOrder | null) => {
+  if (!order) return 0
+  if (order.status === "cancelled") return 0
+  if (order.status === "completed" || order.status === "goods_received" || order.delivery_status === "delivered") return 3
+  if (order.status === "shipped" || order.status === "delivered" || order.delivery_status === "in_transit" || order.delivery_status === "out_for_delivery") return 2
+  if (order.status === "processing" || order.status === "ready_to_dispatch" || order.status === "po_accepted" || order.delivery_status === "loaded") return 1
+  return 0
+}
+
+const orderStatusLabel = (order?: VendorOrder | null) => {
+  if (!order) return "No active order"
+  if (order.status === "cancelled") return "Cancelled"
+  if (order.status === "completed" || order.status === "goods_received" || order.delivery_status === "delivered") return "Delivered"
+  if (order.status === "shipped" || order.status === "delivered" || order.delivery_status === "in_transit" || order.delivery_status === "out_for_delivery") return "Shipped"
+  if (order.status === "processing" || order.status === "ready_to_dispatch" || order.status === "po_accepted" || order.delivery_status === "loaded") return "Processing"
+  return "Order Placed"
+}
+
+const orderStatusDetail = (order?: VendorOrder | null) => {
+  if (!order) return "New purchase orders will appear here."
+  if (order.tracking_note) return order.tracking_note
+  return `Payment ${order.payment_status.replaceAll("_", " ")}`
 }
 
 export default function SupplierDashboardPage() {
@@ -285,8 +191,6 @@ export default function SupplierDashboardPage() {
     [products, user?.username]
   )
 
-  const stockReady = useMemo(() => supplierProducts.filter((item) => item.is_active && item.stock > 0), [supplierProducts])
-  const lowStock = useMemo(() => stockReady.filter((item) => item.stock <= 10), [stockReady])
   const supplierVendorId = supplierProducts[0]?.vendor ?? null
   const supplierCompany = supplierProducts[0]?.vendor_company_name?.trim().toLowerCase() ?? ""
 
@@ -336,61 +240,29 @@ export default function SupplierDashboardPage() {
   )
 
   const totalRevenue = useMemo(() => orders.reduce((sum, order) => sum + toNumber(order.total_amount), 0), [orders])
-  const wonBids = useMemo(() => bidRows.filter((item) => item.quote.status === "awarded" || item.rfq.awarded_quote_id === item.quote.id), [bidRows])
   const activeBids = useMemo(() => bidRows.filter((item) => item.quote.status !== "rejected"), [bidRows])
-  const pendingReview = useMemo(() => activeBids.filter((item) => item.rfq.status === "under_review").length, [activeBids])
-  const outstandingOrders = useMemo(() => orders.filter((order) => order.payment_status !== "paid"), [orders])
-  const outstandingAmount = useMemo(() => outstandingOrders.reduce((sum, order) => sum + toNumber(order.total_amount), 0), [outstandingOrders])
-  const completedDurations = useMemo(() => orders.map((order) => fulfillmentDays(order)).filter((value): value is number => value !== null), [orders])
-  const avgFulfillment = useMemo(() => (completedDurations.length > 0 ? completedDurations.reduce((sum, value) => sum + value, 0) / completedDurations.length : 0), [completedDurations])
-  const winRate = bidRows.length === 0 ? 0 : Math.round((wonBids.length / bidRows.length) * 1000) / 10
-  const alerts = pendingReview + lowStock.length + outstandingOrders.length
-  const periods = useMemo(() => monthlyRevenue(orders), [orders])
-  const periodBars = useMemo(() => spark(periods.map((period) => period.total), [24000, 42000, 36000, 76000, 98000, 88000]), [periods])
 
-  const insight = useMemo(() => {
-    if (opportunities.length > 0) {
-      const name = opportunities[0].matches[0]?.name || "your catalog"
-      const urgent = opportunities.filter((item) => {
-        const deadline = new Date(item.rfq.quote_deadline).getTime()
-        return Number.isFinite(deadline) && deadline - Date.now() <= 7 * 86_400_000
-      }).length
-      return `High demand for ${name} across ${opportunities.length} live opportunities. ${urgent} close within the next seven days.`
-    }
-    if (stockReady.length > 0) {
-      return `Your ${stockReady.length} live listings are visible. Keep prices and stock updated to stay competitive when the next RFQ opens.`
-    }
-    return "Add active product or service listings to unlock supplier-side opportunity matching and smarter bid suggestions."
-  }, [opportunities, stockReady])
-
-  const feed = useMemo<FeedItem[]>(() => {
-    const nextItems: FeedItem[] = []
-    opportunities.slice(0, 2).forEach((item) => {
-      nextItems.push({ id: `opp-${item.rfq.id}`, title: `New RFQ from ${item.rfq.buyer_company || item.rfq.buyer_name}`, detail: `${rfqId(item.rfq.id)} | ${item.rfq.title}`, timestamp: item.rfq.created_at, tone: "blue", icon: "rfq" })
-    })
-    bidRows.slice(0, 2).forEach((item) => {
-      nextItems.push({ id: `bid-${item.rfq.id}-${item.quote.id}`, title: item.quote.status === "awarded" ? `Awarded: ${rfqId(item.rfq.id)}` : `Bid submitted for ${item.rfq.title}`, detail: `${item.rfq.buyer_company || item.rfq.buyer_name} | ${money(item.quote.unit_price)}`, timestamp: item.quote.created_at, tone: item.quote.status === "awarded" ? "amber" : "slate", icon: item.quote.status === "awarded" ? "award" : "bid" })
-    })
-    if (lowStock[0]) nextItems.push({ id: `stock-${lowStock[0].id}`, title: `Inventory alert for ${lowStock[0].name}`, detail: `${lowStock[0].stock} units currently available`, timestamp: new Date().toISOString(), tone: "slate", icon: "catalog" })
-    if (outstandingOrders[0]) nextItems.push({ id: `outstanding-${outstandingOrders[0].id}`, title: `Payment follow-up on order #${outstandingOrders[0].id}`, detail: `${outstandingOrders[0].payment_status.replaceAll("_", " ")} | ${money(toNumber(outstandingOrders[0].total_amount))}`, timestamp: outstandingOrders[0].created_at, tone: "amber", icon: "alert" })
-    return nextItems.sort((left, right) => new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime())
-  }, [bidRows, lowStock, opportunities, outstandingOrders])
 
   const query = deferredSearch.trim().toLowerCase()
   const shownOpportunities = useMemo(() => (query ? opportunities.filter((item) => [item.rfq.title, item.rfq.buyer_company || item.rfq.buyer_name, item.rfq.delivery_location].join(" ").toLowerCase().includes(query)) : opportunities), [opportunities, query])
   const shownBids = useMemo(() => (query ? activeBids.filter((item) => [item.rfq.title, item.rfq.buyer_company || item.rfq.buyer_name, rfqId(item.rfq.id)].join(" ").toLowerCase().includes(query)) : activeBids), [activeBids, query])
-  const shownFeed = useMemo(() => (query ? feed.filter((item) => `${item.title} ${item.detail}`.toLowerCase().includes(query)).slice(0, 4) : feed.slice(0, 4)), [feed, query])
+  const activeSupplierRfqs = useMemo(
+    () => visibleRfqs.filter((rfq) => rfq.status === "open" || rfq.status === "under_review"),
+    [visibleRfqs]
+  )
+  const pendingShipments = useMemo(
+    () => orders.filter((order) => !["completed", "cancelled", "goods_received"].includes(order.status) && order.delivery_status !== "delivered"),
+    [orders]
+  )
+  const currentOrder = useMemo(
+    () =>
+      [...orders]
+        .filter((order) => order.status !== "cancelled")
+        .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())[0] ?? null,
+    [orders]
+  )
+  const currentOrderStage = orderStageIndex(currentOrder)
 
-  const exportSnapshot = () => {
-    if (!user) return
-    const blob = new Blob([JSON.stringify({ generated_at: new Date().toISOString(), supplier: user, metrics: { total_revenue: totalRevenue, win_rate: winRate, active_bids: activeBids.length, average_fulfillment_days: avgFulfillment, outstanding_amount: outstandingAmount, live_opportunities: opportunities.length }, products: supplierProducts, orders, rfqs: visibleRfqs }, null, 2)], { type: "application/json" })
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement("a")
-    anchor.href = url
-    anchor.download = `supplier-dashboard-${user.username}-${new Date().toISOString().slice(0, 10)}.json`
-    anchor.click()
-    URL.revokeObjectURL(url)
-  }
 
   if (loading) return <main className="min-h-screen bg-[#f7f9fb] px-6 py-10 text-[#191c1e]"><div className="mx-auto max-w-7xl rounded-[2rem] border border-white/70 bg-white/80 p-8 text-sm font-semibold text-[#617084] shadow-[0_25px_60px_rgba(15,23,42,0.08)]">Loading supplier command center...</div></main>
 
@@ -398,7 +270,7 @@ export default function SupplierDashboardPage() {
 
   return (
     <div
-      className="min-h-screen bg-[#f7f9fb] text-[#191c1e]"
+      className="supplier-dashboard-root min-h-screen bg-[#f7f9fb] text-[#191c1e]"
       style={{
         backgroundImage:
           "radial-gradient(at 0% 0%, rgba(0,86,210,0.04) 0px, transparent 45%), radial-gradient(at 100% 0%, rgba(213,227,252,0.08) 0px, transparent 45%), radial-gradient(at 100% 100%, rgba(178,197,255,0.08) 0px, transparent 45%), radial-gradient(at 0% 100%, rgba(242,244,246,0.08) 0px, transparent 45%)",
@@ -409,92 +281,91 @@ export default function SupplierDashboardPage() {
 
       <main className="px-4 py-8 pb-24 sm:px-6 lg:pl-[calc(18rem+2.5rem)] lg:pr-10 lg:py-10">
         <div className="mx-auto max-w-7xl">
-          <section className="mb-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-              <h1 className="font-[family-name:var(--font-display)] text-4xl font-black tracking-[-0.04em] text-[#0f172a] md:text-5xl">Performance Ledger</h1>
-              <p className="mt-3 max-w-2xl text-base leading-7 text-[#657286]">
-                Track revenue, bid velocity, fulfillment reliability, and buyer demand using your actual supplier catalog, RFQs, and live orders.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <button type="button" onClick={exportSnapshot} className="inline-flex items-center gap-2 rounded-[1rem] border border-[#e5e9f0] bg-white px-5 py-3 text-sm font-bold text-[#0f172a] shadow-sm transition hover:bg-[#f8fafc]">
-                <Icon type="download" className="h-4 w-4" />
-                Export PDF
-              </button>
-              <Link href="/supplier/rfq" className="inline-flex items-center gap-2 rounded-[1rem] bg-[linear-gradient(135deg,#0f4fb6,#1d72ff)] px-5 py-3 text-sm font-bold text-white shadow-[0_18px_30px_rgba(15,79,182,0.18)] transition hover:shadow-[0_20px_36px_rgba(15,79,182,0.26)]">
-                View Full Audit
-              </Link>
-            </div>
-          </section>
-
-          <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-            <KpiCard label="Total Revenue" value={compactMoney(totalRevenue)} hint={`${orders.length} orders billed`} trend={spark(orders.slice(0, 7).map((item) => toNumber(item.total_amount)), [18, 26, 32, 48, 62, 80, 90])} tone="blue" icon="trend" />
-            <KpiCard label="Win Rate" value={`${winRate.toFixed(1)}%`} hint={`${wonBids.length} awards secured`} trend={spark(bidRows.slice(0, 7).map((item) => (item.quote.status === "awarded" ? 10 : 6)), [5, 7, 8, 6, 9, 8, 10])} tone="slate" icon="award" />
-            <KpiCard label="Active Bids" value={String(activeBids.length)} hint={`${pendingReview} pending review`} trend={spark(activeBids.slice(0, 7).map((item) => item.rfq.quantity || 1), [8, 10, 12, 11, 13, 15, 14])} tone="amber" icon="bid" />
-            <KpiCard label="Avg Fulfillment" value={`${avgFulfillment.toFixed(1)} days`} hint={`${completedDurations.length} delivered orders`} trend={spark(completedDurations.slice(0, 7).map((value) => Math.max(1, 10 - value)), [4, 5, 6, 7, 8, 8, 9])} tone="blue" icon="truck" />
-            <KpiCard label="Outstanding" value={compactMoney(outstandingAmount)} hint={`${outstandingOrders.length} invoices open`} trend={spark(outstandingOrders.slice(0, 7).map((item) => toNumber(item.total_amount)), [12000, 18000, 15000, 21000, 19000, 16000, 14000])} tone="slate" icon="invoice" />
-          </section>
-
-          <section className="mt-10 grid grid-cols-1 gap-8 xl:grid-cols-12">
-            <div className="space-y-8 xl:col-span-8">
-              <article className="overflow-hidden rounded-[1.8rem] border border-white/80 bg-white/90 shadow-[0_20px_50px_rgba(15,23,42,0.06)]">
-                <div className="flex flex-col gap-3 border-b border-[#eef2f6] bg-[#f6f8fb] px-6 py-5 md:flex-row md:items-center md:justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-xl bg-[#eef4ff] p-2 text-[#0f4fb6]"><Icon type="rfq" className="h-4 w-4" /></div>
-                    <div>
-                      <h2 className="font-[family-name:var(--font-display)] text-lg font-black text-[#0f172a]">New Opportunities</h2>
-                      <p className="text-xs font-medium text-[#94a3b8]">Live RFQs that match your active catalog and open supplier window.</p>
-                    </div>
-                  </div>
-                  <span className="inline-flex rounded-md bg-[#0f4fb6] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white">Matching Catalog</span>
+          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <article className="rounded-[1.15rem] border border-[#e5e9f0] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+              <div className="flex items-center gap-4">
+                <span className="rounded-full bg-[#eef4ff] p-3 text-[#0f4fb6]"><Icon type="invoice" className="h-6 w-6" /></span>
+                <div>
+                  <p className="text-sm font-bold text-[#475569]">Total Orders</p>
+                  <p className="mt-1 text-3xl font-black text-[#0f172a]">{orders.length}</p>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-left">
-                    <thead className="border-b border-[#eef2f6] bg-[#fbfcfe]">
+              </div>
+            </article>
+            <article className="rounded-[1.15rem] border border-[#e5e9f0] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+              <div className="flex items-center gap-4">
+                <span className="rounded-full bg-[#eef4ff] p-3 text-[#0f4fb6]"><Icon type="search" className="h-6 w-6" /></span>
+                <div>
+                  <p className="text-sm font-bold text-[#475569]">Active RFQs</p>
+                  <p className="mt-1 text-3xl font-black text-[#0f172a]">{activeSupplierRfqs.length}</p>
+                </div>
+              </div>
+            </article>
+            <article className="rounded-[1.15rem] border border-[#e5e9f0] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+              <div className="flex items-center gap-4">
+                <span className="rounded-full bg-[#eef4ff] p-3 text-[#0f4fb6]"><Icon type="truck" className="h-6 w-6" /></span>
+                <div>
+                  <p className="text-sm font-bold text-[#475569]">Pending Shipments</p>
+                  <p className="mt-1 text-3xl font-black text-[#0f172a]">{pendingShipments.length}</p>
+                </div>
+              </div>
+            </article>
+            <article className="rounded-[1.15rem] border border-[#e5e9f0] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+              <div className="flex items-center gap-4">
+                <span className="rounded-full bg-[#eef4ff] p-3 text-[#0f4fb6]"><Icon type="trend" className="h-6 w-6" /></span>
+                <div>
+                  <p className="text-sm font-bold text-[#475569]">Revenue</p>
+                  <p className="mt-1 text-3xl font-black text-[#0f172a]">{compactMoney(totalRevenue)}</p>
+                </div>
+              </div>
+            </article>
+          </section>
+
+          <section className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)]">
+              <article className="overflow-hidden rounded-[1.15rem] border border-[#e5e9f0] bg-white shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+                <div className="px-5 py-5">
+                  <h2 className="text-xl font-black text-[#0f172a]">Recent RFQs for You</h2>
+                </div>
+                <div className="overflow-x-auto px-5 pb-5">
+                  <table className="min-w-full overflow-hidden rounded-xl text-left">
+                    <thead className="bg-[#f6f8fb]">
                       <tr>
-                        <th className="px-6 py-3 text-[10px] font-black uppercase tracking-[0.16em] text-[#94a3b8]">Hospital / Clinic</th>
-                        <th className="px-6 py-3 text-[10px] font-black uppercase tracking-[0.16em] text-[#94a3b8]">Requirements</th>
-                        <th className="px-6 py-3 text-right text-[10px] font-black uppercase tracking-[0.16em] text-[#94a3b8]">Est. Value</th>
-                        <th className="px-6 py-3 text-[10px] font-black uppercase tracking-[0.16em] text-[#94a3b8]">Deadline</th>
-                        <th className="px-6 py-3 text-right text-[10px] font-black uppercase tracking-[0.16em] text-[#94a3b8]">Action</th>
+                        <th className="px-4 py-3 text-xs font-black text-[#94a3b8]">Facility Name</th>
+                        <th className="px-4 py-3 text-xs font-black text-[#94a3b8]">Requirements</th>
+                        <th className="px-4 py-3 text-xs font-black text-[#94a3b8]">Due Date</th>
+                        <th className="px-4 py-3 text-xs font-black text-[#94a3b8]">Status</th>
+                        <th className="px-4 py-3 text-right text-xs font-black text-[#94a3b8]">Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#f1f5f9]">
-                      {shownOpportunities.slice(0, 4).map((item) => (
-                        <tr 
-                          key={item.rfq.id} 
+                    <tbody className="divide-y divide-[#eef2f2] text-sm">
+                      {shownOpportunities.slice(0, 5).map((item) => (
+                        <tr
+                          key={item.rfq.id}
                           id={`opportunity-${item.rfq.id}`}
-                          className={`group hover:bg-[#fbfcff] transition ${focusId === item.rfq.id ? "bg-blue-50 ring-2 ring-[#0f4fb6]" : ""}`}
+                          className={`transition hover:bg-[#fbfcff] ${focusId === item.rfq.id ? "bg-[#eef4ff] ring-2 ring-[#0f4fb6]" : ""}`}
                         >
-                          <td className="px-6 py-4">
-                            <p className="font-bold text-[#0f172a]">{item.rfq.buyer_company || item.rfq.buyer_name}</p>
-                            <p className="text-xs text-[#94a3b8]">{item.rfq.buyer_type ? `${item.rfq.buyer_type} buyer` : "Institution"}</p>
+                          <td className="px-4 py-3 font-bold text-[#0f172a]">{item.rfq.buyer_company || item.rfq.buyer_name}</td>
+                          <td className="px-4 py-3 text-[#0f172a]">
+                            <p className="font-semibold">{item.rfq.title}</p>
+                            <p className="mt-1 text-xs text-[#64748b]">{item.matches.map((listing) => listing.name).join(", ")}</p>
                           </td>
-                          <td className="px-6 py-4">
-                            <div className="flex flex-wrap gap-1.5">
-                              {item.matches.map((listing) => (
-                                <span key={listing.id} className="rounded-md bg-[#dbe8ff] px-2 py-0.5 text-[10px] font-semibold text-[#3a485b]">{listing.name}</span>
-                              ))}
-                            </div>
-                            <p className="mt-2 text-xs text-[#64748b]">{item.rfq.title}</p>
+                          <td className="px-4 py-3 font-semibold text-[#0f172a]">{shortDate(item.rfq.quote_deadline)}</td>
+                          <td className="px-4 py-3">
+                            <span className="rounded-full bg-[#dbe8ff] px-3 py-1 text-xs font-black text-[#0f4fb6]">Live</span>
                           </td>
-                          <td className="px-6 py-4 text-right font-bold text-[#0f172a]">{money(item.rfq.target_budget)}</td>
-                          <td className="px-6 py-4 text-xs font-bold text-[#475569]">{deadlineLabel(item.rfq.quote_deadline)}</td>
-                          <td className="px-6 py-4 text-right">
+                          <td className="px-4 py-3 text-right">
                             <button
-                              onClick={() => {
-                                router.push(`/supplier/rfq?rfqId=${item.rfq.id}`)
-                              }}
-                              className="inline-flex rounded-lg bg-[linear-gradient(135deg,#0f4fb6,#1d72ff)] px-3 py-1.5 text-xs font-bold text-white hover:shadow-lg transition cursor-pointer"
+                              type="button"
+                              onClick={() => router.push(`/supplier/rfq?rfqId=${item.rfq.id}`)}
+                              className="rounded-lg bg-[#0f4fb6] px-4 py-2 text-xs font-black text-[#ffffff] transition hover:bg-[#0d4299]"
                             >
-                              Review and Bid
+                              Submit Quote
                             </button>
                           </td>
                         </tr>
                       ))}
                       {shownOpportunities.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="px-6 py-10 text-center text-sm text-[#64748b]">No matching opportunities found right now. Add more active listings or adjust search keywords.</td>
+                          <td colSpan={5} className="px-4 py-10 text-center text-sm text-[#64748b]">No matching live RFQs right now. Add active catalog items to improve matches.</td>
                         </tr>
                       ) : null}
                     </tbody>
@@ -502,7 +373,60 @@ export default function SupplierDashboardPage() {
                 </div>
               </article>
 
-              <article id="bid-tracker" className="rounded-[1.8rem] border border-white/80 bg-white/90 p-6 shadow-[0_20px_50px_rgba(15,23,42,0.06)]">
+              <article className="rounded-[1.15rem] border border-[#e5e9f0] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+                <h2 className="text-xl font-black text-[#0f172a]">Current Order Status</h2>
+                <div className="mt-5 rounded-xl bg-[#f6f8fb] px-4 py-3">
+                  <p className="text-xs font-black text-[#475569]">Order #{currentOrder ? `ORD-${currentOrder.id}` : "None"}</p>
+                </div>
+                <div className="mt-7">
+                  <div className="relative px-1 pt-14">
+                    <div
+                      className="order-truck absolute top-0 z-20 flex items-center justify-center rounded-xl border border-[#c9d9ff] bg-[#dbe8ff] px-2 py-1 text-[#0f4fb6] shadow-[0_12px_28px_rgba(15,79,182,0.22)] transition-[left,transform] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                      style={{
+                        left: `${currentOrderStage * 33.333}%`,
+                        transform:
+                          currentOrderStage === 0
+                            ? "translateX(0)"
+                            : currentOrderStage === 3
+                              ? "translateX(-100%)"
+                              : "translateX(-50%)",
+                      }}
+                      aria-label={`Current stage: ${orderStatusLabel(currentOrder)}`}
+                    >
+                      <Icon type="truck" className="h-7 w-7" />
+                    </div>
+                    <div className="relative flex items-start justify-between">
+                      <div className="order-road-track absolute left-4 right-4 top-4 h-2 rounded-full" />
+                      <div className="order-road-progress absolute left-4 top-4 h-2 rounded-full transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ width: `${currentOrderStage * 33}%` }} />
+                      {["Order Placed", "Processing", "Shipped", "Delivered"].map((label, index) => (
+                        <div key={label} className="relative z-10 flex w-16 flex-col items-center text-center">
+                          <span className={`order-stage-dot flex h-8 w-8 items-center justify-center rounded-full border-4 border-white ${index <= currentOrderStage ? "is-active bg-[#0f4fb6] text-white" : "bg-[#e5e9f0] text-[#94a3b8]"}`}>
+                            {index === currentOrderStage ? (
+                              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <path d="m6 12 4 4 8-8" />
+                              </svg>
+                            ) : null}
+                          </span>
+                          <span className="mt-2 text-xs font-semibold leading-4 text-[#0f172a]">{label}</span>
+                          {index === currentOrderStage ? (
+                            <span className="mt-1 text-xs font-bold leading-4 text-[#0f4fb6]">{orderStatusLabel(currentOrder)}</span>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mt-6 rounded-xl border border-[#e5e9f0] bg-[#fbfcff] p-4 text-center">
+                    <p className="font-black text-[#0f4fb6]">{orderStatusLabel(currentOrder)}</p>
+                    <p className="mt-1 text-sm leading-6 text-[#64748b]">{orderStatusDetail(currentOrder)}</p>
+                    {currentOrder ? <p className="mt-2 text-xs font-semibold text-[#64748b]">Updated {shortDate(currentOrder.goods_received_at || currentOrder.delivered_at || currentOrder.shipped_at || currentOrder.created_at)}</p> : null}
+                  </div>
+                </div>
+              </article>
+
+          </section>
+
+          <section className="mt-5">
+              <article id="bid-tracker" className="rounded-[1.15rem] border border-[#e5e9f0] bg-white p-6 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
                 <div className="mb-5 flex items-center gap-3">
                   <div className="rounded-xl bg-[#eef4ff] p-2 text-[#0f4fb6]"><Icon type="bid" className="h-4 w-4" /></div>
                   <div>
@@ -514,7 +438,7 @@ export default function SupplierDashboardPage() {
                   {shownBids.slice(0, 3).map((item) => {
                     const state = bidStatus(item.rfq, item.quote)
                     return (
-                      <div key={`${item.rfq.id}-${item.quote.id}`} className={`flex flex-col gap-4 rounded-[1.25rem] border-l-4 bg-[#f8fafc] p-4 md:flex-row md:items-center md:justify-between ${state.border}`}>
+                      <div key={`${item.rfq.id}-${item.quote.id}`} className={`flex flex-col gap-4 rounded-xl border-l-4 bg-[#fbfcff] p-4 md:flex-row md:items-center md:justify-between ${state.border}`}>
                         <div className="flex items-center gap-4">
                           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-sm font-black text-[#0f4fb6] shadow-sm">Q-{String(item.quote.id).padStart(2, "0")}</div>
                           <div>
@@ -536,80 +460,141 @@ export default function SupplierDashboardPage() {
                   {shownBids.length === 0 ? <div className="rounded-[1.25rem] border border-dashed border-[#dbe4ef] bg-[#f8fafc] px-5 py-8 text-sm text-[#64748b]">No active bids matched your current search. Open the RFQ desk to respond to new opportunities.</div> : null}
                 </div>
               </article>
-            </div>
-
-            <div className="space-y-8 xl:col-span-4">
-              <article className="rounded-[1.8rem] border border-white/80 bg-white/90 p-6 shadow-[0_20px_50px_rgba(15,23,42,0.06)]">
-                <h2 className="font-[family-name:var(--font-display)] text-lg font-black text-[#0f172a]">Revenue Trajectory</h2>
-                <div className="relative mt-6 flex h-40 items-end justify-between gap-3 px-2">
-                  {periodBars.map((height, index) => (
-                    <div key={`${periods[index]?.key}-${height}`} className="flex h-full flex-1 items-end">
-                      <span className={`block w-full rounded-t-[0.65rem] ${index === periodBars.length - 2 ? "bg-[linear-gradient(180deg,#0f4fb6,#1d72ff)]" : index === periodBars.length - 1 ? "bg-[#7db0ff]" : "bg-[#e8eef7]"}`} style={{ height: `${height}%` }} />
-                    </div>
-                  ))}
-                  <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 240 120" aria-hidden="true"><path d="M8,88 C44,82 68,68 96,54 S154,28 232,22" fill="none" stroke="#0f4fb6" strokeWidth="2.2" /></svg>
-                </div>
-                <div className="mt-5 flex items-center justify-between px-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#94a3b8]">
-                  {periods.map((period) => <span key={period.key} className={period.total > 0 ? "text-[#0f4fb6]" : ""}>{period.label}</span>)}
-                </div>
-              </article>
-
-              <article className="relative overflow-hidden rounded-[1.8rem] bg-[#dbe8ff] p-6">
-                <h2 className="font-[family-name:var(--font-display)] text-lg font-black text-[#0f172a]">Market Insight</h2>
-                <p className="mt-3 text-sm leading-7 text-[#4b5d73]">{insight}</p>
-                <Link href="/supplier/rfq" className="mt-4 inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-[#0f4fb6]">
-                  View Full Report
-                  <span className="text-sm">+</span>
-                </Link>
-                <div className="absolute -bottom-8 -right-6 text-[7rem] font-black text-[#0f4fb6]/8">+</div>
-              </article>
-
-              <article id="intelligence-feed" className="rounded-[1.8rem] border border-white/80 bg-white/90 p-6 shadow-[0_20px_50px_rgba(15,23,42,0.06)]">
-                <div className="mb-5 flex items-center justify-between">
-                  <h2 className="font-[family-name:var(--font-display)] text-lg font-black text-[#0f172a]">Intelligence Feed</h2>
-                  {alerts > 0 ? <span className="h-2 w-2 rounded-full bg-[#ba1a1a]" /> : null}
-                </div>
-                <div className="space-y-5">
-                  {shownFeed.length > 0 ? shownFeed.map((item) => <SignalRow key={item.id} item={item} />) : <div className="rounded-[1.25rem] border border-dashed border-[#dbe4ef] bg-[#f8fafc] px-5 py-8 text-sm text-[#64748b]">No live supplier alerts matched your search.</div>}
-                </div>
-              </article>
-            </div>
           </section>
-
-          <footer id="settings" className="mt-12 rounded-[1.8rem] border border-white/80 bg-[#eef2f5] px-6 py-8 shadow-[0_20px_50px_rgba(15,23,42,0.04)]">
-            <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
-              <div>
-                <h2 className="font-[family-name:var(--font-display)] text-xl font-black text-[#0f172a]">MedVendor Ecosystem</h2>
-                <p className="mt-2 max-w-xl text-sm leading-7 text-[#64748b]">Connecting active healthcare facilities with responsive suppliers through catalog intelligence, RFQ visibility, and order execution workflows.</p>
-              </div>
-              <div className="grid gap-8 sm:grid-cols-2">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#94a3b8]">Workspace</p>
-                  <div className="mt-4 space-y-2 text-sm text-[#475569]">
-                    <Link href="/supplier/rfq" className="block hover:text-[#0f4fb6]">Bid Guidelines</Link>
-                    <Link href="/supplier/orders" className="block hover:text-[#0f4fb6]">Order Follow-up</Link>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#94a3b8]">Support</p>
-                  <div className="mt-4 space-y-2 text-sm text-[#475569]">
-                    <Link href="/supplier/products" className="block hover:text-[#0f4fb6]">Catalog Management</Link>
-                    <a href="mailto:support@medvendor.in" className="block hover:text-[#0f4fb6]">Support Desk</a>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="mt-8 flex flex-col gap-3 border-t border-[#dbe4ef] pt-6 text-xs font-bold text-[#94a3b8] md:flex-row md:items-center md:justify-between">
-              <p>© 2026 MedVendor Procurement Systems. All rights reserved.</p>
-              <div className="flex gap-4">
-                <a href="mailto:support@medvendor.in">Privacy</a>
-                <a href="mailto:support@medvendor.in">Terms</a>
-                <a href="mailto:support@medvendor.in">Cookies</a>
-              </div>
-            </div>
-          </footer>
         </div>
       </main>
+      <style jsx>{`
+        .supplier-dashboard-root :global(main article) {
+          position: relative;
+          overflow: hidden;
+          transition:
+            transform 240ms ease,
+            box-shadow 240ms ease,
+            border-color 240ms ease;
+        }
+
+        .supplier-dashboard-root :global(main article::before) {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background:
+            linear-gradient(120deg, transparent 0%, rgba(15, 79, 182, 0.05) 45%, transparent 72%);
+          opacity: 0;
+          transform: translateX(-35%);
+          transition:
+            opacity 240ms ease,
+            transform 700ms ease;
+        }
+
+        .supplier-dashboard-root :global(main article:hover) {
+          transform: translateY(-2px);
+          border-color: rgba(15, 79, 182, 0.18);
+          box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
+        }
+
+        .supplier-dashboard-root :global(main article:hover::before) {
+          opacity: 1;
+          transform: translateX(35%);
+        }
+
+        .supplier-dashboard-root :global(tbody tr) {
+          transition:
+            background-color 180ms ease,
+            transform 180ms ease;
+        }
+
+        .supplier-dashboard-root :global(tbody tr:hover) {
+          transform: translateX(2px);
+        }
+
+        .order-road-track {
+          background:
+            repeating-linear-gradient(
+              90deg,
+              #d9e2f1 0 18px,
+              transparent 18px 28px
+            ),
+            linear-gradient(90deg, #e8eef7, #dbe4ef);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+          animation: road-flow 900ms linear infinite;
+        }
+
+        .order-road-progress {
+          background:
+            repeating-linear-gradient(
+              90deg,
+              rgba(255, 255, 255, 0.35) 0 14px,
+              transparent 14px 24px
+            ),
+            linear-gradient(90deg, #0f4fb6, #1d72ff);
+          box-shadow: 0 0 18px rgba(15, 79, 182, 0.26);
+          animation: road-flow 720ms linear infinite;
+        }
+
+        .order-truck {
+          animation: truck-bob 720ms ease-in-out infinite;
+        }
+
+        .order-truck::after {
+          content: "";
+          position: absolute;
+          left: -10px;
+          top: 50%;
+          width: 7px;
+          height: 4px;
+          border-radius: 999px;
+          background: rgba(15, 79, 182, 0.18);
+          transform: translateY(-50%);
+          animation: exhaust-puff 850ms ease-out infinite;
+        }
+
+        .order-stage-dot.is-active {
+          animation: checkpoint-pulse 1.6s ease-in-out infinite;
+          box-shadow: 0 0 0 6px rgba(15, 79, 182, 0.08);
+        }
+
+        @keyframes road-flow {
+          from {
+            background-position: 0 0, 0 0;
+          }
+          to {
+            background-position: 28px 0, 0 0;
+          }
+        }
+
+        @keyframes truck-bob {
+          0%,
+          100% {
+            margin-top: 0;
+          }
+          50% {
+            margin-top: -2px;
+          }
+        }
+
+        @keyframes exhaust-puff {
+          0% {
+            opacity: 0.6;
+            transform: translate(0, -50%) scale(0.7);
+          }
+          100% {
+            opacity: 0;
+            transform: translate(-14px, -50%) scale(1.5);
+          }
+        }
+
+        @keyframes checkpoint-pulse {
+          0%,
+          100% {
+            box-shadow: 0 0 0 5px rgba(15, 79, 182, 0.08);
+          }
+          50% {
+            box-shadow: 0 0 0 9px rgba(15, 79, 182, 0.14);
+          }
+        }
+      `}</style>
     </div>
   )
 }
+

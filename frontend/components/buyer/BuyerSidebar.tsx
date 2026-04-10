@@ -38,7 +38,7 @@ export default function BuyerSidebar({
 
   return (
     <>
-      <aside className="fixed left-0 top-0 hidden h-screen w-[18rem] overflow-y-auto border-r border-white/70 bg-white/70 pt-24 shadow-[0_20px_50px_rgba(15,23,42,0.04)] backdrop-blur lg:flex">
+      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-[18rem] overflow-y-auto border-r border-white/70 bg-white/70 pt-24 shadow-[0_20px_50px_rgba(15,23,42,0.04)] backdrop-blur lg:flex">
         <div className="flex min-h-full flex-1 flex-col px-5 pb-8">
           <div className="mb-8 rounded-[1.5rem] border border-white/90 bg-white/70 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.04)]">
             <div className="flex items-center gap-4">
@@ -140,8 +140,8 @@ function SidebarGlyph({
         ? "bg-[#fff1e8] text-[#a93802]"
         : "bg-[#f2f4f7] text-[#475569]"
 
-  const sizeClass = small ? "h-8 w-8" : "h-9 w-9"
-  const iconSize = small ? "h-3.5 w-3.5" : "h-4 w-4"
+  const sizeClass = small ? "h-7 w-7" : "h-8 w-8"
+  const iconSize = small ? "h-3 w-3" : "h-3.5 w-3.5"
 
   return (
     <span className={`inline-flex items-center justify-center rounded-xl ${palette} ${sizeClass}`}>

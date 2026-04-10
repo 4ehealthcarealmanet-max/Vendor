@@ -6,6 +6,25 @@ export interface VendorOrderItem {
   price: number
 }
 
+export interface VendorOrderEvent {
+  id: number
+  event_type:
+    | "created"
+    | "rfq_awarded"
+    | "po_accepted"
+    | "status_updated"
+    | "delivery_updated"
+    | "payment_updated"
+    | "goods_received"
+    | "subcontract_created"
+    | "reorder_created"
+    | "tracking_note"
+  actor_role: string
+  actor_name: string
+  message: string
+  created_at: string
+}
+
 export interface VendorOrder {
   id: number
   buyer: number
@@ -33,6 +52,7 @@ export interface VendorOrder {
   total_amount: string
   created_at: string
   items: VendorOrderItem[]
+  events: VendorOrderEvent[]
 }
 
 export interface VendorOrderInput {

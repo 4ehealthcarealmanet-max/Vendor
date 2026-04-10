@@ -388,7 +388,6 @@ export default function BuyerDashboardPage() {
             </Link>
             <nav className="hidden items-center gap-6 md:flex">
               <Link href="/buyer/products" className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#7b8798] transition hover:text-[#0f4fb6]">Marketplace</Link>
-              <a href="#recent-activity" className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#7b8798] transition hover:text-[#0f4fb6]">Analytics</a>
               <Link href="/buyer/rfq?view=my" className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#7b8798] transition hover:text-[#0f4fb6]">Contracts</Link>
             </nav>
           </div>
