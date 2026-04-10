@@ -12,7 +12,6 @@ import {
   mapRfqToTender,
   marketplaceImage,
   supplierBenefits,
-  trustBrands,
 } from "@/components/home/landingData"
 import Navbar from "@/components/common/Navbar"
 import {
@@ -529,30 +528,6 @@ export default function PublicLandingPage() {
           <span className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-center font-[family-name:var(--font-display)] text-[9rem] font-black tracking-[-0.08em] text-white/6 md:text-[18rem]">
             MED
           </span>
-        </div>
-      </section>
-
-      <section className="bg-gradient-to-b from-[#f7f9fb] to-[#f2f4f6] py-10 md:py-14">
-        <div className="mx-auto max-w-7xl px-6 md:px-8">
-          <div className="text-center">
-            <p className="font-[family-name:var(--font-display)] text-[9px] font-black uppercase tracking-[0.28em] text-[#8a90a0] mb-8">
-              Trusted by 500+ Healthcare Providers
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-6 md:gap-12">
-              {trustBrands.map((brand, index) => (
-                <div 
-                  key={brand} 
-                  className="group relative transition-all duration-300 hover:scale-110 cursor-default"
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  <div className="text-lg font-extrabold tracking-[-0.03em] text-[#9aa1af] group-hover:text-[#0056d2] transition-all duration-300">
-                    {brand}
-                  </div>
-                  <div className="absolute -inset-2 rounded-lg bg-[#0056d2]/0 group-hover:bg-[#0056d2]/8 transition-all duration-300 -z-10" />
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </section>
 

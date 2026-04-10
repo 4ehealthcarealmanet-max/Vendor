@@ -11,6 +11,13 @@ const authHeaders = () => {
   return { Authorization: `Token ${token}` }
 }
 
+const postOrderAction = async <T>(orderId: number, path: string, data: object = {}) => {
+  const res = await axios.post<T>(`${API_URLS.VENDOR}/orders/${orderId}/${path}/`, data, {
+    headers: authHeaders(),
+  })
+  return res.data
+}
+
 export const getOrders = async () => {
   const res = await axios.get<VendorOrder[]>(`${API_URLS.VENDOR}/orders/`, {
     headers: authHeaders(),
@@ -26,61 +33,36 @@ export const createOrder = async (data: VendorOrderInput) => {
 }
 
 export const acceptPo = async (orderId: number) => {
-  const res = await axios.post<VendorOrder>(
-    `${API_URLS.VENDOR}/orders/${orderId}/accept-po/`,
-    {},
-    {
-      headers: authHeaders(),
-    }
-  )
-  return res.data
+  return postOrderAction<VendorOrder>(orderId, "accept-po")
 }
 
 export const updateOrderTracking = async (
   orderId: number,
   payload: Partial<Pick<VendorOrder, "status" | "payment_status" | "delivery_status" | "tracking_note">>
 ) => {
-  const res = await axios.post<VendorOrder>(
-    `${API_URLS.VENDOR}/orders/${orderId}/update-tracking/`,
-    payload,
-    {
-      headers: authHeaders(),
-    }
-  )
-  return res.data
+  return postOrderAction<VendorOrder>(orderId, "update-tracking", payload)
 }
 
 export const markOrderReceived = async (orderId: number) => {
-  const res = await axios.post<VendorOrder>(
-    `${API_URLS.VENDOR}/orders/${orderId}/mark-received/`,
-    {},
-    {
-      headers: authHeaders(),
-    }
-  )
-  return res.data
+  return postOrderAction<VendorOrder>(orderId, "mark-received")
+}
+
+export const makeDummyPayment = async (orderId: number) => {
+  return postOrderAction<VendorOrder>(orderId, "make-payment")
+}
+
+export const markPaymentOverdue = async (orderId: number) => {
+  return postOrderAction<VendorOrder>(orderId, "mark-payment-overdue")
 }
 
 export const createSubcontractRfq = async (orderId: number, shortageQuantity: number) => {
-  const res = await axios.post<{ order_id: number; subcontract_rfq_id: number; message: string }>(
-    `${API_URLS.VENDOR}/orders/${orderId}/subcontract/`,
-    {
-      shortage_quantity: shortageQuantity,
-    },
-    {
-      headers: authHeaders(),
-    }
+  return postOrderAction<{ order_id: number; subcontract_rfq_id: number; message: string }>(
+    orderId,
+    "subcontract",
+    { shortage_quantity: shortageQuantity }
   )
-  return res.data
 }
 
 export const reorderFromOrder = async (orderId: number) => {
-  const res = await axios.post<VendorOrder>(
-    `${API_URLS.VENDOR}/orders/${orderId}/reorder/`,
-    {},
-    {
-      headers: authHeaders(),
-    }
-  )
-  return res.data
+  return postOrderAction<VendorOrder>(orderId, "reorder")
 }
