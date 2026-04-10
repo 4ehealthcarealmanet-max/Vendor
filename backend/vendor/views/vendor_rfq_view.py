@@ -21,6 +21,7 @@ from vendor.serializers.vendor_rfq_serializer import (
     VendorRfqSerializer,
 )
 from vendor.utils.account_role import get_or_create_account_role
+from vendor.utils.order_events import log_order_event
 
 
 class VendorRfqViewSet(viewsets.ModelViewSet):
@@ -276,6 +277,13 @@ class VendorRfqViewSet(viewsets.ModelViewSet):
                 recipient_list=[vendor_user.email],
                 fail_silently=True,
             )
+
+        log_order_event(
+            awarded_order,
+            message=f"RFQ #{rfq.id} awarded to {quotation.supplier_company or quotation.supplier_name}.",
+            event_type="rfq_awarded",
+            user=request.user,
+        )
 
         return Response(self.get_serializer(rfq).data)
 
