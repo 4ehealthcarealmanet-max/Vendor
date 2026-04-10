@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { FormEvent, ReactNode, useEffect, useState } from "react"
+import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react"
 import { clearToken, getCurrentUser, getToken, loginUser, registerUser, setToken } from "@/services"
 
 type AuthMode = "login" | "register"
@@ -115,14 +115,14 @@ export default function AuthScreen({
 
   const activePanel = authPanels[mode]
 
-  const redirectToDashboard = (userRole: "supplier" | "buyer") => {
+  const redirectToDashboard = useCallback((userRole: "supplier" | "buyer") => {
     if (nextPath && nextPath.startsWith("/")) {
       router.replace(nextPath)
       return
     }
 
     router.replace(userRole === "buyer" ? "/buyer/dashboard" : "/supplier/dashboard")
-  }
+  }, [nextPath, router])
 
   useEffect(() => {
     let active = true
@@ -149,7 +149,7 @@ export default function AuthScreen({
     return () => {
       active = false
     }
-  }, [nextPath, router])
+  }, [redirectToDashboard])
 
   const buildAuthHref = (targetMode: AuthMode) => {
     const params = new URLSearchParams()

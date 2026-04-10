@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useDeferredValue, useEffect, useMemo, useState } from "react"
+import { Suspense, useDeferredValue, useEffect, useMemo, useState } from "react"
 import SupplierSidebar from "@/components/supplier/SupplierSidebar"
 import SupplierDashboardHeader from "@/components/supplier/SupplierDashboardHeader"
 import {
@@ -130,6 +130,14 @@ const orderStatusDetail = (order?: VendorOrder | null) => {
 }
 
 export default function SupplierDashboardPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-[#f7f9fb]" />}>
+      <SupplierDashboardPageContent />
+    </Suspense>
+  )
+}
+
+function SupplierDashboardPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [user, setUser] = useState<AuthUser | null>(null)
