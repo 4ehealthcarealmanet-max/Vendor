@@ -310,7 +310,7 @@ function RfqPageContent() {
       await logoutUser()
     } finally {
       clearToken()
-      router.push("/login")
+      router.push("/")
     }
   }
 

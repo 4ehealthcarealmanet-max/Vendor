@@ -2,8 +2,8 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { FormEvent, ReactNode, useState } from "react"
-import { loginUser, registerUser, setToken } from "@/services"
+import { FormEvent, ReactNode, useEffect, useState } from "react"
+import { clearToken, getCurrentUser, getToken, loginUser, registerUser, setToken } from "@/services"
 
 type AuthMode = "login" | "register"
 
@@ -111,17 +111,45 @@ export default function AuthScreen({
   const [password, setPassword] = useState("")
   const [message, setMessage] = useState("")
   const [loading, setLoading] = useState(false)
+  const [checkingSession, setCheckingSession] = useState(true)
 
   const activePanel = authPanels[mode]
 
   const redirectToDashboard = (userRole: "supplier" | "buyer") => {
     if (nextPath && nextPath.startsWith("/")) {
-      router.push(nextPath)
+      router.replace(nextPath)
       return
     }
 
-    router.push(userRole === "buyer" ? "/buyer/dashboard" : "/supplier/dashboard")
+    router.replace(userRole === "buyer" ? "/buyer/dashboard" : "/supplier/dashboard")
   }
+
+  useEffect(() => {
+    let active = true
+
+    const redirectAuthenticatedUser = async () => {
+      const token = getToken()
+      if (!token) {
+        if (active) setCheckingSession(false)
+        return
+      }
+
+      try {
+        const user = await getCurrentUser()
+        if (!active) return
+        redirectToDashboard(user.role)
+      } catch {
+        clearToken()
+        if (active) setCheckingSession(false)
+      }
+    }
+
+    redirectAuthenticatedUser()
+
+    return () => {
+      active = false
+    }
+  }, [nextPath, router])
 
   const buildAuthHref = (targetMode: AuthMode) => {
     const params = new URLSearchParams()
@@ -155,6 +183,18 @@ export default function AuthScreen({
     } finally {
       setLoading(false)
     }
+  }
+
+  if (checkingSession) {
+    return (
+      <main className="min-h-screen bg-[linear-gradient(180deg,#f6f8fb_0%,#eef3f8_100%)] px-4 py-10 text-[#1b2330]">
+        <div className="mx-auto flex w-full max-w-[520px] flex-col items-center">
+          <div className="glass-card interactive-card w-full rounded-[28px] p-6 sm:p-7 md:p-8">
+            <p className="text-sm font-semibold text-[#617084]">Checking your session...</p>
+          </div>
+        </div>
+      </main>
+    )
   }
 
   return (

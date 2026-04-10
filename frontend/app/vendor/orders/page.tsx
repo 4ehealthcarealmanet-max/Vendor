@@ -287,7 +287,7 @@ export default function OrderPage() {
       await logoutUser()
     } finally {
       clearToken()
-      router.push("/login")
+      router.push("/")
     }
   }
 

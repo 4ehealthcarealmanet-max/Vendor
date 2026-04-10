@@ -48,7 +48,7 @@ export default function SupplierSettingsPage() {
       await logoutUser()
     } finally {
       clearToken()
-      router.push("/login")
+      router.push("/")
     }
   }
 

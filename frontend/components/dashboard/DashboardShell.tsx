@@ -44,7 +44,7 @@ export default function DashboardShell({
       await logoutUser()
     } finally {
       clearToken()
-      router.push("/login")
+      router.push("/")
     }
   }
 

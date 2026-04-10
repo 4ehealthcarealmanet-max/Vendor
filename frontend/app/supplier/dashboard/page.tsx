@@ -7,17 +7,27 @@ import SupplierSidebar from "@/components/supplier/SupplierSidebar"
 import SupplierDashboardHeader from "@/components/supplier/SupplierDashboardHeader"
 import {
   clearToken,
+  getApiErrorMessage,
   getCurrentUser,
   getOrders,
   getProducts,
   getRfqs,
   isAuthSessionError,
   logoutUser,
+  submitQuotation,
 } from "@/services"
-import type { AuthUser, VendorOrder, VendorProductService, VendorQuotation, VendorRfq } from "@/services"
+import type { AuthUser, VendorOrder, VendorProductService, VendorQuotation, VendorQuotationInput, VendorRfq } from "@/services"
 
 type Opportunity = { rfq: VendorRfq; matches: VendorProductService[] }
 type BidRow = { rfq: VendorRfq; quote: VendorQuotation }
+
+const emptyQuoteForm: VendorQuotationInput = {
+  product_id: 0,
+  unit_price: 0,
+  lead_time_days: 7,
+  validity_days: 15,
+  notes: "",
+}
 
 function Icon({
   type,
@@ -63,6 +73,13 @@ const shortDate = (value?: string | null) => {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return value
   return parsed.toLocaleDateString("en-IN", { month: "short", day: "2-digit" })
+}
+
+const longDate = (value?: string | null) => {
+  if (!value) return "No date"
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return parsed.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
 }
 
 
@@ -123,6 +140,10 @@ export default function SupplierDashboardPage() {
   const [error, setError] = useState("")
   const [searchText, setSearchText] = useState("")
   const [focusId, setFocusId] = useState<number | null>(null)
+  const [activeQuoteRfqId, setActiveQuoteRfqId] = useState<number | null>(null)
+  const [quoteForm, setQuoteForm] = useState<VendorQuotationInput>(emptyQuoteForm)
+  const [quoteMessage, setQuoteMessage] = useState("")
+  const [submittingQuote, setSubmittingQuote] = useState(false)
   const deferredSearch = useDeferredValue(searchText)
 
   // Read URL search params
@@ -182,13 +203,18 @@ export default function SupplierDashboardPage() {
       await logoutUser()
     } finally {
       clearToken()
-      router.push("/login")
+      router.push("/")
     }
   }
 
   const supplierProducts = useMemo(
     () => products.filter((item) => item.vendor_username?.trim().toLowerCase() === (user?.username ?? "").trim().toLowerCase()),
     [products, user?.username]
+  )
+
+  const activeSupplierListings = useMemo(
+    () => supplierProducts.filter((item) => item.is_active && item.stock > 0),
+    [supplierProducts]
   )
 
   const supplierVendorId = supplierProducts[0]?.vendor ?? null
@@ -234,7 +260,6 @@ export default function SupplierDashboardPage() {
       visibleRfqs
         .filter((rfq) => (rfq.status === "open" || rfq.status === "under_review") && !respondedIds.has(rfq.id))
         .map((rfq) => ({ rfq, matches: opportunityMatches(rfq, supplierProducts) }))
-        .filter((item) => item.matches.length > 0)
         .sort((left, right) => new Date(left.rfq.quote_deadline).getTime() - new Date(right.rfq.quote_deadline).getTime()),
     [respondedIds, supplierProducts, visibleRfqs]
   )
@@ -246,10 +271,6 @@ export default function SupplierDashboardPage() {
   const query = deferredSearch.trim().toLowerCase()
   const shownOpportunities = useMemo(() => (query ? opportunities.filter((item) => [item.rfq.title, item.rfq.buyer_company || item.rfq.buyer_name, item.rfq.delivery_location].join(" ").toLowerCase().includes(query)) : opportunities), [opportunities, query])
   const shownBids = useMemo(() => (query ? activeBids.filter((item) => [item.rfq.title, item.rfq.buyer_company || item.rfq.buyer_name, rfqId(item.rfq.id)].join(" ").toLowerCase().includes(query)) : activeBids), [activeBids, query])
-  const activeSupplierRfqs = useMemo(
-    () => visibleRfqs.filter((rfq) => rfq.status === "open" || rfq.status === "under_review"),
-    [visibleRfqs]
-  )
   const pendingShipments = useMemo(
     () => orders.filter((order) => !["completed", "cancelled", "goods_received"].includes(order.status) && order.delivery_status !== "delivered"),
     [orders]
@@ -262,6 +283,74 @@ export default function SupplierDashboardPage() {
     [orders]
   )
   const currentOrderStage = orderStageIndex(currentOrder)
+  const activeQuoteRfq = useMemo(
+    () => opportunities.find((item) => item.rfq.id === activeQuoteRfqId) ?? null,
+    [activeQuoteRfqId, opportunities]
+  )
+  const quoteListingOptions = useMemo(() => {
+    if (!activeQuoteRfq) return []
+
+    const sameType = activeSupplierListings.filter((item) => item.product_type === activeQuoteRfq.rfq.product_type)
+    const directMatches = activeQuoteRfq.matches.map((item) => item.id)
+    return [...sameType].sort((left, right) => {
+      const leftPriority = directMatches.includes(left.id) ? 0 : 1
+      const rightPriority = directMatches.includes(right.id) ? 0 : 1
+      if (leftPriority !== rightPriority) return leftPriority - rightPriority
+      return left.name.localeCompare(right.name)
+    })
+  }, [activeQuoteRfq, activeSupplierListings])
+
+  const openQuoteModal = (rfqId: number) => {
+    const selectedOpportunity = opportunities.find((item) => item.rfq.id === rfqId)
+    const preferredListing = selectedOpportunity?.matches[0]
+    const fallbackListing = activeSupplierListings.find((item) => item.product_type === selectedOpportunity?.rfq.product_type)
+
+    setActiveQuoteRfqId(rfqId)
+    setQuoteMessage("")
+    setQuoteForm({
+      ...emptyQuoteForm,
+      product_id: preferredListing?.id ?? fallbackListing?.id ?? 0,
+      unit_price: preferredListing ? Number(preferredListing.price) : fallbackListing ? Number(fallbackListing.price) : 0,
+    })
+  }
+
+  const closeQuoteModal = () => {
+    setActiveQuoteRfqId(null)
+    setQuoteForm(emptyQuoteForm)
+    setQuoteMessage("")
+  }
+
+  const handleSubmitQuote = async () => {
+    if (!activeQuoteRfq) return
+
+    if (!quoteListingOptions.length) {
+      setQuoteMessage("Add an active listing before submitting a quote for this RFQ.")
+      return
+    }
+
+    if (!quoteForm.product_id) {
+      setQuoteMessage("Select a listing for this quotation.")
+      return
+    }
+
+    if (quoteForm.unit_price <= 0 || quoteForm.lead_time_days <= 0 || quoteForm.validity_days <= 0) {
+      setQuoteMessage("Enter valid quote amount, lead time, and validity days.")
+      return
+    }
+
+    try {
+      setSubmittingQuote(true)
+      setQuoteMessage("")
+      await submitQuotation(activeQuoteRfq.rfq.id, quoteForm)
+      const refreshedRfqs = await getRfqs()
+      setRfqs(refreshedRfqs)
+      closeQuoteModal()
+    } catch (submitError) {
+      setQuoteMessage(getApiErrorMessage(submitError, "Could not submit quotation right now."))
+    } finally {
+      setSubmittingQuote(false)
+    }
+  }
 
 
   if (loading) return <main className="min-h-screen bg-[#f7f9fb] px-6 py-10 text-[#191c1e]"><div className="mx-auto max-w-7xl rounded-[2rem] border border-white/70 bg-white/80 p-8 text-sm font-semibold text-[#617084] shadow-[0_25px_60px_rgba(15,23,42,0.08)]">Loading supplier command center...</div></main>
@@ -296,7 +385,7 @@ export default function SupplierDashboardPage() {
                 <span className="rounded-full bg-[#eef4ff] p-3 text-[#0f4fb6]"><Icon type="search" className="h-6 w-6" /></span>
                 <div>
                   <p className="text-sm font-bold text-[#475569]">Active RFQs</p>
-                  <p className="mt-1 text-3xl font-black text-[#0f172a]">{activeSupplierRfqs.length}</p>
+                  <p className="mt-1 text-3xl font-black text-[#0f172a]">{shownOpportunities.length}</p>
                 </div>
               </div>
             </article>
@@ -346,7 +435,9 @@ export default function SupplierDashboardPage() {
                           <td className="px-4 py-3 font-bold text-[#0f172a]">{item.rfq.buyer_company || item.rfq.buyer_name}</td>
                           <td className="px-4 py-3 text-[#0f172a]">
                             <p className="font-semibold">{item.rfq.title}</p>
-                            <p className="mt-1 text-xs text-[#64748b]">{item.matches.map((listing) => listing.name).join(", ")}</p>
+                            <p className="mt-1 text-xs text-[#64748b]">
+                              {item.matches.length > 0 ? item.matches.map((listing) => listing.name).join(", ") : "No direct catalog match yet"}
+                            </p>
                           </td>
                           <td className="px-4 py-3 font-semibold text-[#0f172a]">{shortDate(item.rfq.quote_deadline)}</td>
                           <td className="px-4 py-3">
@@ -355,7 +446,7 @@ export default function SupplierDashboardPage() {
                           <td className="px-4 py-3 text-right">
                             <button
                               type="button"
-                              onClick={() => router.push(`/supplier/rfq?rfqId=${item.rfq.id}`)}
+                              onClick={() => openQuoteModal(item.rfq.id)}
                               className="rounded-lg bg-[#0f4fb6] px-4 py-2 text-xs font-black text-[#ffffff] transition hover:bg-[#0d4299]"
                             >
                               Submit Quote
@@ -365,7 +456,7 @@ export default function SupplierDashboardPage() {
                       ))}
                       {shownOpportunities.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="px-4 py-10 text-center text-sm text-[#64748b]">No matching live RFQs right now. Add active catalog items to improve matches.</td>
+                          <td colSpan={5} className="px-4 py-10 text-center text-sm text-[#64748b]">No live RFQs available right now.</td>
                         </tr>
                       ) : null}
                     </tbody>
@@ -463,7 +554,182 @@ export default function SupplierDashboardPage() {
           </section>
         </div>
       </main>
+      {activeQuoteRfq ? (
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto bg-[rgba(8,24,56,0.58)] px-4 py-4 backdrop-blur-sm sm:px-6 sm:py-6"
+          onClick={closeQuoteModal}
+        >
+          <div className="flex min-h-full items-center justify-center">
+            <div
+              className="quote-modal-shell grid h-[min(92vh,920px)] w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/20 bg-white shadow-[0_30px_90px_rgba(15,23,42,0.28)] lg:grid-cols-[1.08fr_0.92fr]"
+              onClick={(event) => event.stopPropagation()}
+            >
+            <div className="min-h-0 overflow-y-auto bg-white p-6 pb-10 sm:p-8 sm:pb-12">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#0f4fb6]">Selected RFQ</p>
+                  <h3 className="mt-3 text-2xl font-black tracking-[-0.03em] text-[#0f172a]">{activeQuoteRfq.rfq.title}</h3>
+                  <p className="mt-2 text-sm leading-7 text-[#64748b]">{activeQuoteRfq.rfq.description || "No additional RFQ description was provided."}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeQuoteModal}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#dbe4ef] text-[#475569] transition hover:bg-[#f8fafc]"
+                  aria-label="Close quote popup"
+                >
+                  <span className="text-lg leading-none">×</span>
+                </button>
+              </div>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                <QuoteInfoCard label="Buyer" value={activeQuoteRfq.rfq.buyer_company || activeQuoteRfq.rfq.buyer_name} />
+                <QuoteInfoCard label="RFQ ID" value={rfqId(activeQuoteRfq.rfq.id)} />
+                <QuoteInfoCard label="Quantity" value={`${activeQuoteRfq.rfq.quantity}`} />
+                <QuoteInfoCard label="Type" value={activeQuoteRfq.rfq.product_type === "service" ? "Service" : "Product"} />
+                <QuoteInfoCard label="Due Date" value={longDate(activeQuoteRfq.rfq.quote_deadline)} />
+                <QuoteInfoCard label="Delivery" value={longDate(activeQuoteRfq.rfq.expected_delivery_date)} />
+                <QuoteInfoCard label="Location" value={activeQuoteRfq.rfq.delivery_location} />
+                <QuoteInfoCard label="Budget" value={activeQuoteRfq.rfq.target_budget > 0 ? money(activeQuoteRfq.rfq.target_budget) : "Not specified"} />
+              </div>
+
+              <div className="mt-6 rounded-[1.4rem] border border-[#e6edf7] bg-[#f8fbff] p-5">
+                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#7b8798]">Catalog Match</p>
+                <div className="mt-3 space-y-3">
+                  {activeQuoteRfq.matches.length > 0 ? activeQuoteRfq.matches.map((listing) => (
+                    <div key={listing.id} className="rounded-[1rem] border border-[#dbe8ff] bg-white px-4 py-3">
+                      <p className="font-bold text-[#0f172a]">{listing.name}</p>
+                      <p className="mt-1 text-xs text-[#64748b]">
+                        INR {Number(listing.price).toLocaleString("en-IN")} | Stock {listing.stock}
+                      </p>
+                    </div>
+                  )) : (
+                    <p className="text-sm text-[#64748b]">No direct catalog match yet, but you can still quote using any active listing of the same type.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex min-h-0 flex-col bg-[linear-gradient(180deg,#0f4fb6_0%,#0b3d8a_100%)] text-white">
+              <div className="min-h-0 flex-1 overflow-y-auto p-6 pb-28 sm:p-8 sm:pb-32">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-white/72">Submit Quote</p>
+                <h3 className="mt-3 text-3xl font-black tracking-[-0.04em]">Quote This RFQ</h3>
+                <p className="mt-3 text-sm leading-7 text-white/80">
+                  Review the request on the left and submit your commercial response here.
+                </p>
+              </div>
+
+              <div className="mt-6 space-y-4">
+                <label className="grid gap-2 text-sm">
+                  <span className="font-bold text-white">Your Listing</span>
+                  <select
+                    value={quoteForm.product_id}
+                    onChange={(event) => {
+                      const selectedId = Number(event.target.value)
+                      const selectedListing = quoteListingOptions.find((item) => item.id === selectedId)
+                      setQuoteForm((prev) => ({
+                        ...prev,
+                        product_id: selectedId,
+                        unit_price: selectedListing ? Number(selectedListing.price) : prev.unit_price,
+                      }))
+                    }}
+                    className="rounded-[1rem] border border-white/20 bg-white/10 px-4 py-3 text-sm text-white outline-none backdrop-blur placeholder:text-white/50"
+                  >
+                    <option value={0} className="text-[#0f172a]">Choose active listing</option>
+                    {quoteListingOptions.map((listing) => (
+                      <option key={listing.id} value={listing.id} className="text-[#0f172a]">
+                        {listing.name} | INR {Number(listing.price).toLocaleString("en-IN")} | Stock {listing.stock}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="grid gap-2 text-sm">
+                    <span className="font-bold text-white">Unit Price</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={quoteForm.unit_price}
+                      onChange={(event) => setQuoteForm((prev) => ({ ...prev, unit_price: Number(event.target.value) }))}
+                      className="rounded-[1rem] border border-white/20 bg-white/10 px-4 py-3 text-sm text-white outline-none placeholder:text-white/50"
+                    />
+                  </label>
+                  <label className="grid gap-2 text-sm">
+                    <span className="font-bold text-white">Lead Time (days)</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={quoteForm.lead_time_days}
+                      onChange={(event) => setQuoteForm((prev) => ({ ...prev, lead_time_days: Number(event.target.value) }))}
+                      className="rounded-[1rem] border border-white/20 bg-white/10 px-4 py-3 text-sm text-white outline-none placeholder:text-white/50"
+                    />
+                  </label>
+                </div>
+
+                <label className="grid gap-2 text-sm">
+                  <span className="font-bold text-white">Validity (days)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={quoteForm.validity_days}
+                    onChange={(event) => setQuoteForm((prev) => ({ ...prev, validity_days: Number(event.target.value) }))}
+                    className="rounded-[1rem] border border-white/20 bg-white/10 px-4 py-3 text-sm text-white outline-none placeholder:text-white/50"
+                  />
+                </label>
+
+                <label className="grid gap-2 text-sm">
+                  <span className="font-bold text-white">Commercial Notes</span>
+                  <textarea
+                    rows={5}
+                    value={quoteForm.notes}
+                    onChange={(event) => setQuoteForm((prev) => ({ ...prev, notes: event.target.value }))}
+                    placeholder="Warranty, delivery notes, installation support, payment terms."
+                    className="rounded-[1rem] border border-white/20 bg-white/10 px-4 py-3 text-sm text-white outline-none placeholder:text-white/50"
+                  />
+                </label>
+
+                {quoteMessage ? (
+                  <p className="rounded-[1rem] border border-white/18 bg-white/12 px-4 py-3 text-sm text-white">{quoteMessage}</p>
+                ) : null}
+
+                {!quoteListingOptions.length ? (
+                  <p className="rounded-[1rem] border border-white/18 bg-white/12 px-4 py-3 text-sm text-white/88">
+                    You need at least one active {activeQuoteRfq.rfq.product_type} listing before sending a quotation.
+                  </p>
+                ) : null}
+              </div>
+              </div>
+              <div className="sticky bottom-0 border-t border-white/14 bg-[rgba(7,30,76,0.72)] px-6 py-4 backdrop-blur sm:px-8">
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={handleSubmitQuote}
+                    disabled={submittingQuote || !quoteListingOptions.length}
+                    className="rounded-[1rem] bg-white px-5 py-3 text-sm font-black text-[#0f4fb6] shadow-[0_16px_36px_rgba(10,23,55,0.16)] transition hover:bg-[#f8fbff] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {submittingQuote ? "Submitting..." : "Submit Final Quote"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeQuoteModal}
+                    disabled={submittingQuote}
+                    className="rounded-[1rem] border border-white/24 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/14 disabled:opacity-60"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          </div>
+        </div>
+      ) : null}
       <style jsx>{`
+        .quote-modal-shell {
+          animation: quote-modal-rise 260ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
         .supplier-dashboard-root :global(main article) {
           position: relative;
           overflow: hidden;
@@ -593,7 +859,27 @@ export default function SupplierDashboardPage() {
             box-shadow: 0 0 0 9px rgba(15, 79, 182, 0.14);
           }
         }
+
+        @keyframes quote-modal-rise {
+          from {
+            opacity: 0;
+            transform: translateY(18px) scale(0.985);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
       `}</style>
+    </div>
+  )
+}
+
+function QuoteInfoCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[1rem] border border-[#e5ebf3] bg-white px-4 py-3 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
+      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8a97aa]">{label}</p>
+      <p className="mt-2 text-sm font-bold leading-6 text-[#0f172a]">{value}</p>
     </div>
   )
 }

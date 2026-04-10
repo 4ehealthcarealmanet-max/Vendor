@@ -104,7 +104,7 @@ export default function AnalyticsPage() {
       await logoutUser()
     } finally {
       clearToken()
-      router.push("/login")
+      router.push("/")
     }
   }
 
