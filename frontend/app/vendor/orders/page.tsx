@@ -9,12 +9,17 @@ import {
   acceptPo,
   clearToken,
   createOrder,
+  createSubcontractRfq,
   getApiErrorMessage,
   getCurrentUser,
   getOrders,
   getProducts,
   isAuthSessionError,
+  makeDummyPayment,
+  markOrderReceived,
+  markPaymentOverdue,
   logoutUser,
+  reorderFromOrder,
   updateOrderTracking,
 } from "@/services"
 import type { VendorOrder, VendorOrderInput, VendorProductService } from "@/services"
@@ -38,6 +43,19 @@ const shortDate = (value?: string | null) => {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return value
   return parsed.toLocaleDateString("en-IN", { month: "short", day: "2-digit", year: "numeric" })
+}
+
+const shortDateTime = (value?: string | null) => {
+  if (!value) return "-"
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return parsed.toLocaleString("en-IN", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
 }
 
 const readable = (value: string) => value.replaceAll("_", " ")
@@ -89,6 +107,17 @@ const orderProductSummary = (order: VendorOrder, products: VendorProductService[
       return `${product?.name || `Product #${item.product}`} x ${item.quantity}`
     })
     .join(", ") || "No items"
+
+const canMarkReceived = (order: VendorOrder) =>
+  order.delivery_status === "delivered" && order.status !== "goods_received" && order.status !== "completed"
+
+const canMakePayment = (order: VendorOrder) => order.payment_status !== "paid"
+
+const canSubcontract = (order: VendorOrder) =>
+  !["completed", "cancelled", "delivered", "goods_received"].includes(order.status)
+
+const canFlagPaymentOverdue = (order: VendorOrder) =>
+  order.payment_status !== "paid" && ["delivered", "goods_received", "completed"].includes(order.status)
 
 const printOrderPdf = (order: VendorOrder, products: VendorProductService[]) => {
   const doc = window.open("", "_blank", "width=900,height=700")
@@ -171,6 +200,7 @@ export default function OrderPage() {
   const [orderSearch, setOrderSearch] = useState("")
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null)
+  const [shortageQuantity, setShortageQuantity] = useState<number>(1)
 
   useEffect(() => {
     const loadData = async () => {
@@ -341,6 +371,93 @@ export default function OrderPage() {
     }
   }
 
+  const replaceOrder = (updated: VendorOrder) => {
+    setOrders((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
+  }
+
+  const runOrderMutation = async (
+    order: VendorOrder,
+    request: () => Promise<VendorOrder>,
+    successMessage: (updated: VendorOrder) => string,
+    errorMessage: string
+  ) => {
+    try {
+      setUpdatingOrderId(order.id)
+      setFeedback("")
+      const updated = await request()
+      replaceOrder(updated)
+      setFeedback(successMessage(updated))
+    } catch (error) {
+      setFeedback(getApiErrorMessage(error, errorMessage))
+    } finally {
+      setUpdatingOrderId(null)
+    }
+  }
+
+  const handleBuyerReceive = async (order: VendorOrder) => {
+    await runOrderMutation(
+      order,
+      () => markOrderReceived(order.id),
+      (updated) => `Order HL-ORD-${updated.id} marked as goods received.`,
+      "Could not mark goods as received."
+    )
+  }
+
+  const handleDummyPayment = async (order: VendorOrder) => {
+    await runOrderMutation(
+      order,
+      () => makeDummyPayment(order.id),
+      (updated) => `Dummy payment recorded for order HL-ORD-${updated.id}.`,
+      "Could not record dummy payment."
+    )
+  }
+
+  const handleReorder = async (order: VendorOrder) => {
+    try {
+      setUpdatingOrderId(order.id)
+      setFeedback("")
+      const created = await reorderFromOrder(order.id)
+      setOrders((prev) => [created, ...prev])
+      setSelectedOrderId(created.id)
+      setFeedback(`Reorder created as order HL-ORD-${created.id}.`)
+    } catch (error) {
+      setFeedback(getApiErrorMessage(error, "Could not create reorder."))
+    } finally {
+      setUpdatingOrderId(null)
+    }
+  }
+
+  const handleSubcontract = async (order: VendorOrder) => {
+    if (!Number.isInteger(shortageQuantity) || shortageQuantity < 1) {
+      setFeedback("Shortage quantity must be a whole number greater than 0.")
+      return
+    }
+
+    try {
+      setUpdatingOrderId(order.id)
+      setFeedback("")
+      const result = await createSubcontractRfq(order.id, shortageQuantity)
+      const refreshed = await getOrders()
+      setOrders(refreshed)
+      setFeedback(
+        `Subcontract RFQ #${result.subcontract_rfq_id} created for order HL-ORD-${order.id}.`
+      )
+    } catch (error) {
+      setFeedback(getApiErrorMessage(error, "Could not create subcontract RFQ."))
+    } finally {
+      setUpdatingOrderId(null)
+    }
+  }
+
+  const handleMarkPaymentOverdue = async (order: VendorOrder) => {
+    await runOrderMutation(
+      order,
+      () => markPaymentOverdue(order.id),
+      (updated) => `Payment marked overdue for order HL-ORD-${updated.id}.`,
+      "Could not mark payment overdue."
+    )
+  }
+
   return (
     <>
       {isBuyerRoute ? (
@@ -466,46 +583,6 @@ export default function OrderPage() {
               </div>
             </section>
 
-            {selectedOrder ? (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.48)] px-4">
-                <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#dbe4ef] bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#0f4fb6]">Order Details</p>
-                      <h2 className="mt-1 text-2xl font-black text-[#0f172a]">HL-ORD-{String(selectedOrder.id).padStart(4, "0")}</h2>
-                    </div>
-                    <button type="button" onClick={() => setSelectedOrderId(null)} className="rounded-lg border border-[#dbe4ef] px-3 py-2 text-sm font-bold text-[#64748b]">Close</button>
-                  </div>
-                  <div className="mt-5 grid gap-3 md:grid-cols-2">
-                    <InfoBox label="Buyer" value={`Buyer #${selectedOrder.buyer}`} />
-                    <InfoBox label="Buyer Type" value={selectedOrder.buyer_type || "Institution"} />
-                    <InfoBox label="Order Date" value={shortDate(selectedOrder.created_at)} />
-                    <InfoBox label="Amount" value={money(selectedOrder.total_amount)} />
-                    <InfoBox label="Order Status" value={orderStatusLabel(selectedOrder)} />
-                    <InfoBox label="Delivery Status" value={readable(selectedOrder.delivery_status)} />
-                    <InfoBox label="Payment Status" value={readable(selectedOrder.payment_status)} />
-                    <InfoBox label="Items" value={orderProductSummary(selectedOrder, products)} />
-                  </div>
-                  <div className="mt-4 rounded-xl border border-[#dbe4ef] bg-[#f8fbff] p-4">
-                    <p className="text-xs font-black uppercase tracking-[0.14em] text-[#64748b]">Tracking Note</p>
-                    <p className="mt-2 text-sm leading-6 text-[#0f172a]">{selectedOrder.tracking_note || "No tracking note yet."}</p>
-                  </div>
-                  <div className="mt-5 flex flex-wrap gap-3">
-                    <button type="button" onClick={() => printOrderPdf(selectedOrder, products)} className="rounded-xl bg-[#0f4fb6] px-4 py-3 text-sm font-black text-white">Download PDF</button>
-                    {nextActionLabel(selectedOrder) ? (
-                      <button
-                        type="button"
-                        onClick={() => moveOrderForward(selectedOrder)}
-                        disabled={updatingOrderId === selectedOrder.id}
-                        className="rounded-xl border border-[#cdd9f4] bg-white px-4 py-3 text-sm font-black text-[#0f4fb6] disabled:opacity-60"
-                      >
-                        {updatingOrderId === selectedOrder.id ? "Updating..." : nextActionLabel(selectedOrder)}
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            ) : null}
           </>
         ) : (
           <>
@@ -723,6 +800,7 @@ export default function OrderPage() {
                     <th className="px-2 py-2">Buyer</th>
                     <th className="px-2 py-2">Amount</th>
                     <th className="px-2 py-2">Status</th>
+                    <th className="px-2 py-2 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -737,6 +815,15 @@ export default function OrderPage() {
                           {order.status}
                         </span>
                       </td>
+                      <td className="px-2 py-2 text-right">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedOrderId(order.id)}
+                          className="rounded-lg border border-[#dbe4ef] bg-white px-3 py-2 text-xs font-semibold text-[#0f4fb6]"
+                        >
+                          View Lifecycle
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -747,6 +834,157 @@ export default function OrderPage() {
           </>
         )}
       </div>
+      {selectedOrder ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.48)] px-4">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-[#dbe4ef] bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#0f4fb6]">Order Lifecycle</p>
+                <h2 className="mt-1 text-2xl font-black text-[#0f172a]">HL-ORD-{String(selectedOrder.id).padStart(4, "0")}</h2>
+              </div>
+              <button type="button" onClick={() => setSelectedOrderId(null)} className="rounded-lg border border-[#dbe4ef] px-3 py-2 text-sm font-bold text-[#64748b]">Close</button>
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <InfoBox label="Buyer" value={`Buyer #${selectedOrder.buyer}`} />
+              <InfoBox label="Buyer Type" value={selectedOrder.buyer_type || "Institution"} />
+              <InfoBox label="Order Date" value={shortDate(selectedOrder.created_at)} />
+              <InfoBox label="Amount" value={money(selectedOrder.total_amount)} />
+              <InfoBox label="Order Status" value={orderStatusLabel(selectedOrder)} />
+              <InfoBox label="Delivery Status" value={readable(selectedOrder.delivery_status)} />
+              <InfoBox label="Payment Status" value={readable(selectedOrder.payment_status)} />
+              <InfoBox label="Items" value={orderProductSummary(selectedOrder, products)} />
+            </div>
+
+            <div className="mt-4 rounded-xl border border-[#dbe4ef] bg-[#f8fbff] p-4">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-[#64748b]">Tracking Note</p>
+              <p className="mt-2 text-sm leading-6 text-[#0f172a]">{selectedOrder.tracking_note || "No tracking note yet."}</p>
+            </div>
+
+            <div className="mt-5 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+              <section className="rounded-2xl border border-[#dbe4ef] bg-white p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-black uppercase tracking-[0.14em] text-[#64748b]">Timeline</h3>
+                  <span className="rounded-full bg-[#eef4ff] px-3 py-1 text-xs font-semibold text-[#0f4fb6]">
+                    {selectedOrder.events.length} events
+                  </span>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {selectedOrder.events.length === 0 ? (
+                    <p className="rounded-xl border border-dashed border-[#dbe4ef] px-4 py-5 text-sm text-[#64748b]">
+                      Timeline will appear here as the order moves through PO, shipping, receipt, and payment.
+                    </p>
+                  ) : (
+                    selectedOrder.events.map((event) => (
+                      <div key={event.id} className="rounded-xl border border-[#e7edf5] bg-[#fbfdff] px-4 py-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-sm font-bold text-[#0f172a]">{event.message}</p>
+                          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[#64748b]">
+                            {shortDateTime(event.created_at)}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-[#64748b]">
+                          {event.actor_name || "System"} {event.actor_role ? `(${readable(event.actor_role)})` : ""}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-[#dbe4ef] bg-white p-4">
+                <h3 className="text-sm font-black uppercase tracking-[0.14em] text-[#64748b]">Actions</h3>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button type="button" onClick={() => printOrderPdf(selectedOrder, products)} className="rounded-xl bg-[#0f4fb6] px-4 py-3 text-sm font-black text-white">
+                    Download PDF
+                  </button>
+
+                  {isSupplierRoute && nextActionLabel(selectedOrder) ? (
+                    <button
+                      type="button"
+                      onClick={() => moveOrderForward(selectedOrder)}
+                      disabled={updatingOrderId === selectedOrder.id}
+                      className="rounded-xl border border-[#cdd9f4] bg-white px-4 py-3 text-sm font-black text-[#0f4fb6] disabled:opacity-60"
+                    >
+                      {updatingOrderId === selectedOrder.id ? "Updating..." : nextActionLabel(selectedOrder)}
+                    </button>
+                  ) : null}
+
+                  {isBuyerRoute && canMarkReceived(selectedOrder) ? (
+                    <button
+                      type="button"
+                      onClick={() => handleBuyerReceive(selectedOrder)}
+                      disabled={updatingOrderId === selectedOrder.id}
+                      className="rounded-xl border border-[#d9e7d1] bg-[#f6fff0] px-4 py-3 text-sm font-black text-[#2d6a2d] disabled:opacity-60"
+                    >
+                      {updatingOrderId === selectedOrder.id ? "Updating..." : "Mark Goods Received"}
+                    </button>
+                  ) : null}
+
+                  {isBuyerRoute && canMakePayment(selectedOrder) ? (
+                    <button
+                      type="button"
+                      onClick={() => handleDummyPayment(selectedOrder)}
+                      disabled={updatingOrderId === selectedOrder.id}
+                      className="rounded-xl border border-[#e0dafc] bg-[#f7f3ff] px-4 py-3 text-sm font-black text-[#5b3cc4] disabled:opacity-60"
+                    >
+                      {updatingOrderId === selectedOrder.id ? "Updating..." : "Make Dummy Payment"}
+                    </button>
+                  ) : null}
+
+                  {isBuyerRoute ? (
+                    <button
+                      type="button"
+                      onClick={() => handleReorder(selectedOrder)}
+                      disabled={updatingOrderId === selectedOrder.id}
+                      className="rounded-xl border border-[#dbe4ef] bg-white px-4 py-3 text-sm font-black text-[#0f4fb6] disabled:opacity-60"
+                    >
+                      {updatingOrderId === selectedOrder.id ? "Updating..." : "Reorder"}
+                    </button>
+                  ) : null}
+
+                  {isSupplierRoute && canFlagPaymentOverdue(selectedOrder) ? (
+                    <button
+                      type="button"
+                      onClick={() => handleMarkPaymentOverdue(selectedOrder)}
+                      disabled={updatingOrderId === selectedOrder.id}
+                      className="rounded-xl border border-[#f7c9c9] bg-[#fff6f6] px-4 py-3 text-sm font-black text-[#b42318] disabled:opacity-60"
+                    >
+                      {updatingOrderId === selectedOrder.id ? "Updating..." : "Payment Not Received"}
+                    </button>
+                  ) : null}
+                </div>
+
+                {isSupplierRoute && canSubcontract(selectedOrder) ? (
+                  <div className="mt-5 rounded-xl border border-[#dbe4ef] bg-[#f8fbff] p-4">
+                    <p className="text-sm font-bold text-[#0f172a]">Need subcontract support?</p>
+                    <p className="mt-1 text-sm text-[#64748b]">
+                      If you cannot fulfill the full quantity, create a fresh RFQ for the shortage and continue the cycle.
+                    </p>
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                      <input
+                        type="number"
+                        min={1}
+                        value={shortageQuantity}
+                        onChange={(event) => setShortageQuantity(Number(event.target.value))}
+                        className="w-32 rounded-xl border border-[#cde2e5] bg-white px-4 py-3 text-sm outline-none transition focus:border-[#0f4fb6]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSubcontract(selectedOrder)}
+                        disabled={updatingOrderId === selectedOrder.id}
+                        className="rounded-xl border border-[#dbe4ef] bg-white px-4 py-3 text-sm font-black text-[#0f4fb6] disabled:opacity-60"
+                      >
+                        {updatingOrderId === selectedOrder.id ? "Creating..." : "Create Subcontract RFQ"}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </section>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <style jsx>{`
         .supplier-orders-hero,
         .supplier-orders-panel {

@@ -789,7 +789,7 @@ function RfqPageContent() {
   const supplierRfqAuthNext = encodeURIComponent("/supplier/rfq")
 
   const filterTabs: Array<{ key: "all" | VendorRfq["status"]; label: string; count: number }> = [
-    { key: "all", label: "All Requests", count: baseRecords.length },
+    { key: "all", label: userRole === "buyer" ? "My RFQs" : "All Requests", count: baseRecords.length },
     { key: "open", label: "Open", count: baseRecords.filter((item) => item.status === "open").length },
     { key: "under_review", label: "Under Review", count: baseRecords.filter((item) => item.status === "under_review").length },
     { key: "closed", label: "Closed", count: baseRecords.filter((item) => item.status === "closed").length },

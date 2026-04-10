@@ -13,8 +13,6 @@ export const navLinks = [
   { href: "#resources", label: "Resources" },
 ]
 
-export const trustBrands = ["CLINIC-X", "MEDIGLOBE", "HEALTHCORE", "ZENITHCARE", "PROVITA"]
-
 export const buyerBenefits = [
   "Efficient sourcing from verified vendors",
   "Automated compliance and audit trails",
