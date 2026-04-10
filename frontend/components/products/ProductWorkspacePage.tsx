@@ -1,6 +1,6 @@
 "use client"
 
-import { type ReactNode, useEffect, useMemo, useState } from "react"
+import { Suspense, type ReactNode, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import BuyerSidebar from "@/components/buyer/BuyerSidebar"
@@ -19,6 +19,14 @@ import {
 import type { VendorProductService } from "@/services"
 
 export default function ProductsPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-[#f4f9fa]" />}>
+      <ProductsPageContent />
+    </Suspense>
+  )
+}
+
+function ProductsPageContent() {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
