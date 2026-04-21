@@ -22,9 +22,10 @@ class VendorOrderItemSerializer(serializers.ModelSerializer):
 
 class VendorOrderSerializer(serializers.ModelSerializer):
 
-    items = VendorOrderItemSerializer(many=True)
+    items = VendorOrderItemSerializer(many=True, required=False)
     buyer_type = serializers.SerializerMethodField()
     events = serializers.SerializerMethodField()
+    vendor_user_id = serializers.ReadOnlyField(source="vendor.user_id")
 
     class Meta:
         model = VendorOrder
@@ -91,6 +92,13 @@ class VendorOrderSerializer(serializers.ModelSerializer):
                 instance.delivered_at = now
             if instance.status == "goods_received" and not instance.goods_received_at:
                 instance.goods_received_at = now
+            if instance.status in ["ready_to_dispatch", "shipped"] and old_status not in ["ready_to_dispatch", "shipped", "delivered", "goods_received", "completed"]:
+                for item in instance.items.all():
+                    product = item.product
+                    if product:
+                        product.stock = max(0, product.stock - item.quantity)
+                        product.save(update_fields=["stock"])
+
             event_type = "po_accepted" if instance.status == "po_accepted" else "status_updated"
             self._log_authenticated_event(
                 instance,

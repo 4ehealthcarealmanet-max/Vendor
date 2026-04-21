@@ -70,6 +70,7 @@ const orderBucket = (order: VendorOrder): SupplierOrderFilter => {
 const orderStatusLabel = (order: VendorOrder) => {
   if (order.status === "po_released") return "Pending"
   if (order.status === "po_accepted") return "Accepted"
+  if (order.status === "partially_subcontracted") return "Processing"
   if (order.status === "ready_to_dispatch") return "Ready"
   if (order.status === "goods_received") return "Completed"
   return readable(order.status)
@@ -85,7 +86,7 @@ const statusChipClass = (order: VendorOrder) => {
 
 const nextTrackingPayload = (order: VendorOrder): Partial<Pick<VendorOrder, "status" | "delivery_status" | "tracking_note">> | null => {
   if (order.status === "po_accepted") return { status: "processing", delivery_status: "loaded", tracking_note: "Order is being processed by supplier." }
-  if (order.status === "processing") return { status: "ready_to_dispatch", delivery_status: "loaded", tracking_note: "Order packed and ready to dispatch." }
+  if (order.status === "processing" || order.status === "partially_subcontracted") return { status: "ready_to_dispatch", delivery_status: "loaded", tracking_note: "Order packed and ready to dispatch." }
   if (order.status === "ready_to_dispatch") return { status: "shipped", delivery_status: "in_transit", tracking_note: "Shipment is in transit." }
   if (order.status === "shipped") return { status: "delivered", delivery_status: "delivered", tracking_note: "Shipment delivered to buyer location." }
   return null
@@ -94,7 +95,7 @@ const nextTrackingPayload = (order: VendorOrder): Partial<Pick<VendorOrder, "sta
 const nextActionLabel = (order: VendorOrder) => {
   if (order.status === "po_released") return "Accept PO"
   if (order.status === "po_accepted") return "Start Processing"
-  if (order.status === "processing") return "Ready to Dispatch"
+  if (order.status === "processing" || order.status === "partially_subcontracted") return "Ready to Dispatch"
   if (order.status === "ready_to_dispatch") return "Mark Shipped"
   if (order.status === "shipped") return "Mark Delivered"
   return ""
@@ -114,9 +115,10 @@ const canMarkReceived = (order: VendorOrder) =>
 const canMakePayment = (order: VendorOrder) => order.payment_status !== "paid"
 
 const canSubcontract = (order: VendorOrder, products: VendorProductService[]) => {
-  if (["completed", "cancelled", "delivered", "goods_received"].includes(order.status)) return false
+  if (["completed", "cancelled", "shipped", "delivered", "goods_received", "ready_to_dispatch", "partially_subcontracted"].includes(order.status)) return false
   return order.items.some((item) => {
     const product = products.find((p) => p.id === item.product)
+    // Show subcontract option only if we don't have enough stock for THIS item
     return product && product.stock < item.quantity
   })
 }
@@ -826,7 +828,7 @@ export default function OrderPage() {
                             <td className="px-2 py-2">INR {Number(order.total_amount).toLocaleString()}</td>
                             <td className="px-2 py-2">
                               <span className="rounded-full bg-[#e7f8f7] px-2 py-1 text-xs font-semibold text-[#0a6d72] capitalize">
-                                {order.status}
+                                {orderStatusLabel(order)}
                               </span>
                             </td>
                             <td className="px-2 py-2 text-right">
@@ -913,7 +915,7 @@ export default function OrderPage() {
                       Download PDF
                     </button>
 
-                    {isSupplierRoute && nextActionLabel(selectedOrder) && selectedOrder.buyer !== userId ? (
+                    {isSupplierRoute && nextActionLabel(selectedOrder) && (selectedOrder.vendor_user_id === userId || selectedOrder.buyer !== userId) ? (
                       <button
                         type="button"
                         onClick={() => moveOrderForward(selectedOrder)}

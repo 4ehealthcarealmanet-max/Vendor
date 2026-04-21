@@ -439,32 +439,7 @@ function ProductsPageContent() {
 
             {!isLoading && !error && userRole === "buyer" && groupedBuyerProducts.length > 0 ? (
               <>
-                <div className="mb-4 rounded-2xl border border-[#e0e8f8] bg-[#f8faff] p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-xl font-bold">Choose the right buying flow</h2>
-                      <p className="mt-1 text-sm text-[var(--text-muted)]">
-                        Use B2C buy now for repeat or urgent purchases. Use B2B RFQ when you need
-                        negotiated pricing, multiple quotations, or tender-based approval.
-                      </p>
-                      <p className="mt-2 text-sm font-semibold text-[#1d4ed8]">
-                        RFQ desk includes tender PDF upload while creating the request and PDF download/view after publishing.
-                      </p>
-                    </div>
-                    <Link
-                      href="/buyer/rfq"
-                      className="blue-btn px-4 py-3 text-sm"
-                    >
-                      Create RFQ
-                    </Link>
-                    <Link
-                      href="/buyer/rfq?view=my"
-                      className="rounded-xl border border-[#cdd9f4] bg-white px-4 py-3 text-sm font-semibold text-[#1e40af] transition hover:bg-[#f1f5ff]"
-                    >
-                      My RFQs
-                    </Link>
-                  </div>
-                </div>
+
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {groupedBuyerProducts.map((product, index) => (
                     <article

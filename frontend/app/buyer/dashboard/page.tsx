@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useDeferredValue, useEffect, useMemo, useState } from "react"
 import BuyerSidebar from "@/components/buyer/BuyerSidebar"
+import BuyerDashboardHeader from "@/components/buyer/BuyerDashboardHeader"
 import {
   clearToken,
   getCurrentUser,
@@ -380,40 +381,14 @@ export default function BuyerDashboardPage() {
           "radial-gradient(at 0% 0%, rgba(0, 86, 210, 0.04) 0px, transparent 45%), radial-gradient(at 100% 0%, rgba(255, 219, 207, 0.08) 0px, transparent 45%), radial-gradient(at 100% 100%, rgba(178, 197, 255, 0.08) 0px, transparent 45%), radial-gradient(at 0% 100%, rgba(242, 244, 246, 0.05) 0px, transparent 45%)",
       }}
     >
-      <header className="sticky top-0 z-40 border-b border-white/70 bg-white/75 shadow-[0_10px_30px_rgba(15,23,42,0.04)] backdrop-blur">
-        <div className="flex w-full flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 md:px-8">
-          <div className="flex min-w-0 items-center gap-4 sm:gap-8">
-            <Link href="/buyer/dashboard" className="font-[family-name:var(--font-display)] text-xl font-extrabold tracking-[-0.04em] text-[#0f172a]">
-              Med<span className="text-[#0f4fb6]">Vendor</span>
-            </Link>
-            <nav className="hidden items-center gap-6 md:flex">
-              <Link href="/buyer/products" className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#7b8798] transition hover:text-[#0f4fb6]">Marketplace</Link>
-              <Link href="/buyer/rfq?view=my" className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#7b8798] transition hover:text-[#0f4fb6]">Contracts</Link>
-            </nav>
-          </div>
-          <div className="ml-auto flex items-center gap-3 md:gap-4">
-            <label className="hidden min-w-[250px] items-center gap-3 rounded-full border border-[#e6ebf2] bg-[#f8fafc] px-4 py-2.5 text-sm text-[#94a3b8] focus-within:ring-2 focus-within:ring-[#0f4fb6]/15 md:flex">
-              <Glyph label="SR" tone="blue" small />
-              <input
-                value={searchText}
-                onChange={(event) => setSearchText(event.target.value)}
-                placeholder="Search RFQs, locations, orders..."
-                className="w-full border-0 bg-transparent p-0 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8]"
-              />
-            </label>
-            <button type="button" onClick={() => document.getElementById("recent-activity")?.scrollIntoView({ behavior: "smooth" })} className="relative rounded-full p-2" aria-label="View notifications">
-              <Glyph label="NT" tone="slate" small />
-              {pendingActions > 0 ? <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#ba1a1a] ring-2 ring-white" /> : null}
-            </button>
-            <button type="button" onClick={() => document.getElementById("supplier-health")?.scrollIntoView({ behavior: "smooth" })} className="rounded-full p-2" aria-label="View supplier health">
-              <Glyph label="AI" tone="slate" small />
-            </button>
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,#dbe8ff,#fff1e8)] text-sm font-black text-[#0f4fb6] ring-2 ring-[#0f4fb6]/10">
-              {buyerInitials}
-            </div>
-          </div>
-        </div>
-      </header>
+      <BuyerDashboardHeader
+        user={user}
+        rfqs={rfqs}
+        products={products}
+        searchText={searchText}
+        setSearchText={setSearchText}
+        pendingActions={pendingActions}
+      />
 
       <BuyerSidebar
         active="dashboard"
@@ -441,7 +416,7 @@ export default function BuyerDashboardPage() {
                 <Glyph label="EX" tone="slate" />
                 Export Data
               </button>
-              <Link href="/buyer/rfq" className="inline-flex items-center gap-2 rounded-[1.2rem] bg-[#0f4fb6] px-6 py-3.5 text-sm font-bold text-white shadow-[0_18px_30px_rgba(15,79,182,0.2)] transition hover:shadow-[0_20px_38px_rgba(15,79,182,0.28)]">
+              <Link href="/buyer/rfq?view=new" className="inline-flex items-center gap-2 rounded-[1.2rem] bg-[#0f4fb6] px-6 py-3.5 text-sm font-bold text-white shadow-[0_18px_30px_rgba(15,79,182,0.2)] transition hover:shadow-[0_20px_38px_rgba(15,79,182,0.28)]">
                 <span className="text-base leading-none">+</span>
                 New Request
               </Link>
@@ -524,7 +499,7 @@ export default function BuyerDashboardPage() {
                 <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-[#0f4fb6]/6 blur-2xl" />
                 <h3 className="text-[10px] font-black uppercase tracking-[0.22em] text-[#9aa3b2]">Priority Actions</h3>
                 <div className="mt-6 space-y-3">
-                  <QuickActionLink href="/buyer/products" glyph="RF" label="Create New RFQ" badge={`${openBuyerRfqs.length} LIVE`} />
+                  <QuickActionLink href="/buyer/rfq?view=new" glyph="RF" label="Create New RFQ" badge={`${openBuyerRfqs.length} LIVE`} />
                   <QuickActionLink href="/buyer/orders" glyph="OR" label="Review All Orders" badge={`${orders.length} TRACKED`} />
                   <QuickActionLink href="/buyer/rfq?view=my" glyph="QT" label="Compare Supplier Quotes" badge={`${pendingAwardRfqs.length} HOT`} />
                 </div>
