@@ -227,7 +227,7 @@ class VendorRfqSerializer(serializers.ModelSerializer):
             data["quotations"] = []
         elif request and request.user.is_authenticated:
             role = get_or_create_account_role(request.user)
-            if role == "supplier":
+            if role == "supplier" and instance.buyer != request.user:
                 username = request.user.username.strip().lower()
                 data["quotations"] = [
                     quote

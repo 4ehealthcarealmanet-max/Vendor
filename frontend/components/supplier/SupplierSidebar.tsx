@@ -13,8 +13,8 @@ type SupplierSidebarProps = {
 const navItems: Array<{ key: SupplierSection; href: string; label: string; glyph: string }> = [
   { key: "dashboard", href: "/supplier/dashboard", label: "Dashboard", glyph: "DB" },
   { key: "rfqs", href: "/supplier/rfq", label: "RFQs", glyph: "RF" },
-  { key: "orders", href: "/supplier/orders", label: "Orders", glyph: "OR" },
   { key: "supplies", href: "/supplier/products", label: "Supplies", glyph: "MD" },
+  { key: "orders", href: "/supplier/orders", label: "Orders", glyph: "OR" },
   { key: "analytics", href: "/supplier/analytics", label: "Analytics", glyph: "AN" },
 ]
 
@@ -63,6 +63,7 @@ export default function SupplierSidebar({ active, username, onSignOut }: Supplie
             </div>
           </div>
 
+
           <nav className="space-y-1" aria-label="Supplier">
             {navItems.map((item) => (
               <Link
@@ -106,7 +107,7 @@ export default function SupplierSidebar({ active, username, onSignOut }: Supplie
                 className="mt-1 flex w-full items-center gap-4 rounded-xl px-4 py-3 text-left text-sm font-bold text-[#ba1a1a] transition hover:bg-[#fff4f4]"
               >
                 <SidebarGlyph label="EX" tone="amber" />
-                Sign Out
+                Log Out
               </button>
             ) : null}
           </div>

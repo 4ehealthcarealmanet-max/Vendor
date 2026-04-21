@@ -122,13 +122,13 @@ const createActivityFeed = (rfqs: VendorRfq[], orders: VendorOrder[]) => {
     const awardedEvent =
       rfq.awarded_at && rfq.awarded_supplier_name
         ? {
-            id: `rfq-award-${rfq.id}`,
-            title: `${rfq.awarded_supplier_name} was awarded for ${rfq.title}.`,
-            detail: rfq.awarded_order_id ? `PO #${rfq.awarded_order_id} released from RFQ award.` : "Award confirmed.",
-            timestamp: rfq.awarded_at,
-            accent: "amber" as const,
-            glyph: "AW",
-          }
+          id: `rfq-award-${rfq.id}`,
+          title: `${rfq.awarded_supplier_name} was awarded for ${rfq.title}.`,
+          detail: rfq.awarded_order_id ? `PO #${rfq.awarded_order_id} released from RFQ award.` : "Award confirmed.",
+          timestamp: rfq.awarded_at,
+          accent: "amber" as const,
+          glyph: "AW",
+        }
         : null
 
     const quotationEvents = rfq.quotations.map((quote) => ({
@@ -158,13 +158,13 @@ const createActivityFeed = (rfqs: VendorRfq[], orders: VendorOrder[]) => {
     const deliveredEvent =
       order.delivered_at || order.goods_received_at
         ? {
-            id: `order-complete-${order.id}`,
-            title: `Order #${order.id} moved to ${order.delivery_status.replaceAll("_", " ")} stage.`,
-            detail: order.tracking_note || "Delivery milestone updated.",
-            timestamp: order.goods_received_at || order.delivered_at || order.created_at,
-            accent: "amber" as const,
-            glyph: "UP",
-          }
+          id: `order-complete-${order.id}`,
+          title: `Order #${order.id} moved to ${order.delivery_status.replaceAll("_", " ")} stage.`,
+          detail: order.tracking_note || "Delivery milestone updated.",
+          timestamp: order.goods_received_at || order.delivered_at || order.created_at,
+          accent: "amber" as const,
+          glyph: "UP",
+        }
         : null
 
     return [createdEvent, ...(deliveredEvent ? [deliveredEvent] : [])]
@@ -423,146 +423,146 @@ export default function BuyerDashboardPage() {
       />
 
       <main className="px-4 py-8 pb-24 sm:px-6 lg:pl-[calc(18rem+2.5rem)] lg:pr-10 lg:py-10">
-          <div className="mx-auto max-w-7xl">
-            <div className="mb-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-              <div className="max-w-3xl">
-                <div className="inline-flex items-center gap-2 rounded-full bg-[#ebf2ff] px-3 py-1.5 text-[#0f4fb6]">
-                  <span className="text-[10px] font-black uppercase tracking-[0.22em]">{organizationLabel} Performance Cycle</span>
-                </div>
-                <h1 className="mt-4 font-[family-name:var(--font-display)] text-4xl font-black leading-[1.02] tracking-[-0.05em] text-[#0f172a] sm:text-5xl md:text-6xl">
-                  Buyer <span className="font-medium italic text-[#0f4fb6]">Overview.</span>
-                </h1>
-                <p className="mt-5 max-w-2xl text-base leading-7 text-[#657286] sm:text-lg sm:leading-8">
-                  Monitor procurement cycles, supplier response depth, and live order velocity across your buyer workspace with actual RFQ and order data.
-                </p>
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#ebf2ff] px-3 py-1.5 text-[#0f4fb6]">
+                <span className="text-[10px] font-black uppercase tracking-[0.22em]">{organizationLabel} Performance Cycle</span>
               </div>
-              <div className="flex flex-wrap gap-3">
-                <button type="button" onClick={exportSnapshot} className="inline-flex items-center gap-2 rounded-[1.2rem] border border-[#e5e9f0] bg-white px-6 py-3.5 text-sm font-bold text-[#0f172a] shadow-sm transition hover:bg-[#f8fafc]">
-                  <Glyph label="EX" tone="slate" />
-                  Export Data
-                </button>
-                <Link href="/buyer/rfq" className="inline-flex items-center gap-2 rounded-[1.2rem] bg-[#0f4fb6] px-6 py-3.5 text-sm font-bold text-white shadow-[0_18px_30px_rgba(15,79,182,0.2)] transition hover:shadow-[0_20px_38px_rgba(15,79,182,0.28)]">
-                  <span className="text-base leading-none">+</span>
-                  New Request
-                </Link>
-              </div>
+              <h1 className="mt-4 font-[family-name:var(--font-display)] text-4xl font-black leading-[1.02] tracking-[-0.05em] text-[#0f172a] sm:text-5xl md:text-6xl">
+                Buyer <span className="font-medium italic text-[#0f4fb6]">Overview.</span>
+              </h1>
+              <p className="mt-5 max-w-2xl text-base leading-7 text-[#657286] sm:text-lg sm:leading-8">
+                Monitor procurement cycles, supplier response depth, and live order velocity across your buyer workspace with actual RFQ and order data.
+              </p>
             </div>
-
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-              <MetricCard label="Active RFQs" value={String(openBuyerRfqs.length).padStart(2, "0")} hint={`${liveCatalog.length} live listings available`} trend={rfqSpark} accent="blue" glyph="RF" />
-              <MetricCard label="Quotes Received" value={String(totalQuotes).padStart(2, "0")} hint={`Avg ${averageQuotes.toFixed(1)} per RFQ`} trend={quoteSpark} accent="slate" glyph="QT" />
-              <MetricCard label="Pending Action" value={String(pendingActions).padStart(2, "0")} hint={pendingActions > 0 ? `${pendingAwardRfqs.length} RFQs need review` : "No blockers right now"} trend={riskSpark} accent="amber" glyph="AL" />
-              <MetricCard label="Total Spend" value={formatCompactCurrency(totalSpend)} hint={`${orders.length} orders tracked`} trend={spendSpark} accent="dark" glyph="IN" />
-            </div>
-
-            <div className="mt-10 grid grid-cols-1 gap-8 xl:grid-cols-12">
-              <div className="space-y-10 xl:col-span-8">
-                <section className="overflow-hidden rounded-[2rem] border border-white/80 bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.06)] backdrop-blur">
-                  <div className="flex flex-col gap-4 border-b border-[#eff3f8] px-6 py-5 md:flex-row md:items-center md:justify-between md:px-8">
-                    <div>
-                      <h2 className="font-[family-name:var(--font-display)] text-xl font-black text-[#0f172a]">Active Ledger</h2>
-                      <p className="mt-1 text-xs font-medium text-[#94a3b8]">Tracking {searchableLedger.length} buyer RFQs with live quotation activity.</p>
-                    </div>
-                    <Link href="/buyer/rfq?view=my" className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.22em] text-[#0f4fb6] transition hover:gap-2">
-                      Complete History
-                      <span className="text-sm">→</span>
-                    </Link>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full border-collapse text-left">
-                      <thead>
-                        <tr className="bg-[#fbfcfe]">
-                          <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.22em] text-[#9aa3b2] md:px-8">Identifier</th>
-                          <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.22em] text-[#9aa3b2] md:px-8">Resource Title</th>
-                          <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.22em] text-[#9aa3b2] md:px-8">Status</th>
-                          <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.22em] text-[#9aa3b2] md:px-8">Quotes</th>
-                          <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-[0.22em] text-[#9aa3b2] md:px-8">Updated</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#f1f5f9]">
-                        {searchableLedger.slice(0, 5).map((rfq) => (
-                          <tr key={rfq.id} className="group transition hover:bg-[#fbfcff]">
-                            <td className="px-6 py-5 font-mono text-[11px] font-bold text-[#7b8798] md:px-8">{buildRfqIdentifier(rfq.id)}</td>
-                            <td className="px-6 py-5 md:px-8">
-                              <Link href="/buyer/rfq?view=my" className="font-[family-name:var(--font-display)] text-sm font-extrabold text-[#0f172a] transition group-hover:text-[#0f4fb6]">{rfq.title}</Link>
-                              <p className="mt-1 text-xs text-[#94a3b8]">{rfq.delivery_location}</p>
-                            </td>
-                            <td className="px-6 py-5 md:px-8">
-                              <span className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${rfqStatusClasses[rfq.status]}`}>{rfqStatusLabels[rfq.status]}</span>
-                            </td>
-                            <td className="px-6 py-5 text-sm text-[#475569] md:px-8">{rfq.quotations.length} {rfq.quotations.length === 1 ? "response" : "responses"}</td>
-                            <td className="px-6 py-5 text-right text-xs text-[#94a3b8] md:px-8">{formatShortDate(new Date(getLatestRfqTouch(rfq)).toISOString())}</td>
-                          </tr>
-                        ))}
-                        {searchableLedger.length === 0 ? (
-                          <tr>
-                            <td colSpan={5} className="px-6 py-10 text-center text-sm text-[#64748b] md:px-8">No RFQs matched your search. Try another keyword or create a new request.</td>
-                          </tr>
-                        ) : null}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
-
-                <section id="recent-activity">
-                  <h2 className="mb-6 flex items-center gap-3 font-[family-name:var(--font-display)] text-2xl font-black text-[#0f172a]">
-                    <span className="h-1 w-10 rounded-full bg-[#0f4fb6]" />
-                    Recent Activity
-                  </h2>
-                  <div className="space-y-4">
-                    {activityFeed.length > 0 ? activityFeed.map((activity) => <ActivityCard key={activity.id} activity={activity} />) : (
-                      <div className="rounded-[1.6rem] border border-white/80 bg-white/80 p-6 text-sm text-[#64748b] shadow-[0_20px_50px_rgba(15,23,42,0.06)]">
-                        No recent buyer activity matched your current search.
-                      </div>
-                    )}
-                  </div>
-                </section>
-              </div>
-
-              <div className="space-y-8 xl:col-span-4">
-                <section className="relative overflow-hidden rounded-[2rem] border border-white/80 bg-white/80 p-7 shadow-[0_20px_50px_rgba(15,23,42,0.06)] backdrop-blur">
-                  <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-[#0f4fb6]/6 blur-2xl" />
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.22em] text-[#9aa3b2]">Priority Actions</h3>
-                  <div className="mt-6 space-y-3">
-                    <QuickActionLink href="/buyer/rfq" glyph="RF" label="Create New RFQ" badge={`${openBuyerRfqs.length} LIVE`} />
-                    <QuickActionLink href="/buyer/orders" glyph="OR" label="Review All Orders" badge={`${orders.length} TRACKED`} />
-                    <QuickActionLink href="/buyer/rfq?view=my" glyph="QT" label="Compare Supplier Quotes" badge={`${pendingAwardRfqs.length} HOT`} />
-                  </div>
-                </section>
-
-                <section id="supplier-health" className="relative overflow-hidden rounded-[2.5rem] bg-[#0f172a] p-8 text-white shadow-[0_30px_60px_rgba(15,23,42,0.28)]">
-                  <div className="absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-[#0f4fb6]/20 blur-3xl opacity-60" />
-                  <div className="relative">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-[#b9c7df]">
-                        <Glyph label="AI" tone="dark" />
-                      </div>
-                      <h3 className="font-[family-name:var(--font-display)] text-xl font-extrabold">Supplier Health</h3>
-                    </div>
-                    <p className="mt-5 text-sm leading-7 text-[#a5b1c2]">Real marketplace intelligence built from your active RFQs, supplier participation depth, and award readiness.</p>
-                    <div className="mt-8 space-y-7">
-                      <HealthBar label="Response Coverage" value={`${supplierCoverage}%`} progress={supplierCoverage} tone="blue" />
-                      <HealthBar label="Award Readiness" value={`${awardReadiness}%`} progress={awardReadiness} tone="amber" />
-                      <HealthBar label="Supplier Depth" value={`${uniqueSuppliers.size} active`} progress={supplierDepth} tone="blue" />
-                    </div>
-                    <div className="mt-8 rounded-[1.5rem] border border-white/10 bg-white/5 p-5">
-                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#94a3b8]">Workspace Summary</p>
-                      <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-                        <div><p className="text-[#94a3b8]">Buyer Type</p><p className="mt-1 font-bold text-white">{organizationLabel}</p></div>
-                        <div><p className="text-[#94a3b8]">Supplier Reach</p><p className="mt-1 font-bold text-white">{uniqueSuppliers.size} vendors</p></div>
-                        <div><p className="text-[#94a3b8]">Open Orders</p><p className="mt-1 font-bold text-white">{orders.filter((order) => !["completed", "cancelled"].includes(order.status)).length}</p></div>
-                        <div><p className="text-[#94a3b8]">Catalog Depth</p><p className="mt-1 font-bold text-white">{liveCatalog.length} listings</p></div>
-                      </div>
-                    </div>
-                    <Link href="/buyer/rfq?view=my" className="mt-8 inline-flex w-full items-center justify-center rounded-[1.2rem] bg-white px-5 py-4 text-[11px] font-black uppercase tracking-[0.2em] text-[#111827] transition hover:bg-[#f6f7fb]">
-                      Access Buyer Report
-                    </Link>
-                  </div>
-                </section>
-              </div>
+            <div className="flex flex-wrap gap-3">
+              <button type="button" onClick={exportSnapshot} className="inline-flex items-center gap-2 rounded-[1.2rem] border border-[#e5e9f0] bg-white px-6 py-3.5 text-sm font-bold text-[#0f172a] shadow-sm transition hover:bg-[#f8fafc]">
+                <Glyph label="EX" tone="slate" />
+                Export Data
+              </button>
+              <Link href="/buyer/rfq" className="inline-flex items-center gap-2 rounded-[1.2rem] bg-[#0f4fb6] px-6 py-3.5 text-sm font-bold text-white shadow-[0_18px_30px_rgba(15,79,182,0.2)] transition hover:shadow-[0_20px_38px_rgba(15,79,182,0.28)]">
+                <span className="text-base leading-none">+</span>
+                New Request
+              </Link>
             </div>
           </div>
-        </main>
+
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard label="Active RFQs" value={String(openBuyerRfqs.length).padStart(2, "0")} hint={`${liveCatalog.length} live listings available`} trend={rfqSpark} accent="blue" glyph="RF" />
+            <MetricCard label="Quotes Received" value={String(totalQuotes).padStart(2, "0")} hint={`Avg ${averageQuotes.toFixed(1)} per RFQ`} trend={quoteSpark} accent="slate" glyph="QT" />
+            <MetricCard label="Pending Action" value={String(pendingActions).padStart(2, "0")} hint={pendingActions > 0 ? `${pendingAwardRfqs.length} RFQs need review` : "No blockers right now"} trend={riskSpark} accent="amber" glyph="AL" />
+            <MetricCard label="Total Spend" value={formatCompactCurrency(totalSpend)} hint={`${orders.length} orders tracked`} trend={spendSpark} accent="dark" glyph="IN" />
+          </div>
+
+          <div className="mt-10 grid grid-cols-1 gap-8 xl:grid-cols-12">
+            <div className="space-y-10 xl:col-span-8">
+              <section className="overflow-hidden rounded-[2rem] border border-white/80 bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.06)] backdrop-blur">
+                <div className="flex flex-col gap-4 border-b border-[#eff3f8] px-6 py-5 md:flex-row md:items-center md:justify-between md:px-8">
+                  <div>
+                    <h2 className="font-[family-name:var(--font-display)] text-xl font-black text-[#0f172a]">Active Ledger</h2>
+                    <p className="mt-1 text-xs font-medium text-[#94a3b8]">Tracking {searchableLedger.length} buyer RFQs with live quotation activity.</p>
+                  </div>
+                  <Link href="/buyer/rfq?view=my" className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.22em] text-[#0f4fb6] transition hover:gap-2">
+                    Complete History
+                    <span className="text-sm">→</span>
+                  </Link>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full border-collapse text-left">
+                    <thead>
+                      <tr className="bg-[#fbfcfe]">
+                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.22em] text-[#9aa3b2] md:px-8">Identifier</th>
+                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.22em] text-[#9aa3b2] md:px-8">Resource Title</th>
+                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.22em] text-[#9aa3b2] md:px-8">Status</th>
+                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.22em] text-[#9aa3b2] md:px-8">Quotes</th>
+                        <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-[0.22em] text-[#9aa3b2] md:px-8">Updated</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#f1f5f9]">
+                      {searchableLedger.slice(0, 5).map((rfq) => (
+                        <tr key={rfq.id} className="group transition hover:bg-[#fbfcff]">
+                          <td className="px-6 py-5 font-mono text-[11px] font-bold text-[#7b8798] md:px-8">{buildRfqIdentifier(rfq.id)}</td>
+                          <td className="px-6 py-5 md:px-8">
+                            <Link href="/buyer/rfq?view=my" className="font-[family-name:var(--font-display)] text-sm font-extrabold text-[#0f172a] transition group-hover:text-[#0f4fb6]">{rfq.title}</Link>
+                            <p className="mt-1 text-xs text-[#94a3b8]">{rfq.delivery_location}</p>
+                          </td>
+                          <td className="px-6 py-5 md:px-8">
+                            <span className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${rfqStatusClasses[rfq.status]}`}>{rfqStatusLabels[rfq.status]}</span>
+                          </td>
+                          <td className="px-6 py-5 text-sm text-[#475569] md:px-8">{rfq.quotations.length} {rfq.quotations.length === 1 ? "response" : "responses"}</td>
+                          <td className="px-6 py-5 text-right text-xs text-[#94a3b8] md:px-8">{formatShortDate(new Date(getLatestRfqTouch(rfq)).toISOString())}</td>
+                        </tr>
+                      ))}
+                      {searchableLedger.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-10 text-center text-sm text-[#64748b] md:px-8">No RFQs matched your search. Try another keyword or create a new request.</td>
+                        </tr>
+                      ) : null}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section id="recent-activity">
+                <h2 className="mb-6 flex items-center gap-3 font-[family-name:var(--font-display)] text-2xl font-black text-[#0f172a]">
+                  <span className="h-1 w-10 rounded-full bg-[#0f4fb6]" />
+                  Recent Activity
+                </h2>
+                <div className="space-y-4">
+                  {activityFeed.length > 0 ? activityFeed.map((activity) => <ActivityCard key={activity.id} activity={activity} />) : (
+                    <div className="rounded-[1.6rem] border border-white/80 bg-white/80 p-6 text-sm text-[#64748b] shadow-[0_20px_50px_rgba(15,23,42,0.06)]">
+                      No recent buyer activity matched your current search.
+                    </div>
+                  )}
+                </div>
+              </section>
+            </div>
+
+            <div className="space-y-8 xl:col-span-4">
+              <section className="relative overflow-hidden rounded-[2rem] border border-white/80 bg-white/80 p-7 shadow-[0_20px_50px_rgba(15,23,42,0.06)] backdrop-blur">
+                <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-[#0f4fb6]/6 blur-2xl" />
+                <h3 className="text-[10px] font-black uppercase tracking-[0.22em] text-[#9aa3b2]">Priority Actions</h3>
+                <div className="mt-6 space-y-3">
+                  <QuickActionLink href="/buyer/products" glyph="RF" label="Create New RFQ" badge={`${openBuyerRfqs.length} LIVE`} />
+                  <QuickActionLink href="/buyer/orders" glyph="OR" label="Review All Orders" badge={`${orders.length} TRACKED`} />
+                  <QuickActionLink href="/buyer/rfq?view=my" glyph="QT" label="Compare Supplier Quotes" badge={`${pendingAwardRfqs.length} HOT`} />
+                </div>
+              </section>
+
+              <section id="supplier-health" className="relative overflow-hidden rounded-[2.5rem] bg-[#0f172a] p-8 text-white shadow-[0_30px_60px_rgba(15,23,42,0.28)]">
+                <div className="absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-[#0f4fb6]/20 blur-3xl opacity-60" />
+                <div className="relative">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-[#b9c7df]">
+                      <Glyph label="AI" tone="dark" />
+                    </div>
+                    <h3 className="font-[family-name:var(--font-display)] text-xl font-extrabold">Supplier Health</h3>
+                  </div>
+                  <p className="mt-5 text-sm leading-7 text-[#a5b1c2]">Real marketplace intelligence built from your active RFQs, supplier participation depth, and award readiness.</p>
+                  <div className="mt-8 space-y-7">
+                    <HealthBar label="Response Coverage" value={`${supplierCoverage}%`} progress={supplierCoverage} tone="blue" />
+                    <HealthBar label="Award Readiness" value={`${awardReadiness}%`} progress={awardReadiness} tone="amber" />
+                    <HealthBar label="Supplier Depth" value={`${uniqueSuppliers.size} active`} progress={supplierDepth} tone="blue" />
+                  </div>
+                  <div className="mt-8 rounded-[1.5rem] border border-white/10 bg-white/5 p-5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#94a3b8]">Workspace Summary</p>
+                    <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+                      <div><p className="text-[#94a3b8]">Buyer Type</p><p className="mt-1 font-bold text-white">{organizationLabel}</p></div>
+                      <div><p className="text-[#94a3b8]">Supplier Reach</p><p className="mt-1 font-bold text-white">{uniqueSuppliers.size} vendors</p></div>
+                      <div><p className="text-[#94a3b8]">Open Orders</p><p className="mt-1 font-bold text-white">{orders.filter((order) => !["completed", "cancelled"].includes(order.status)).length}</p></div>
+                      <div><p className="text-[#94a3b8]">Catalog Depth</p><p className="mt-1 font-bold text-white">{liveCatalog.length} listings</p></div>
+                    </div>
+                  </div>
+                  <Link href="/buyer/rfq?view=my" className="mt-8 inline-flex w-full items-center justify-center rounded-[1.2rem] bg-white px-5 py-4 text-[11px] font-black uppercase tracking-[0.2em] text-[#111827] transition hover:bg-[#f6f7fb]">
+                    Access Buyer Report
+                  </Link>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
   )
 }
@@ -775,35 +775,35 @@ function MetricCard({
   const palette =
     accent === "blue"
       ? {
-          shell: "border-white/80 bg-white text-[#0f172a]",
-          bar: "bg-[#0f4fb6]/18 group-hover:bg-[#0f4fb6]/34",
-          label: "text-[#98a2b3]",
-          hint: "text-[#10b981]",
-          tone: "blue" as const,
-        }
+        shell: "border-white/80 bg-white text-[#0f172a]",
+        bar: "bg-[#0f4fb6]/18 group-hover:bg-[#0f4fb6]/34",
+        label: "text-[#98a2b3]",
+        hint: "text-[#10b981]",
+        tone: "blue" as const,
+      }
       : accent === "slate"
         ? {
-            shell: "border-white/80 bg-white text-[#0f172a]",
-            bar: "bg-[#475569]/18 group-hover:bg-[#475569]/32",
-            label: "text-[#98a2b3]",
-            hint: "text-[#94a3b8]",
-            tone: "slate" as const,
-          }
+          shell: "border-white/80 bg-white text-[#0f172a]",
+          bar: "bg-[#475569]/18 group-hover:bg-[#475569]/32",
+          label: "text-[#98a2b3]",
+          hint: "text-[#94a3b8]",
+          tone: "slate" as const,
+        }
         : accent === "amber"
           ? {
-              shell: "border-white/80 bg-white text-[#0f172a]",
-              bar: "bg-[#a93802]/18 group-hover:bg-[#a93802]/32",
-              label: "text-[#98a2b3]",
-              hint: "text-[#a93802]",
-              tone: "amber" as const,
-            }
+            shell: "border-white/80 bg-white text-[#0f172a]",
+            bar: "bg-[#a93802]/18 group-hover:bg-[#a93802]/32",
+            label: "text-[#98a2b3]",
+            hint: "text-[#a93802]",
+            tone: "amber" as const,
+          }
           : {
-              shell: "border-[#0f172a] bg-[#0f172a] text-white",
-              bar: "bg-white/10 group-hover:bg-white/24",
-              label: "text-[#64748b]",
-              hint: "text-[#cbd5e1]",
-              tone: "dark" as const,
-            }
+            shell: "border-[#0f172a] bg-[#0f172a] text-white",
+            bar: "bg-white/10 group-hover:bg-white/24",
+            label: "text-[#64748b]",
+            hint: "text-[#cbd5e1]",
+            tone: "dark" as const,
+          }
 
   return (
     <article className={`group rounded-[1.8rem] border p-6 shadow-[0_15px_40px_rgba(15,23,42,0.05)] transition hover:-translate-y-1 ${palette.shell}`}>
