@@ -14,6 +14,7 @@ import {
   deleteProduct,
   getApiErrorMessage,
   getProducts,
+  notifySupplier,
   updateProduct,
 } from "@/services"
 import type { VendorProductService } from "@/services"
@@ -61,6 +62,18 @@ function ProductsPageContent() {
   const [query, setQuery] = useState("")
   const [category, setCategory] = useState<"all" | "product" | "service">("all")
   const [highlightedProductId, setHighlightedProductId] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (userRole !== "supplier") return
+    const message = actionMessage || createMessage || error || ""
+    if (!message) return
+    const isErrorMessage = Boolean(error) || /could not|cannot|required|must|missing|invalid|failed|select/i.test(message)
+    notifySupplier({
+      type: isErrorMessage ? "error" : "success",
+      title: isErrorMessage ? "Product Alert" : "Product Updated",
+      message,
+    })
+  }, [actionMessage, createMessage, error, userRole])
 
   useEffect(() => {
     const fetchProducts = async () => {

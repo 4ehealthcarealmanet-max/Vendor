@@ -11,6 +11,7 @@ import {
   getRfqs,
   isAuthSessionError,
   logoutUser,
+  notifySupplier,
 } from "@/services"
 import type { VendorOrder, VendorProductService, VendorRfq } from "@/services"
 
@@ -61,6 +62,11 @@ export default function AnalyticsPage() {
   const [userRole, setUserRole] = useState<"supplier" | "buyer" | "">("")
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState("")
+
+  useEffect(() => {
+    if (!error) return
+    notifySupplier({ type: "error", title: "Analytics Alert", message: error })
+  }, [error])
 
   useEffect(() => {
     const loadAnalytics = async () => {

@@ -107,7 +107,7 @@ export default function DashboardHeader({ user, rfqs = [], products = [] }: Dash
               onFocus={() => {
                 setShowSearch(true)
               }}
-              className="w-full border-0 bg-transparent text-sm text-[#1f2937] placeholder:text-[#a0aab8] outline-none font-medium"
+              className="w-full appearance-none border-0 bg-transparent text-sm font-medium text-[#1f2937] shadow-none outline-none ring-0 placeholder:text-[#a0aab8] focus:border-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
             />
             {searching ? (
               <svg className="h-4 w-4 animate-spin text-[#0f4fb6]" fill="none" viewBox="0 0 24 24">

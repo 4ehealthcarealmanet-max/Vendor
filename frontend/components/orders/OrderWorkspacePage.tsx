@@ -19,6 +19,7 @@ import {
   markOrderReceived,
   markPaymentOverdue,
   logoutUser,
+  notifySupplier,
   reorderFromOrder,
   updateOrderTracking,
 } from "@/services"
@@ -209,6 +210,17 @@ export default function OrderPage() {
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null)
   const [shortageQuantity, setShortageQuantity] = useState<number>(1)
+
+  useEffect(() => {
+    if (userRole !== "supplier" || !feedback) return
+    const isErrorMessage = /could not|cannot|required|missing|invalid|failed|not authenticated|select|unable/i.test(feedback)
+    const isSuccessMessage = /updated|accepted|created|placed|recorded|marked|submitted|ready|shipped|delivered/i.test(feedback)
+    notifySupplier({
+      type: isErrorMessage ? "error" : isSuccessMessage ? "success" : "info",
+      title: isErrorMessage ? "Order Alert" : "Order Update",
+      message: feedback,
+    })
+  }, [feedback, userRole])
 
   useEffect(() => {
     const loadData = async () => {

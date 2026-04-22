@@ -154,9 +154,9 @@ export default function PublicLandingPage() {
 
       <section className="mx-auto grid max-w-7xl gap-4 px-6 pb-8 pt-16 md:grid-cols-12 md:items-center md:pb-12 md:pt-20 md:px-8">
         <div className="md:col-span-6 lg:col-span-7">
-          <h1 className="max-w-2xl font-[family-name:var(--font-display)] text-3xl font-extrabold leading-[1.05] tracking-[-0.05em] md:text-4xl">
-            The Future of{" "}
-            <span className="bg-gradient-to-r from-[#0040a1] to-[#0056d2] bg-clip-text text-transparent">
+          <h1 className="max-w-2xl text-balance font-[family-name:var(--font-display)] text-[2.2rem] font-extrabold leading-[0.98] tracking-[-0.05em] sm:text-[2.6rem] md:text-4xl md:leading-[1.02]">
+            <span className="block">The Future of</span>
+            <span className="mt-1 block bg-gradient-to-r from-[#0040a1] to-[#0056d2] bg-clip-text text-transparent md:mt-0">
               Clinical Sourcing
             </span>
           </h1>
@@ -224,18 +224,18 @@ export default function PublicLandingPage() {
 
       <section id="suppliers" className="mx-auto max-w-6xl px-6 py-8 md:px-8 md:py-10">
         <div className="grid gap-5 md:grid-cols-2">
-          <article className="interactive-card relative overflow-hidden rounded-[1.5rem] border border-[#d9e7ff] bg-white p-5 shadow-[0_14px_32px_rgba(15,79,182,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_42px_rgba(15,79,182,0.1)] md:p-6">
-            <div className="pointer-events-none absolute inset-0 hidden md:block">
+          <article className="interactive-card relative min-h-[24rem] overflow-hidden rounded-[1.5rem] border border-[#d9e7ff] bg-white p-5 shadow-[0_14px_32px_rgba(15,79,182,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_42px_rgba(15,79,182,0.1)] md:min-h-[26rem] md:p-6">
+            <div className="pointer-events-none absolute inset-0">
               <Image
                 src="/images/for buyer.jpeg"
                 alt="Buyer card visual background"
                 fill
                 sizes="50vw"
-                className="object-cover object-right-top opacity-66 brightness-[0.74] contrast-[1.12] saturate-[1.02]"
+                className="object-cover object-[72%_top] opacity-32 brightness-[0.88] contrast-[1.05] saturate-[1.02] md:object-right-top md:opacity-66 md:brightness-[0.74] md:contrast-[1.12]"
               />
-              <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.99)_0%,rgba(255,255,255,0.96)_28%,rgba(255,255,255,0.78)_48%,rgba(255,255,255,0.34)_68%,rgba(255,255,255,0.08)_100%)]" />
-              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.02)_30%,rgba(255,255,255,0.16)_100%)]" />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_36%,rgba(196,220,255,0.16),rgba(255,255,255,0)_32%)]" />
+              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(255,255,255,0.8)_34%,rgba(255,255,255,0.74)_62%,rgba(255,255,255,0.86)_100%)] md:bg-[linear-gradient(90deg,rgba(255,255,255,0.99)_0%,rgba(255,255,255,0.96)_28%,rgba(255,255,255,0.78)_48%,rgba(255,255,255,0.34)_68%,rgba(255,255,255,0.08)_100%)]" />
+              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.16)_0%,rgba(255,255,255,0.06)_30%,rgba(255,255,255,0.22)_100%)] md:bg-[linear-gradient(180deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.02)_30%,rgba(255,255,255,0.16)_100%)]" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_24%,rgba(196,220,255,0.22),rgba(255,255,255,0)_34%)] md:bg-[radial-gradient(circle_at_80%_36%,rgba(196,220,255,0.16),rgba(255,255,255,0)_32%)]" />
             </div>
             <div className="relative z-10 max-w-[25rem]">
               <div className="max-w-[25rem]">
@@ -263,18 +263,18 @@ export default function PublicLandingPage() {
             </div>
           </article>
 
-          <article className="interactive-card relative overflow-hidden rounded-[1.5rem] border border-[#d9e7ff] bg-white p-5 shadow-[0_14px_32px_rgba(15,79,182,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_42px_rgba(15,79,182,0.1)] md:p-6">
-            <div className="pointer-events-none absolute inset-0 hidden md:block">
+          <article className="interactive-card relative min-h-[24rem] overflow-hidden rounded-[1.5rem] border border-[#d9e7ff] bg-white p-5 shadow-[0_14px_32px_rgba(15,79,182,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_42px_rgba(15,79,182,0.1)] md:min-h-[26rem] md:p-6">
+            <div className="pointer-events-none absolute inset-0">
               <Image
                 src="/images/for supplier.jpeg"
                 alt="Supplier card visual background"
                 fill
                 sizes="50vw"
-                className="object-cover object-right-top opacity-66 brightness-[0.74] contrast-[1.12] saturate-[1.02]"
+                className="object-cover object-[72%_top] opacity-32 brightness-[0.88] contrast-[1.05] saturate-[1.02] md:object-right-top md:opacity-66 md:brightness-[0.74] md:contrast-[1.12]"
               />
-              <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.99)_0%,rgba(255,255,255,0.96)_28%,rgba(255,255,255,0.78)_48%,rgba(255,255,255,0.34)_68%,rgba(255,255,255,0.08)_100%)]" />
-              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.02)_30%,rgba(255,255,255,0.16)_100%)]" />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_36%,rgba(196,220,255,0.14),rgba(255,255,255,0)_32%)]" />
+              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(255,255,255,0.8)_34%,rgba(255,255,255,0.74)_62%,rgba(255,255,255,0.86)_100%)] md:bg-[linear-gradient(90deg,rgba(255,255,255,0.99)_0%,rgba(255,255,255,0.96)_28%,rgba(255,255,255,0.78)_48%,rgba(255,255,255,0.34)_68%,rgba(255,255,255,0.08)_100%)]" />
+              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.16)_0%,rgba(255,255,255,0.06)_30%,rgba(255,255,255,0.22)_100%)] md:bg-[linear-gradient(180deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.02)_30%,rgba(255,255,255,0.16)_100%)]" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_24%,rgba(196,220,255,0.18),rgba(255,255,255,0)_34%)] md:bg-[radial-gradient(circle_at_80%_36%,rgba(196,220,255,0.14),rgba(255,255,255,0)_32%)]" />
             </div>
             <div className="relative z-10 max-w-[25rem]">
               <div className="max-w-[25rem]">

@@ -21,6 +21,7 @@ import {
   getToken,
   getUniqueVendorsFromProducts,
   isAuthSessionError,
+  notifySupplier,
   rejectQuotation,
   reopenRfq,
   submitQuotation,
@@ -168,6 +169,17 @@ function RfqPageContent() {
     rfqId: null,
   })
   const hasAuthToken = () => Boolean(getToken())
+
+  useEffect(() => {
+    if (userRole !== "supplier" || !message) return
+    const isErrorMessage = /could not|cannot|required|must|missing|not found|invalid|failed|select|add an active/i.test(message)
+    const isSuccessMessage = /success|submitted|updated|issued|awarded|rejected|closed|reopened|deleted/i.test(message)
+    notifySupplier({
+      type: isErrorMessage ? "error" : isSuccessMessage ? "success" : "info",
+      title: isErrorMessage ? "RFQ Needs Attention" : "RFQ Update",
+      message,
+    })
+  }, [message, userRole])
 
   const handleTenderDocumentChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null
@@ -369,11 +381,6 @@ function RfqPageContent() {
         })
       }),
     [rfqs, username, supplierInviteKeys]
-  )
-
-  const activeSupplierRfqs = useMemo(
-    () => visibleSupplierRfqs.filter((item) => item.status === "open" || item.status === "under_review"),
-    [visibleSupplierRfqs]
   )
 
   const matchingSupplierListings = useMemo(() => {
@@ -1144,31 +1151,7 @@ function RfqPageContent() {
                 ) : null}
               </article>
             ) : userRole === "supplier" ? (
-              <article className="soft-panel rounded-[20px] p-5">
-                <h2 className="text-2xl font-extrabold">Supplier Tender Desk</h2>
-                <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
-                  Buyer requests shown here include active tenders and past requirement history that was open to the market or addressed to your vendor account.
-                </p>
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                  <MetricCard label="Active RFQs" value={activeSupplierRfqs.length} />
-                  <MetricCard label="My Listings" value={supplierListings.length} />
-                  <MetricCard
-                    label="My Quotes"
-                    value={rfqs.reduce((sum, item) => sum + item.quotations.filter((quote) => quote.supplier_name === username).length, 0)}
-                  />
-                </div>
-                {!supplierCanQuote ? (
-                  <p className="mt-4 rounded-lg border border-[#f0dfc4] bg-[#fff9f1] px-3 py-2 text-sm text-[#8a5a2f]">
-                    Add at least one active in-stock listing in the marketplace before you can quote on RFQs.
-                  </p>
-                ) : null}
-                {supplierCanQuote && visibleSupplierRfqs.length === 0 ? (
-                  <div className="mt-4 rounded-lg border border-[#d8e8f6] bg-[#f8fbff] px-4 py-3 text-sm text-[#476673]">
-                    No buyer request is visible for this supplier account right now. This usually means no RFQ has been
-                    published yet, or the request was issued as a limited tender to other vendors.
-                  </div>
-                ) : null}
-              </article>
+              null
             ) : userRole === "buyer" ? (
               null
             ) : (

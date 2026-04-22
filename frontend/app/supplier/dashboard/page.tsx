@@ -6,6 +6,7 @@ import { Suspense, useDeferredValue, useEffect, useMemo, useState } from "react"
 import SupplierSidebar from "@/components/supplier/SupplierSidebar"
 import SupplierDashboardHeader from "@/components/supplier/SupplierDashboardHeader"
 import {
+  acceptPo,
   clearToken,
   getApiErrorMessage,
   getCurrentUser,
@@ -14,7 +15,9 @@ import {
   getRfqs,
   isAuthSessionError,
   logoutUser,
+  notifySupplier,
   submitQuotation,
+  updateOrderTracking,
 } from "@/services"
 import type { AuthUser, VendorOrder, VendorProductService, VendorQuotation, VendorQuotationInput, VendorRfq } from "@/services"
 
@@ -114,19 +117,95 @@ const orderStageIndex = (order?: VendorOrder | null) => {
   return 0
 }
 
+const readableStatus = (value: string) =>
+  value
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ")
+
 const orderStatusLabel = (order?: VendorOrder | null) => {
   if (!order) return "No active order"
   if (order.status === "cancelled") return "Cancelled"
-  if (order.status === "completed" || order.status === "goods_received" || order.delivery_status === "delivered") return "Delivered"
-  if (order.status === "shipped" || order.status === "delivered" || order.delivery_status === "in_transit" || order.delivery_status === "out_for_delivery") return "Shipped"
-  if (order.status === "processing" || order.status === "ready_to_dispatch" || order.status === "po_accepted" || order.delivery_status === "loaded") return "Processing"
-  return "Order Placed"
+  if (order.status === "completed") return "Completed"
+  if (order.status === "goods_received") return "Goods Received"
+  if (order.status === "delivered" || order.delivery_status === "delivered") return "Delivered"
+  if (order.status === "shipped") return "Shipped"
+  if (order.delivery_status === "out_for_delivery") return "Out For Delivery"
+  if (order.delivery_status === "in_transit") return "In Transit"
+  if (order.status === "ready_to_dispatch") return "Ready To Dispatch"
+  if (order.status === "partially_subcontracted") return "Partially Subcontracted"
+  if (order.status === "processing") return "Processing"
+  if (order.status === "po_accepted") return "PO Accepted"
+  if (order.status === "po_released") return "PO Released"
+  return readableStatus(order.status)
 }
 
 const orderStatusDetail = (order?: VendorOrder | null) => {
   if (!order) return "New purchase orders will appear here."
   if (order.tracking_note) return order.tracking_note
-  return `Payment ${order.payment_status.replaceAll("_", " ")}`
+  return `Delivery ${readableStatus(order.delivery_status)} | Payment ${readableStatus(order.payment_status)}`
+}
+
+const latestOrderActivityTime = (order: VendorOrder) => {
+  const latestEvent = order.events.reduce((latest, event) => {
+    const eventTime = new Date(event.created_at).getTime()
+    return Number.isFinite(eventTime) && eventTime > latest ? eventTime : latest
+  }, 0)
+
+  return Math.max(
+    latestEvent,
+    new Date(order.goods_received_at || "").getTime() || 0,
+    new Date(order.delivered_at || "").getTime() || 0,
+    new Date(order.shipped_at || "").getTime() || 0,
+    new Date(order.po_accepted_at || "").getTime() || 0,
+    new Date(order.po_released_at || "").getTime() || 0,
+    new Date(order.created_at).getTime() || 0
+  )
+}
+
+const orderActivityDate = (order: VendorOrder) => {
+  const latestEvent = [...order.events]
+    .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())[0]
+
+  return (
+    latestEvent?.created_at ||
+    order.goods_received_at ||
+    order.delivered_at ||
+    order.shipped_at ||
+    order.po_accepted_at ||
+    order.po_released_at ||
+    order.created_at
+  )
+}
+
+const nextOrderAction = (order?: VendorOrder | null) => {
+  if (!order) return null
+  if (order.status === "po_released") return { label: "Accept PO", payload: null }
+  if (order.status === "po_accepted") {
+    return {
+      label: "Start Processing",
+      payload: { status: "processing" as const, delivery_status: "loaded" as const, tracking_note: "Order is being processed by supplier." },
+    }
+  }
+  if (order.status === "processing" || order.status === "partially_subcontracted") {
+    return {
+      label: "Ready To Dispatch",
+      payload: { status: "ready_to_dispatch" as const, delivery_status: "loaded" as const, tracking_note: "Order packed and ready to dispatch." },
+    }
+  }
+  if (order.status === "ready_to_dispatch") {
+    return {
+      label: "Mark Shipped",
+      payload: { status: "shipped" as const, delivery_status: "in_transit" as const, tracking_note: "Shipment is in transit." },
+    }
+  }
+  if (order.status === "shipped" || order.delivery_status === "in_transit" || order.delivery_status === "out_for_delivery") {
+    return {
+      label: "Mark Delivered",
+      payload: { status: "delivered" as const, delivery_status: "delivered" as const, tracking_note: "Shipment delivered to buyer location." },
+    }
+  }
+  return null
 }
 
 export default function SupplierDashboardPage() {
@@ -152,6 +231,8 @@ function SupplierDashboardPageContent() {
   const [quoteForm, setQuoteForm] = useState<VendorQuotationInput>(emptyQuoteForm)
   const [quoteMessage, setQuoteMessage] = useState("")
   const [submittingQuote, setSubmittingQuote] = useState(false)
+  const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null)
+  const [orderActionMessage, setOrderActionMessage] = useState("")
   const deferredSearch = useDeferredValue(searchText)
 
   // Read URL search params
@@ -194,11 +275,15 @@ function SupplierDashboardPageContent() {
       } catch (loadError) {
         if (isAuthSessionError(loadError)) {
           clearToken()
-          setError("Your supplier session expired. Please login again.")
+          const sessionMessage = "Your supplier session expired. Please login again."
+          setError(sessionMessage)
+          notifySupplier({ type: "warning", title: "Session Expired", message: sessionMessage })
           router.push("/login?next=%2Fsupplier%2Fdashboard")
           return
         }
-        setError("Could not load your supplier dashboard right now. Check the backend and try again.")
+        const loadMessage = "Could not load your supplier dashboard right now. Check the backend and try again."
+        setError(loadMessage)
+        notifySupplier({ type: "error", title: "Dashboard Error", message: loadMessage })
       } finally {
         setLoading(false)
       }
@@ -272,7 +357,11 @@ function SupplierDashboardPageContent() {
     [respondedIds, supplierProducts, visibleRfqs]
   )
 
-  const totalRevenue = useMemo(() => orders.reduce((sum, order) => sum + toNumber(order.total_amount), 0), [orders])
+  const supplierOrders = useMemo(
+    () => orders.filter((order) => order.vendor_user_id === user?.id),
+    [orders, user?.id]
+  )
+  const totalRevenue = useMemo(() => supplierOrders.reduce((sum, order) => sum + toNumber(order.total_amount), 0), [supplierOrders])
   const activeBids = useMemo(() => bidRows.filter((item) => item.quote.status !== "rejected"), [bidRows])
 
 
@@ -280,17 +369,23 @@ function SupplierDashboardPageContent() {
   const shownOpportunities = useMemo(() => (query ? opportunities.filter((item) => [item.rfq.title, item.rfq.buyer_company || item.rfq.buyer_name, item.rfq.delivery_location].join(" ").toLowerCase().includes(query)) : opportunities), [opportunities, query])
   const shownBids = useMemo(() => (query ? activeBids.filter((item) => [item.rfq.title, item.rfq.buyer_company || item.rfq.buyer_name, rfqId(item.rfq.id)].join(" ").toLowerCase().includes(query)) : activeBids), [activeBids, query])
   const pendingShipments = useMemo(
-    () => orders.filter((order) => !["completed", "cancelled", "goods_received"].includes(order.status) && order.delivery_status !== "delivered"),
-    [orders]
+    () => supplierOrders.filter((order) => !["completed", "cancelled", "goods_received"].includes(order.status) && order.delivery_status !== "delivered"),
+    [supplierOrders]
   )
   const currentOrder = useMemo(
     () =>
-      [...orders]
+      [...supplierOrders]
         .filter((order) => order.status !== "cancelled")
-        .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())[0] ?? null,
-    [orders]
+        .sort((left, right) => {
+          const leftOpen = !["completed", "goods_received"].includes(left.status) && left.delivery_status !== "delivered"
+          const rightOpen = !["completed", "goods_received"].includes(right.status) && right.delivery_status !== "delivered"
+          if (leftOpen !== rightOpen) return leftOpen ? -1 : 1
+          return latestOrderActivityTime(right) - latestOrderActivityTime(left)
+        })[0] ?? null,
+    [supplierOrders]
   )
   const currentOrderStage = orderStageIndex(currentOrder)
+  const currentOrderAction = nextOrderAction(currentOrder)
   const activeQuoteRfq = useMemo(
     () => opportunities.find((item) => item.rfq.id === activeQuoteRfqId) ?? null,
     [activeQuoteRfqId, opportunities]
@@ -332,17 +427,23 @@ function SupplierDashboardPageContent() {
     if (!activeQuoteRfq) return
 
     if (!quoteListingOptions.length) {
-      setQuoteMessage("Add an active listing before submitting a quote for this RFQ.")
+      const validationMessage = "Add an active listing before submitting a quote for this RFQ."
+      setQuoteMessage(validationMessage)
+      notifySupplier({ type: "warning", title: "Listing Required", message: validationMessage })
       return
     }
 
     if (!quoteForm.product_id) {
-      setQuoteMessage("Select a listing for this quotation.")
+      const validationMessage = "Select a listing for this quotation."
+      setQuoteMessage(validationMessage)
+      notifySupplier({ type: "warning", title: "Select Listing", message: validationMessage })
       return
     }
 
     if (quoteForm.unit_price <= 0 || quoteForm.lead_time_days <= 0 || quoteForm.validity_days <= 0) {
-      setQuoteMessage("Enter valid quote amount, lead time, and validity days.")
+      const validationMessage = "Enter valid quote amount, lead time, and validity days."
+      setQuoteMessage(validationMessage)
+      notifySupplier({ type: "warning", title: "Invalid Quote", message: validationMessage })
       return
     }
 
@@ -352,11 +453,41 @@ function SupplierDashboardPageContent() {
       await submitQuotation(activeQuoteRfq.rfq.id, quoteForm)
       const refreshedRfqs = await getRfqs()
       setRfqs(refreshedRfqs)
+      notifySupplier({ type: "success", title: "Quote Submitted", message: `Quotation submitted for ${activeQuoteRfq.rfq.title}.` })
       closeQuoteModal()
     } catch (submitError) {
-      setQuoteMessage(getApiErrorMessage(submitError, "Could not submit quotation right now."))
+      const errorMessage = getApiErrorMessage(submitError, "Could not submit quotation right now.")
+      setQuoteMessage(errorMessage)
+      notifySupplier({ type: "error", title: "Quote Failed", message: errorMessage })
     } finally {
       setSubmittingQuote(false)
+    }
+  }
+
+  const replaceOrder = (updated: VendorOrder) => {
+    setOrders((prev) => prev.map((order) => (order.id === updated.id ? updated : order)))
+  }
+
+  const handleCurrentOrderAction = async () => {
+    if (!currentOrder || !currentOrderAction) return
+
+    try {
+      setUpdatingOrderId(currentOrder.id)
+      setOrderActionMessage("")
+      const updatedOrder =
+        currentOrder.status === "po_released"
+          ? await acceptPo(currentOrder.id)
+          : await updateOrderTracking(currentOrder.id, currentOrderAction.payload ?? {})
+      replaceOrder(updatedOrder)
+      const successMessage = `Order #ORD-${updatedOrder.id} updated to ${orderStatusLabel(updatedOrder)}.`
+      setOrderActionMessage(successMessage)
+      notifySupplier({ type: "success", title: "Order Updated", message: successMessage })
+    } catch (actionError) {
+      const errorMessage = getApiErrorMessage(actionError, "Could not update this order right now.")
+      setOrderActionMessage(errorMessage)
+      notifySupplier({ type: "error", title: "Order Update Failed", message: errorMessage })
+    } finally {
+      setUpdatingOrderId(null)
     }
   }
 
@@ -384,7 +515,7 @@ function SupplierDashboardPageContent() {
                 <span className="rounded-full bg-[#eef4ff] p-3 text-[#0f4fb6]"><Icon type="invoice" className="h-6 w-6" /></span>
                 <div>
                   <p className="text-sm font-bold text-[#475569]">Total Orders</p>
-                  <p className="mt-1 text-3xl font-black text-[#0f172a]">{orders.length}</p>
+                  <p className="mt-1 text-3xl font-black text-[#0f172a]">{supplierOrders.length}</p>
                 </div>
               </div>
             </article>
@@ -476,6 +607,11 @@ function SupplierDashboardPageContent() {
                 <h2 className="text-xl font-black text-[#0f172a]">Current Order Status</h2>
                 <div className="mt-5 rounded-xl bg-[#f6f8fb] px-4 py-3">
                   <p className="text-xs font-black text-[#475569]">Order #{currentOrder ? `ORD-${currentOrder.id}` : "None"}</p>
+                  {currentOrder ? (
+                    <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#94a3b8]">
+                      Delivery: {readableStatus(currentOrder.delivery_status)} | Payment: {readableStatus(currentOrder.payment_status)}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="mt-7">
                   <div className="relative px-1 pt-14">
@@ -517,7 +653,27 @@ function SupplierDashboardPageContent() {
                   <div className="mt-6 rounded-xl border border-[#e5e9f0] bg-[#fbfcff] p-4 text-center">
                     <p className="font-black text-[#0f4fb6]">{orderStatusLabel(currentOrder)}</p>
                     <p className="mt-1 text-sm leading-6 text-[#64748b]">{orderStatusDetail(currentOrder)}</p>
-                    {currentOrder ? <p className="mt-2 text-xs font-semibold text-[#64748b]">Updated {shortDate(currentOrder.goods_received_at || currentOrder.delivered_at || currentOrder.shipped_at || currentOrder.created_at)}</p> : null}
+                    {currentOrder ? <p className="mt-2 text-xs font-semibold text-[#64748b]">Updated {shortDate(orderActivityDate(currentOrder))}</p> : null}
+                    {currentOrderAction ? (
+                      <button
+                        type="button"
+                        onClick={handleCurrentOrderAction}
+                        disabled={updatingOrderId === currentOrder?.id}
+                        className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-[#0f4fb6] px-4 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,79,182,0.2)] transition hover:bg-[#0d4299] disabled:cursor-not-allowed disabled:opacity-65"
+                      >
+                        {updatingOrderId === currentOrder?.id ? "Updating..." : currentOrderAction.label}
+                      </button>
+                    ) : currentOrder ? (
+                      <Link
+                        href="/supplier/orders"
+                        className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-[#c9d9ff] bg-white px-4 py-3 text-sm font-black text-[#0f4fb6] transition hover:bg-[#eef4ff]"
+                      >
+                        View Order Details
+                      </Link>
+                    ) : null}
+                    {orderActionMessage ? (
+                      <p className="mt-3 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-[#64748b]">{orderActionMessage}</p>
+                    ) : null}
                   </div>
                 </div>
               </article>
