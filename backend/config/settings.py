@@ -74,10 +74,15 @@ if database_url:
     DATABASES = {
         "default": dj_database_url.parse(database_url, conn_max_age=600, ssl_require=ssl_required),
     }
-elif use_remote_db and all(
-    os.getenv(key)
-    for key in ("SUPABASE_DB", "SUPABASE_USER", "SUPABASE_PASSWORD", "SUPABASE_HOST", "SUPABASE_DB_PORT")
-):
+elif use_remote_db:
+    # If USE_REMOTE_DB is True, we MUST have the credentials.
+    # We use a dictionary-based check to ensure all required vars are present.
+    required_vars = ["SUPABASE_DB", "SUPABASE_USER", "SUPABASE_PASSWORD", "SUPABASE_HOST", "SUPABASE_DB_PORT"]
+    missing_vars = [var for var in required_vars if not os.getenv(var)]
+    
+    if missing_vars:
+        raise ValueError(f"USE_REMOTE_DB is True but the following environment variables are missing: {', '.join(missing_vars)}")
+
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -86,10 +91,15 @@ elif use_remote_db and all(
             "PASSWORD": os.getenv("SUPABASE_PASSWORD"),
             "HOST": os.getenv("SUPABASE_HOST"),
             "PORT": os.getenv("SUPABASE_DB_PORT"),
-            "OPTIONS": {"sslmode": "require"},
+            "OPTIONS": {
+                "sslmode": "require",
+                # REQUIRED for Supabase Connection Pooler (Transaction Mode)
+                "prepared_statements": False,
+            },
         }
     }
 else:
+    # Use SQLite ONLY for local development when USE_REMOTE_DB is False
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
