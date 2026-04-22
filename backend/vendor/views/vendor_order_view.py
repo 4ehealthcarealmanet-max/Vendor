@@ -1,3 +1,4 @@
+from django.db.models import Q
 from datetime import timedelta
 
 from django.utils import timezone
@@ -8,6 +9,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from vendor.models.vendor_rfq import VendorRfq
 from vendor.models.vendor_order import VendorOrder
+from vendor.models.vendor_profile import VendorProfile
+from vendor.models.vendor_product_service import VendorProductService
 from vendor.serializers.vendor_order_serializer import VendorOrderSerializer, VendorOrderTrackingUpdateSerializer
 from vendor.utils.account_role import get_or_create_account_role
 from vendor.utils.order_events import log_order_event
@@ -25,29 +28,28 @@ class VendorOrderViewSet(viewsets.ModelViewSet):
 
     def _get_buyer_order(self, user):
         order = self.get_object()
-        if order.buyer_id != user.id:
+        if not VendorOrder.objects.filter(id=order.id, buyer=user).exists():
             raise PermissionDenied("You can only manage your own order.")
         return order
 
     def _get_supplier_order(self, user, message="You can only update your own order."):
         order = self.get_object()
-        if order.vendor.user_id != user.id:
+        if not VendorOrder.objects.filter(id=order.id, vendor__user=user).exists():
             raise PermissionDenied(message)
         return order
 
     def get_queryset(self):
-        role = get_or_create_account_role(self.request.user)
-        if role == "supplier":
-            return VendorOrder.objects.filter(vendor__user=self.request.user).order_by("-id")
-        return VendorOrder.objects.filter(buyer=self.request.user).order_by("-id")
+        # Users see orders where they are either the buyer or the vendor.
+        return VendorOrder.objects.filter(
+            Q(buyer=self.request.user) | Q(vendor__user=self.request.user)
+        ).distinct().order_by("-id")
 
     def perform_create(self, serializer):
-        self._require_role(self.request.user, "buyer", "Only buyers can place orders.")
+        # Both buyers and suppliers can place orders (suppliers for subcontracting).
         serializer.save(status="po_released")
 
     @action(detail=True, methods=["post"], url_path="accept-po")
     def accept_po(self, request, pk=None):
-        self._require_role(request.user, "supplier", "Only suppliers can accept PO.")
         order = self._get_supplier_order(request.user, "You can only accept your own PO.")
         if order.status == "cancelled":
             raise ValidationError("Cancelled orders cannot be accepted.")
@@ -65,7 +67,6 @@ class VendorOrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="update-tracking")
     def update_tracking(self, request, pk=None):
-        self._require_role(request.user, "supplier", "Only suppliers can update tracking.")
         order = self._get_supplier_order(request.user)
 
         serializer = VendorOrderTrackingUpdateSerializer(data=request.data)
@@ -77,7 +78,6 @@ class VendorOrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="mark-received")
     def mark_received(self, request, pk=None):
-        self._require_role(request.user, "buyer", "Only buyers can mark goods received.")
         order = self._get_buyer_order(request.user)
 
         order.status = "goods_received"
@@ -86,6 +86,21 @@ class VendorOrderViewSet(viewsets.ModelViewSet):
         if order.payment_status == "paid":
             order.status = "completed"
         order.save(update_fields=["status", "delivery_status", "goods_received_at"])
+
+        # Increase stock for buyer if they are also a vendor (subcontracting fulfillment)
+        try:
+            buyer_profile = VendorProfile.objects.get(user=request.user)
+            for item in order.items.all():
+                matching_product = VendorProductService.objects.filter(
+                    vendor=buyer_profile,
+                    name=item.product.name
+                ).first()
+                if matching_product:
+                    matching_product.stock += item.quantity
+                    matching_product.save(update_fields=["stock"])
+        except VendorProfile.DoesNotExist:
+            pass
+
         log_order_event(
             order,
             message="Buyer confirmed the goods were received.",
@@ -96,7 +111,6 @@ class VendorOrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="make-payment")
     def make_payment(self, request, pk=None):
-        self._require_role(request.user, "buyer", "Only buyers can make payments.")
         order = self._get_buyer_order(request.user)
 
         order.payment_status = "paid"
@@ -113,7 +127,6 @@ class VendorOrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="mark-payment-overdue")
     def mark_payment_overdue(self, request, pk=None):
-        self._require_role(request.user, "supplier", "Only suppliers can flag overdue payments.")
         order = self._get_supplier_order(request.user)
 
         order.payment_status = "overdue"
@@ -128,7 +141,6 @@ class VendorOrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="subcontract")
     def subcontract(self, request, pk=None):
-        self._require_role(request.user, "supplier", "Only suppliers can subcontract.")
         order = self._get_supplier_order(request.user, "You can only subcontract your own order.")
 
         shortage_qty = request.data.get("shortage_quantity")
@@ -180,7 +192,6 @@ class VendorOrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="reorder")
     def reorder(self, request, pk=None):
-        self._require_role(request.user, "buyer", "Only buyers can reorder.")
         order = self._get_buyer_order(request.user)
 
         cloned_order = VendorOrder.objects.create(

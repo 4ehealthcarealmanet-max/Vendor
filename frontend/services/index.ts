@@ -17,3 +17,4 @@ export type * from "./rfq/types"
 // Utilities
 export * from "./utils/apiConfig"
 export * from "./utils/apiUtilService"
+export * from "./utils/notificationService"

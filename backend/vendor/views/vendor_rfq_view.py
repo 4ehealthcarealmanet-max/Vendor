@@ -62,21 +62,18 @@ class VendorRfqViewSet(viewsets.ModelViewSet):
         # Suppliers can see:
         # 1) Open tenders (no invitation list)
         # 2) Limited tenders where they are invited
+        # 3) RFQs they created themselves (subcontracting)
         return queryset.filter(
-            Q(invitations__isnull=True) | Q(invitations__vendor__user=self.request.user)
+            Q(invitations__isnull=True) |
+            Q(invitations__vendor__user=self.request.user) |
+            Q(buyer=self.request.user)
         ).distinct()
 
     def perform_create(self, serializer):
-        role = get_or_create_account_role(self.request.user)
-        if role != "buyer":
-            raise PermissionDenied("Only buyers can create RFQs.")
+        # Both buyers and suppliers can create RFQs (suppliers for subcontracting).
         serializer.save()
 
     def perform_update(self, serializer):
-        role = get_or_create_account_role(self.request.user)
-        if role != "buyer":
-            raise PermissionDenied("Only buyers can update RFQs.")
-
         rfq = self.get_object()
         if rfq.buyer_id != self.request.user.id:
             raise PermissionDenied("You can only update your own RFQs.")
@@ -86,22 +83,12 @@ class VendorRfqViewSet(viewsets.ModelViewSet):
         serializer.save()
 
     def perform_destroy(self, instance):
-        role = get_or_create_account_role(self.request.user)
-        if role != "buyer":
-            raise PermissionDenied("Only buyers can delete RFQs.")
         if instance.buyer_id != self.request.user.id:
             raise PermissionDenied("You can only delete your own RFQs.")
         if instance.status == "awarded":
             raise ValidationError("Awarded RFQs cannot be deleted.")
         instance.delete()
 
-    @staticmethod
-    def _matches_rfq_listing(rfq, product):
-        rfq_title = (rfq.title or "").strip().lower()
-        product_name = (product.name or "").strip().lower()
-        if not rfq_title or not product_name:
-            return False
-        return rfq_title in product_name or product_name in rfq_title
 
     @action(detail=True, methods=["post"], url_path="submit-quotation")
     def submit_quotation(self, request, pk=None):
@@ -129,8 +116,6 @@ class VendorRfqViewSet(viewsets.ModelViewSet):
             raise ValidationError("Selected listing is not active or in stock.")
         if product.product_type != rfq.product_type:
             raise ValidationError("Listing type does not match the RFQ requirement.")
-        if not self._matches_rfq_listing(rfq, product):
-            raise ValidationError("Selected listing must match the RFQ title.")
 
         supplier_vendor = product.vendor
         if rfq.invitations.exists() and not rfq.invitations.filter(vendor=supplier_vendor).exists():
@@ -198,8 +183,6 @@ class VendorRfqViewSet(viewsets.ModelViewSet):
                 raise ValidationError("Selected listing is not active or in stock.")
             if product.product_type != rfq.product_type:
                 raise ValidationError("Listing type does not match the RFQ requirement.")
-            if not self._matches_rfq_listing(rfq, product):
-                raise ValidationError("Selected listing must match the RFQ title.")
             quotation.product = product
 
         for field in ["unit_price", "lead_time_days", "validity_days", "notes"]:
@@ -211,9 +194,6 @@ class VendorRfqViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="award")
     def award(self, request, pk=None):
-        role = get_or_create_account_role(request.user)
-        if role != "buyer":
-            raise PermissionDenied("Only buyers can award RFQs.")
 
         rfq = self.get_object()
         if rfq.buyer_id != request.user.id:
@@ -240,6 +220,7 @@ class VendorRfqViewSet(viewsets.ModelViewSet):
         else:
             if not quotation.supplier_vendor:
                 raise ValidationError("Selected quotation does not have a supplier account linked.")
+            from vendor.models.vendor_order_item import VendorOrderItem
             awarded_order = VendorOrder.objects.create(
                 buyer=request.user,
                 vendor=quotation.supplier_vendor,
@@ -248,6 +229,12 @@ class VendorRfqViewSet(viewsets.ModelViewSet):
                 payment_status="pending",
                 tracking_note="PO released from RFQ award.",
                 total_amount=quotation.unit_price * rfq.quantity,
+            )
+            VendorOrderItem.objects.create(
+                order=awarded_order,
+                product=quotation.product,
+                quantity=rfq.quantity,
+                price=quotation.unit_price
             )
 
         rfq.status = "awarded"
@@ -289,9 +276,6 @@ class VendorRfqViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="reject-quotation")
     def reject_quotation(self, request, pk=None):
-        role = get_or_create_account_role(request.user)
-        if role != "buyer":
-            raise PermissionDenied("Only buyers can reject quotations.")
 
         rfq = self.get_object()
         if rfq.buyer_id != request.user.id:
@@ -315,9 +299,6 @@ class VendorRfqViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="close")
     def close(self, request, pk=None):
-        role = get_or_create_account_role(request.user)
-        if role != "buyer":
-            raise PermissionDenied("Only buyers can close RFQs.")
 
         rfq = self.get_object()
         if rfq.buyer_id != request.user.id:
@@ -331,9 +312,6 @@ class VendorRfqViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="reopen")
     def reopen(self, request, pk=None):
-        role = get_or_create_account_role(request.user)
-        if role != "buyer":
-            raise PermissionDenied("Only buyers can reopen RFQs.")
 
         rfq = self.get_object()
         if rfq.buyer_id != request.user.id:

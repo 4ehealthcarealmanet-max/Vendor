@@ -1,6 +1,8 @@
 "use client"
 
 import Link from "next/link"
+import { useEffect, useState } from "react"
+import type { SupplierNotification, SupplierNotificationType } from "@/services"
 
 type SupplierSection = "dashboard" | "rfqs" | "orders" | "supplies" | "analytics" | "settings"
 
@@ -13,8 +15,8 @@ type SupplierSidebarProps = {
 const navItems: Array<{ key: SupplierSection; href: string; label: string; glyph: string }> = [
   { key: "dashboard", href: "/supplier/dashboard", label: "Dashboard", glyph: "DB" },
   { key: "rfqs", href: "/supplier/rfq", label: "RFQs", glyph: "RF" },
-  { key: "orders", href: "/supplier/orders", label: "Orders", glyph: "OR" },
-  { key: "supplies", href: "/supplier/products", label: "Supplies", glyph: "MD" },
+  { key: "supplies", href: "/supplier/products", label: "Add Products", glyph: "MD" },
+  { key: "orders", href: "/supplier/orders", label: "My Orders", glyph: "OR" },
   { key: "analytics", href: "/supplier/analytics", label: "Analytics", glyph: "AN" },
 ]
 
@@ -25,6 +27,9 @@ const getProfileInitials = (value?: string | null) => {
 
 export default function SupplierSidebar({ active, username, onSignOut }: SupplierSidebarProps) {
   const initials = getProfileInitials(username)
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  const closeMobileMenu = () => setMobileOpen(false)
 
   return (
     <>
@@ -62,6 +67,7 @@ export default function SupplierSidebar({ active, username, onSignOut }: Supplie
               </div>
             </div>
           </div>
+
 
           <nav className="space-y-1" aria-label="Supplier">
             {navItems.map((item) => (
@@ -106,28 +112,226 @@ export default function SupplierSidebar({ active, username, onSignOut }: Supplie
                 className="mt-1 flex w-full items-center gap-4 rounded-xl px-4 py-3 text-left text-sm font-bold text-[#ba1a1a] transition hover:bg-[#fff4f4]"
               >
                 <SidebarGlyph label="EX" tone="amber" />
-                Sign Out
+                Log Out
               </button>
             ) : null}
           </div>
         </div>
       </aside>
 
-      <nav className="fixed bottom-0 left-0 z-40 flex w-full items-center justify-around border-t border-white/80 bg-white/90 px-4 py-3 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
-        {navItems.map((item) => (
+      <button
+        type="button"
+        onClick={() => setMobileOpen(true)}
+        className="fixed left-4 top-4 z-50 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/80 bg-white/95 text-[#0f4fb6] shadow-[0_14px_34px_rgba(15,23,42,0.14)] backdrop-blur lg:hidden"
+        aria-label="Open supplier menu"
+        aria-expanded={mobileOpen}
+      >
+        <span className="grid gap-1.5">
+          <span className="block h-0.5 w-5 rounded-full bg-current" />
+          <span className="block h-0.5 w-5 rounded-full bg-current" />
+          <span className="block h-0.5 w-5 rounded-full bg-current" />
+        </span>
+      </button>
+
+      {mobileOpen ? (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button
+            type="button"
+            className="absolute inset-0 bg-[rgba(15,23,42,0.42)] backdrop-blur-[2px]"
+            onClick={closeMobileMenu}
+            aria-label="Close supplier menu"
+          />
+          <aside className="relative flex h-full w-[min(84vw,21rem)] flex-col overflow-y-auto border-r border-white/80 bg-[#f6f8fb] px-4 py-5 shadow-[18px_0_48px_rgba(15,23,42,0.18)]">
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <Link href="/supplier/dashboard" onClick={closeMobileMenu} className="flex items-center gap-3">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#0f4fb6,#1d72ff)] text-white shadow-[0_18px_28px_rgba(15,79,182,0.2)]">
+                  <SidebarGlyphIcon label="MD" className="h-5 w-5" />
+                </span>
+                <span>
+                  <span className="block font-[family-name:var(--font-display)] text-xl font-extrabold tracking-[-0.04em] text-[#0f172a]">
+                    MedVendor
+                  </span>
+                  <span className="block text-[10px] font-black uppercase tracking-[0.24em] text-[#7b8798]">
+                    Premium Supplier
+                  </span>
+                </span>
+              </Link>
+              <button
+                type="button"
+                onClick={closeMobileMenu}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white text-xl font-black text-[#64748b] shadow-sm"
+                aria-label="Close menu"
+              >
+                x
+              </button>
+            </div>
+
+            <div className="mb-5 rounded-[1.5rem] border border-white/90 bg-white/80 p-4 shadow-[0_14px_32px_rgba(15,23,42,0.05)]">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-[1rem] bg-[linear-gradient(135deg,#0f4fb6,#1d72ff)] text-sm font-black text-white shadow-[0_16px_30px_rgba(15,79,182,0.24)]">
+                  {initials}
+                </div>
+                <div>
+                  <p className="font-[family-name:var(--font-display)] text-base font-extrabold leading-tight text-[#0f172a]">
+                    Supplier Desk
+                  </p>
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#7b8798]">
+                      Catalog Active
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <nav className="space-y-2" aria-label="Supplier mobile">
+              {navItems.map((item) => (
             <Link
               key={item.key}
               href={item.href}
-              className={`flex flex-col items-center gap-1 px-2 text-[10px] font-black uppercase tracking-[0.18em] ${
-                item.key === active ? "text-[#0f4fb6]" : "text-[#94a3b8]"
+                  onClick={closeMobileMenu}
+                  className={`flex items-center gap-4 rounded-2xl px-4 py-4 text-sm font-black transition ${
+                    item.key === active
+                      ? "border border-[#dbe8ff] bg-white text-[#0f4fb6] shadow-[inset_4px_0_0_0_#0f4fb6]"
+                      : "text-[#64748b] hover:bg-white hover:text-[#0f172a]"
               }`}
             >
-              <SidebarGlyph label={item.glyph} tone={item.key === active ? "blue" : "slate"} small />
+                  <SidebarGlyph label={item.glyph} tone={item.key === active ? "blue" : "slate"} />
               {item.label}
             </Link>
-          ))}
-      </nav>
+              ))}
+            </nav>
+
+            <div className="mt-auto border-t border-[#e5ebf3] pt-5">
+              <Link
+                href="/supplier/settings"
+                onClick={closeMobileMenu}
+                className={`flex items-center gap-4 rounded-2xl px-4 py-4 text-sm font-black transition ${
+                  active === "settings"
+                    ? "border border-[#dbe8ff] bg-white text-[#0f4fb6] shadow-[inset_4px_0_0_0_#0f4fb6]"
+                    : "text-[#64748b] hover:bg-white hover:text-[#0f172a]"
+                }`}
+              >
+                <SidebarGlyph label="ST" tone={active === "settings" ? "blue" : "slate"} />
+                Settings
+              </Link>
+              <Link
+                href="mailto:support@medvendor.in"
+                onClick={closeMobileMenu}
+                className="mt-2 flex items-center gap-4 rounded-2xl px-4 py-4 text-sm font-black text-[#64748b] transition hover:bg-white hover:text-[#0f172a]"
+              >
+                <SidebarGlyph label="HP" tone="slate" />
+                Support
+              </Link>
+              {onSignOut ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeMobileMenu()
+                    onSignOut()
+                  }}
+                  className="mt-2 flex w-full items-center gap-4 rounded-2xl px-4 py-4 text-left text-sm font-black text-[#ba1a1a] transition hover:bg-[#fff4f4]"
+                >
+                  <SidebarGlyph label="EX" tone="amber" />
+                  Log Out
+                </button>
+              ) : null}
+            </div>
+          </aside>
+        </div>
+      ) : null}
+      <SupplierNotificationHost />
     </>
+  )
+}
+
+function SupplierNotificationHost() {
+  const [notification, setNotification] = useState<(SupplierNotification & { id: number; type: SupplierNotificationType }) | null>(null)
+
+  useEffect(() => {
+    const handleNotification = (event: Event) => {
+      const detail = (event as CustomEvent<SupplierNotification>).detail
+      if (!detail?.message) return
+      setNotification({
+        id: Date.now(),
+        type: detail.type ?? "info",
+        title: detail.title,
+        message: detail.message,
+      })
+    }
+
+    window.addEventListener("supplier:notification", handleNotification)
+    return () => window.removeEventListener("supplier:notification", handleNotification)
+  }, [])
+
+  useEffect(() => {
+    if (!notification) return
+    const timeout = window.setTimeout(() => setNotification(null), 4200)
+    return () => window.clearTimeout(timeout)
+  }, [notification])
+
+  if (!notification) return null
+
+  const tone =
+    notification.type === "success"
+      ? "border-[#bbf7d0] bg-[#f0fdf4] text-[#166534]"
+      : notification.type === "error"
+        ? "border-[#fecaca] bg-[#fff7f7] text-[#991b1b]"
+        : notification.type === "warning"
+          ? "border-[#fed7aa] bg-[#fff7ed] text-[#9a3412]"
+          : "border-[#bfdbfe] bg-[#eff6ff] text-[#0f4fb6]"
+
+  const dot =
+    notification.type === "success"
+      ? "bg-[#22c55e]"
+      : notification.type === "error"
+        ? "bg-[#ef4444]"
+        : notification.type === "warning"
+          ? "bg-[#f97316]"
+          : "bg-[#0f4fb6]"
+
+  return (
+    <div className="fixed left-4 right-4 top-20 z-[70] sm:left-auto sm:right-5 sm:top-5 sm:w-[24rem]">
+      <div
+        key={notification.id}
+        className={`supplier-toast rounded-2xl border px-4 py-3 shadow-[0_20px_48px_rgba(15,23,42,0.18)] backdrop-blur ${tone}`}
+        role="status"
+        aria-live="polite"
+      >
+        <div className="flex items-start gap-3">
+          <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-black">{notification.title ?? "Supplier Desk"}</p>
+            <p className="mt-1 text-sm font-semibold leading-5 opacity-85">{notification.message}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setNotification(null)}
+            className="rounded-full px-2 text-lg font-black leading-none opacity-70 transition hover:bg-white/60 hover:opacity-100"
+            aria-label="Dismiss notification"
+          >
+            x
+          </button>
+        </div>
+      </div>
+      <style jsx>{`
+        .supplier-toast {
+          animation: supplier-toast-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        @keyframes supplier-toast-in {
+          from {
+            opacity: 0;
+            transform: translateY(-12px) scale(0.98);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+      `}</style>
+    </div>
   )
 }
 

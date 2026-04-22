@@ -14,7 +14,7 @@ type BuyerSidebarProps = {
 const navItems: Array<{ key: BuyerSection; href: string; label: string; glyph: string }> = [
   { key: "dashboard", href: "/buyer/dashboard", label: "Dashboard", glyph: "DB" },
   { key: "orders", href: "/buyer/orders", label: "Orders", glyph: "OR" },
-  { key: "rfqs", href: "/buyer/rfq", label: "RFQs", glyph: "RF" },
+  { key: "rfqs", href: "/buyer/rfq?view=my", label: "MY RFQs", glyph: "RF" },
   { key: "marketplace", href: "/buyer/products", label: "Marketplace", glyph: "MK" },
 ]
 
@@ -47,7 +47,7 @@ export default function BuyerSidebar({
               </div>
               <div>
                 <p className="font-[family-name:var(--font-display)] text-base font-extrabold leading-tight text-[#0f172a]">
-                  Procurement Hub
+                  Buyer's Desk
                 </p>
                 <div className="mt-1 flex items-center gap-2">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
@@ -64,11 +64,10 @@ export default function BuyerSidebar({
               <Link
                 key={item.key}
                 href={item.href}
-                className={`flex items-center gap-4 rounded-xl px-4 py-3.5 text-sm font-bold transition ${
-                  item.key === active
-                    ? "border border-[#dbe8ff] bg-[#f3f7ff] text-[#0f4fb6]"
-                    : "text-[#64748b] hover:bg-[#f8fafc] hover:text-[#0f172a]"
-                }`}
+                className={`flex items-center gap-4 rounded-xl px-4 py-3.5 text-sm font-bold transition ${item.key === active
+                  ? "border border-[#dbe8ff] bg-[#f3f7ff] text-[#0f4fb6]"
+                  : "text-[#64748b] hover:bg-[#f8fafc] hover:text-[#0f172a]"
+                  }`}
               >
                 <SidebarGlyph label={item.glyph} tone={item.key === active ? "blue" : "slate"} />
                 {item.label}
@@ -77,7 +76,7 @@ export default function BuyerSidebar({
           </div>
 
           <Link
-            href="/buyer/rfq"
+            href="/buyer/rfq?view=new"
             className="mt-8 inline-flex items-center justify-center gap-2 rounded-[1.2rem] bg-[#111827] px-5 py-4 text-sm font-black text-white shadow-[0_20px_35px_rgba(17,24,39,0.18)] transition hover:shadow-[0_22px_40px_rgba(17,24,39,0.28)]"
           >
             <span className="text-base leading-none">+</span>
@@ -99,7 +98,7 @@ export default function BuyerSidebar({
                 className="mt-1 flex w-full items-center gap-4 rounded-xl px-4 py-3 text-left text-sm font-bold text-[#ba1a1a] transition hover:bg-[#fff4f4]"
               >
                 <SidebarGlyph label="EX" tone="amber" />
-                Sign Out
+                Log Out
               </button>
             ) : null}
           </div>
@@ -111,9 +110,8 @@ export default function BuyerSidebar({
           <Link
             key={item.key}
             href={item.href}
-            className={`flex flex-col items-center gap-1 px-2 text-[10px] font-black uppercase tracking-[0.18em] ${
-              item.key === active ? "text-[#0f4fb6]" : "text-[#94a3b8]"
-            }`}
+            className={`flex flex-col items-center gap-1 px-2 text-[10px] font-black uppercase tracking-[0.18em] ${item.key === active ? "text-[#0f4fb6]" : "text-[#94a3b8]"
+              }`}
           >
             <SidebarGlyph label={item.glyph} tone={item.key === active ? "blue" : "slate"} small />
             {item.label}

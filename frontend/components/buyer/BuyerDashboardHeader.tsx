@@ -5,76 +5,68 @@ import { useEffect, useRef, useState } from "react"
 import type { AuthUser, VendorRfq, VendorProductService } from "@/services"
 import { clearToken, logoutUser } from "@/services"
 
-interface DashboardHeaderProps {
+interface BuyerDashboardHeaderProps {
   user: AuthUser
   rfqs?: VendorRfq[]
   products?: VendorProductService[]
-  onRefresh?: () => void
+  searchText: string
+  setSearchText: (val: string) => void
+  pendingActions: number
 }
 
-export default function DashboardHeader({ user, rfqs = [], products = [] }: DashboardHeaderProps) {
+export default function BuyerDashboardHeader({
+  user,
+  rfqs = [],
+  products = [],
+  searchText,
+  setSearchText,
+  pendingActions,
+}: BuyerDashboardHeaderProps) {
   const router = useRouter()
-  const [searchTerm, setSearchTerm] = useState("")
-  const [searchResults, setSearchResults] = useState<(VendorRfq | VendorProductService)[]>([])
   const [showSearch, setShowSearch] = useState(false)
-  const [notificationCount, setNotificationCount] = useState(0)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showAccountMenu, setShowAccountMenu] = useState(false)
+  const [searchResults, setSearchResults] = useState<(VendorRfq | VendorProductService)[]>([])
   const [searching, setSearching] = useState(false)
+
   const searchRef = useRef<HTMLDivElement>(null)
   const notificationRef = useRef<HTMLDivElement>(null)
   const accountRef = useRef<HTMLDivElement>(null)
 
-  // Fetch notification count
+  // Search logic
   useEffect(() => {
-    if (rfqs.length > 0) {
-      const newRfqs = rfqs.filter((r) => r.status === "open").length
-      setNotificationCount(newRfqs)
-    }
-  }, [rfqs])
-
-  // Search handler with debounce
-  useEffect(() => {
-    if (!searchTerm.trim()) {
+    if (!searchText.trim()) {
       setSearchResults([])
       return
     }
 
-    const timer = setTimeout(async () => {
+    const timer = setTimeout(() => {
       setSearching(true)
       try {
-        // Use already-loaded data from props
         const rfqMatches = rfqs.filter((r) =>
-          r.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          r.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          r.buyer_name.toLowerCase().includes(searchTerm.toLowerCase())
+          r.title.toLowerCase().includes(searchText.toLowerCase()) ||
+          (r.buyer_company || r.buyer_name).toLowerCase().includes(searchText.toLowerCase())
         )
-
         const productMatches = products.filter((p) =>
-          p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          p.description.toLowerCase().includes(searchTerm.toLowerCase())
+          p.name.toLowerCase().includes(searchText.toLowerCase()) ||
+          p.description.toLowerCase().includes(searchText.toLowerCase())
         )
-
         setSearchResults([...rfqMatches.slice(0, 3), ...productMatches.slice(0, 3)])
-      } catch (err) {
-        console.error("Search error:", err)
-        setSearchResults([])
       } finally {
         setSearching(false)
       }
     }, 150)
 
     return () => clearTimeout(timer)
-  }, [searchTerm, rfqs, products])
+  }, [searchText, rfqs, products])
 
-  // Close dropdowns on outside click
+  // Click outside handlers
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) setShowSearch(false)
       if (notificationRef.current && !notificationRef.current.contains(e.target as Node)) setShowNotifications(false)
       if (accountRef.current && !accountRef.current.contains(e.target as Node)) setShowAccountMenu(false)
     }
-
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
@@ -82,86 +74,63 @@ export default function DashboardHeader({ user, rfqs = [], products = [] }: Dash
   const handleLogout = async () => {
     try {
       await logoutUser()
-    } catch {
-      // ignore
+    } finally {
+      clearToken()
+      router.push("/")
     }
-    clearToken()
-    router.push("/")
   }
 
+  const buyerInitials = (user.username || "BV").slice(0, 2).toUpperCase()
+
   return (
-    <header className="sticky top-0 z-30 border-b border-[#e5e9f0]/50 bg-white/95 shadow-[0_8px_24px_rgba(0,0,0,0.06)] backdrop-blur-sm lg:ml-[18rem]">
+    <header className="sticky top-0 z-40 border-b border-white/70 bg-white/75 shadow-[0_10px_30px_rgba(15,23,42,0.04)] backdrop-blur lg:ml-[18rem]">
       <div className="flex items-center justify-between gap-6 px-6 py-4 md:px-8">
         {/* Search Bar */}
         <div ref={searchRef} className="relative flex-1 max-w-lg">
-          <div className="flex items-center gap-3 rounded-full border border-[#dfe7f1] bg-[#f8fafc] px-4 py-3 transition duration-200 focus-within:border-[#0f4fb6] focus-within:bg-white focus-within:shadow-[0_0_0_3px_rgba(15,79,182,0.1)]">
+          <div className="flex items-center gap-3 rounded-full border border-[#dfe7f1] bg-[#f8fafc] px-4 py-2.5 transition duration-200 focus-within:border-[#0f4fb6] focus-within:bg-white focus-within:shadow-[0_0_0_3px_rgba(15,79,182,0.1)]">
             <svg viewBox="0 0 24 24" className="h-5 w-5 text-[#9ca3af]" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
             </svg>
             <input
               type="text"
-              placeholder="Search RFQs, buyers, or products..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onFocus={() => {
-                setShowSearch(true)
-              }}
-              className="w-full appearance-none border-0 bg-transparent text-sm font-medium text-[#1f2937] shadow-none outline-none ring-0 placeholder:text-[#a0aab8] focus:border-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
+              placeholder="Search RFQs, locations, orders..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              onFocus={() => setShowSearch(true)}
+              className="w-full border-0 bg-transparent text-sm text-[#1f2937] placeholder:text-[#a0aab8] outline-none font-medium"
             />
-            {searching ? (
+            {searching && (
               <svg className="h-4 w-4 animate-spin text-[#0f4fb6]" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
-            ) : null}
+            )}
           </div>
 
-          {showSearch && (searchResults.length > 0 || (searchTerm.trim() && searching)) ? (
+          {showSearch && (searchResults.length > 0 || (searchText.trim() && searching)) ? (
             <div className="absolute top-full left-0 right-0 mt-3 rounded-2xl border border-[#e5e9f0] bg-white p-3 shadow-[0_12px_40px_rgba(15,23,42,0.12)]">
-              {searching ? (
-                <div className="flex items-center justify-center gap-2 px-4 py-4">
-                  <svg className="h-5 w-5 animate-spin text-[#0f4fb6]" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  <p className="text-sm text-[#6b7280]">Searching...</p>
-                </div>
-              ) : searchResults.length > 0 ? (
-                <div className="space-y-1 max-h-80 overflow-y-auto">
-                  {searchResults.map((item, idx) => {
-                    const isRfq = "title" in item
-                    const itemId = isRfq ? (item as VendorRfq).id : (item as VendorProductService).id
-                    const itemName = isRfq ? (item as VendorRfq).title : (item as VendorProductService).name
-                    
-                    const handleNavigate = () => {
-                      const searchQuery = encodeURIComponent(itemName)
-                      const url = isRfq
-                        ? `/supplier/dashboard?search=${searchQuery}&focus=rfq&focusId=${itemId}`
-                        : `/supplier/dashboard?search=${searchQuery}&focus=product&focusId=${itemId}`
-                      setTimeout(() => {
+              <div className="space-y-1 max-h-80 overflow-y-auto">
+                {searchResults.map((item, idx) => {
+                  const isRfq = "title" in item
+                  const itemName = isRfq ? (item as VendorRfq).title : (item as VendorProductService).name
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setShowSearch(false)
+                        const url = isRfq ? `/buyer/rfq?view=my&search=${encodeURIComponent(itemName)}` : `/buyer/products?search=${encodeURIComponent(itemName)}`
                         router.push(url)
-                      }, 50)
-                    }
-                    
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={handleNavigate}
-                        className="block w-full px-4 py-3 rounded-xl text-left hover:bg-[#f3f8ff] transition cursor-pointer"
-                      >
-                        <p className="font-semibold text-[#1f2937] text-sm">{itemName}</p>
-                        <p className="text-xs text-[#6b7280] mt-1">{isRfq ? (item as VendorRfq).buyer_name : (item as VendorProductService).description.slice(0, 50)}</p>
-                      </button>
-                    )
-                  })}
-                </div>
-              ) : null}
-            </div>
-          ) : showSearch && searchTerm.trim() && !searching ? (
-            <div className="absolute top-full left-0 right-0 mt-3 rounded-2xl border border-[#e5e9f0] bg-white p-4 shadow-[0_12px_40px_rgba(15,23,42,0.12)] text-center">
-              <p className="text-sm text-[#6b7280]">No results found</p>
+                      }}
+                      className="block w-full px-4 py-3 rounded-xl text-left hover:bg-[#f3f8ff] transition"
+                    >
+                      <p className="font-semibold text-[#1f2937] text-sm">{itemName}</p>
+                      <p className="text-xs text-[#6b7280] mt-1">{isRfq ? "RFQ" : "Product"}</p>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           ) : null}
         </div>
@@ -174,35 +143,58 @@ export default function DashboardHeader({ user, rfqs = [], products = [] }: Dash
               type="button"
               onClick={() => setShowNotifications(!showNotifications)}
               className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#dfe7f1] bg-white text-[#6b7280] transition hover:bg-[#f8fafc] hover:text-[#0f4fb6]"
-              aria-label="Notifications"
             >
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                <path d="M15 17H5l2-2v-4a5 5 0 1 1 10 0v4l2 2h-4" />
+                <path d="M10 21a2 2 0 0 0 4 0" />
               </svg>
-              {notificationCount > 0 ? (
+              {pendingActions > 0 && (
                 <span className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[11px] font-bold text-white shadow-lg">
-                  {notificationCount > 99 ? "99+" : notificationCount}
+                  {pendingActions}
                 </span>
-              ) : null}
+              )}
             </button>
 
-            {showNotifications ? (
+            {showNotifications && (
               <div className="absolute top-full right-0 mt-3 w-80 rounded-2xl border border-[#e5e9f0] bg-white p-5 shadow-[0_12px_40px_rgba(15,23,42,0.12)]">
                 <p className="font-semibold text-[#1f2937] text-sm flex items-center gap-2">
                   <span className="inline-flex h-2 w-2 rounded-full bg-[#0f4fb6]" />
-                  New Opportunities
+                  Action Required
                 </p>
                 <div className="mt-4 space-y-2">
-                  {notificationCount > 0 ? (
-                    <p className="text-sm text-[#6b7280]">{notificationCount} open RFQs available for you to bid on</p>
+                  {pendingActions > 0 ? (
+                    <p className="text-sm text-[#6b7280]">{pendingActions} items need your attention (Overdue orders or RFQs pending award).</p>
                   ) : (
                     <p className="text-sm text-[#9ca3af]">No new notifications</p>
                   )}
+                  <button
+                    onClick={() => {
+                      setShowNotifications(false)
+                      document.getElementById("recent-activity")?.scrollIntoView({ behavior: "smooth" })
+                    }}
+                    className="mt-2 text-xs font-bold text-[#0f4fb6] hover:underline"
+                  >
+                    View Recent Activity
+                  </button>
                 </div>
               </div>
-            ) : null}
+            )}
           </div>
+
+          {/* Analytics/Chart Icon */}
+          <button
+            type="button"
+            onClick={() => document.getElementById("supplier-health")?.scrollIntoView({ behavior: "smooth" })}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#dfe7f1] bg-white text-[#6b7280] transition hover:bg-[#f8fafc] hover:text-[#0f4fb6]"
+            aria-label="View supplier health"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M4 19V9" />
+              <path d="M10 19V5" />
+              <path d="M16 19v-7" />
+              <path d="M22 19v-3" />
+            </svg>
+          </button>
 
           {/* Account Manager */}
           <div ref={accountRef} className="relative">
@@ -212,7 +204,7 @@ export default function DashboardHeader({ user, rfqs = [], products = [] }: Dash
               className="flex items-center gap-2 rounded-full border border-[#dfe7f1] bg-gradient-to-br from-[#eef4ff] to-[#e8f1ff] px-3 py-2 text-sm font-semibold text-[#0f4fb6] transition hover:bg-gradient-to-br hover:from-[#e3ecff] hover:to-[#dfe8ff]"
             >
               <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-[#0f4fb6] to-[#0056d2] text-[11px] font-bold text-white shadow-md">
-                {user.username.charAt(0).toUpperCase()}
+                {buyerInitials}
               </span>
               <span className="hidden sm:inline max-w-[100px] truncate">{user.username}</span>
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -220,7 +212,7 @@ export default function DashboardHeader({ user, rfqs = [], products = [] }: Dash
               </svg>
             </button>
 
-            {showAccountMenu ? (
+            {showAccountMenu && (
               <div className="absolute top-full right-0 mt-3 w-64 rounded-2xl border border-[#e5e9f0] bg-white shadow-[0_12px_40px_rgba(15,23,42,0.12)] overflow-hidden">
                 <div className="border-b border-[#ede9f1] bg-gradient-to-br from-[#f8fafc] to-[#f0f4f8] px-5 py-4">
                   <p className="text-sm font-bold text-[#1f2937]">{user.username}</p>
@@ -232,21 +224,17 @@ export default function DashboardHeader({ user, rfqs = [], products = [] }: Dash
                 <div className="border-t border-[#ede9f1] p-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowAccountMenu(false)
-                      handleLogout()
-                    }}
+                    onClick={handleLogout}
                     className="block w-full px-4 py-3 rounded-xl text-left text-sm font-semibold text-red-600 hover:bg-red-50 transition"
                   >
                     Logout
                   </button>
                 </div>
               </div>
-            ) : null}
+            )}
           </div>
         </div>
       </div>
     </header>
   )
 }
-
