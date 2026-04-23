@@ -74,28 +74,28 @@ if database_url:
     DATABASES = {
         "default": dj_database_url.parse(database_url, conn_max_age=600, ssl_require=ssl_required),
     }
-elif use_remote_db and all(
-    os.getenv(key)
-    for key in ("SUPABASE_DB", "SUPABASE_USER", "SUPABASE_PASSWORD", "SUPABASE_HOST", "SUPABASE_DB_PORT")
-):
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv("SUPABASE_DB"),
-            "USER": os.getenv("SUPABASE_USER"),
-            "PASSWORD": os.getenv("SUPABASE_PASSWORD"),
-            "HOST": os.getenv("SUPABASE_HOST"),
-            "PORT": os.getenv("SUPABASE_DB_PORT"),
-            "OPTIONS": {"sslmode": "require"},
-        }
+elif use_remote_db:
+    # If USE_REMOTE_DB is True, we MUST have the credentials.
+    # We use a dictionary-based check to ensure all required vars are present.
+    required_vars = ["SUPABASE_DB", "SUPABASE_USER", "SUPABASE_PASSWORD", "SUPABASE_HOST", "SUPABASE_DB_PORT"]
+    missing_vars = [var for var in required_vars if not os.getenv(var)]
+    
+    if missing_vars:
+        raise ValueError(f"USE_REMOTE_DB is True but the following environment variables are missing: {', '.join(missing_vars)}")
+
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("SUPABASE_DB"),
+        "USER": os.getenv("SUPABASE_USER"),
+        "PASSWORD": os.getenv("SUPABASE_PASSWORD"),
+        "HOST": os.getenv("SUPABASE_HOST"),
+        "PORT": os.getenv("SUPABASE_DB_PORT"),
+        "OPTIONS": {
+            "sslmode": "require",
+        },
     }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
-    }
+}
 
 # PASSWORD VALIDATION
 AUTH_PASSWORD_VALIDATORS = []
