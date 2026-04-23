@@ -93,8 +93,6 @@ elif use_remote_db:
             "PORT": os.getenv("SUPABASE_DB_PORT"),
             "OPTIONS": {
                 "sslmode": "require",
-                # REQUIRED for Supabase Connection Pooler (Transaction Mode)
-                "prepared_statements": False,
             },
         }
     }
