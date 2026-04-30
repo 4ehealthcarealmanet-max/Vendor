@@ -22,6 +22,10 @@ export default function Home() {
       try {
         const user = await getCurrentUser()
         if (!active) return
+        if (user.role === "admin") {
+          router.replace("/admin/dashboard")
+          return
+        }
         router.replace(user.role === "buyer" ? "/buyer/dashboard" : "/supplier/dashboard")
       } catch {
         clearToken()

@@ -20,6 +20,9 @@ const roleNav = {
     { href: "/supplier/products", label: "Products" },
     { href: "/supplier/orders", label: "Orders" },
   ],
+  admin: [
+    { href: "/admin/dashboard", label: "Admin Dashboard" },
+  ],
 }
 
 type UserState = AuthUser | null

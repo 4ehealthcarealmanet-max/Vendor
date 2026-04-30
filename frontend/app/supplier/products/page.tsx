@@ -1,1 +1,1 @@
-export { default } from "@/components/products/ProductWorkspacePage"
+export { default } from "@/components/supplier/SupplierNewProductPage"

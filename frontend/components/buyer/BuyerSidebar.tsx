@@ -2,12 +2,13 @@
 
 import Link from "next/link"
 
-type BuyerSection = "dashboard" | "orders" | "rfqs" | "marketplace"
+type BuyerSection = "dashboard" | "orders" | "rfqs" | "marketplace" | "profile"
 
 type BuyerSidebarProps = {
   active: BuyerSection
   username?: string
   buyerType?: string | null
+  status?: string
   onSignOut?: () => void
 }
 
@@ -32,9 +33,11 @@ export default function BuyerSidebar({
   active,
   username,
   buyerType,
+  status,
   onSignOut,
 }: BuyerSidebarProps) {
   const initials = getProfileInitials(username)
+  const isPending = status === "pending"
 
   return (
     <>
@@ -47,7 +50,7 @@ export default function BuyerSidebar({
               </div>
               <div>
                 <p className="font-[family-name:var(--font-display)] text-base font-extrabold leading-tight text-[#0f172a]">
-                  Buyer's Desk
+                  Buyer&apos;s Desk
                 </p>
                 <div className="mt-1 flex items-center gap-2">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
@@ -63,21 +66,41 @@ export default function BuyerSidebar({
             {navItems.map((item) => (
               <Link
                 key={item.key}
-                href={item.href}
-                className={`flex items-center gap-4 rounded-xl px-4 py-3.5 text-sm font-bold transition ${item.key === active
-                  ? "border border-[#dbe8ff] bg-[#f3f7ff] text-[#0f4fb6]"
-                  : "text-[#64748b] hover:bg-[#f8fafc] hover:text-[#0f172a]"
-                  }`}
+                href={isPending ? "#" : item.href}
+                onClick={(e) => {
+                  if (isPending) e.preventDefault()
+                }}
+                className={`flex items-center gap-4 rounded-xl px-4 py-3.5 text-sm font-bold transition ${
+                  item.key === active
+                    ? "border border-[#dbe8ff] bg-[#f3f7ff] text-[#0f4fb6]"
+                    : isPending
+                    ? "cursor-not-allowed opacity-40 text-[#64748b]"
+                    : "text-[#64748b] hover:bg-[#f8fafc] hover:text-[#0f172a]"
+                }`}
               >
-                <SidebarGlyph label={item.glyph} tone={item.key === active ? "blue" : "slate"} />
+                <div className="relative">
+                  <SidebarGlyph label={item.glyph} tone={item.key === active ? "blue" : "slate"} />
+                  {isPending && (
+                    <div className="absolute -right-1 -top-1 rounded-full bg-white p-0.5 text-[#64748b] shadow-sm">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </div>
+                  )}
+                </div>
                 {item.label}
               </Link>
             ))}
           </div>
 
           <Link
-            href="/buyer/rfq?view=new"
-            className="mt-8 inline-flex items-center justify-center gap-2 rounded-[1.2rem] bg-[#111827] px-5 py-4 text-sm font-black text-white shadow-[0_20px_35px_rgba(17,24,39,0.18)] transition hover:shadow-[0_22px_40px_rgba(17,24,39,0.28)]"
+            href={isPending ? "#" : "/buyer/rfq?view=new"}
+            onClick={(e) => {
+              if (isPending) e.preventDefault()
+            }}
+            className={`mt-8 inline-flex items-center justify-center gap-2 rounded-[1.2rem] px-5 py-4 text-sm font-black text-white shadow-[0_20px_35px_rgba(17,24,39,0.18)] transition ${
+              isPending
+                ? "cursor-not-allowed bg-slate-400 opacity-60"
+                : "bg-[#111827] hover:shadow-[0_22px_40px_rgba(17,24,39,0.28)]"
+            }`}
           >
             <span className="text-base leading-none">+</span>
             Create RFQ
@@ -85,8 +108,19 @@ export default function BuyerSidebar({
 
           <div className="mt-auto border-t border-[#e5e9f0] pt-6">
             <Link
+              href="/buyer/profile"
+              className={`flex items-center gap-4 rounded-xl px-4 py-3 text-sm font-bold transition ${
+                active === "profile"
+                  ? "border border-[#dbe8ff] bg-[#f3f7ff] text-[#0f4fb6]"
+                  : "text-[#64748b] hover:bg-[#f8fafc] hover:text-[#0f172a]"
+              }`}
+            >
+              <SidebarGlyph label="PR" tone={active === "profile" ? "blue" : "slate"} />
+              Profile Setup
+            </Link>
+            <Link
               href="mailto:support@medvendor.in"
-              className="flex items-center gap-4 rounded-xl px-4 py-3 text-sm font-bold text-[#64748b] transition hover:bg-[#f8fafc] hover:text-[#0f172a]"
+              className="mt-1 flex items-center gap-4 rounded-xl px-4 py-3 text-sm font-bold text-[#64748b] transition hover:bg-[#f8fafc] hover:text-[#0f172a]"
             >
               <SidebarGlyph label="HP" tone="slate" />
               Support Center
@@ -109,9 +143,13 @@ export default function BuyerSidebar({
         {navItems.map((item) => (
           <Link
             key={item.key}
-            href={item.href}
-            className={`flex flex-col items-center gap-1 px-2 text-[10px] font-black uppercase tracking-[0.18em] ${item.key === active ? "text-[#0f4fb6]" : "text-[#94a3b8]"
-              }`}
+            href={isPending ? "#" : item.href}
+            onClick={(e) => {
+              if (isPending) e.preventDefault()
+            }}
+            className={`flex flex-col items-center gap-1 px-2 text-[10px] font-black uppercase tracking-[0.18em] ${
+              item.key === active ? "text-[#0f4fb6]" : "text-[#94a3b8]"
+            } ${isPending ? "opacity-40" : ""}`}
           >
             <SidebarGlyph label={item.glyph} tone={item.key === active ? "blue" : "slate"} small />
             {item.label}
@@ -189,6 +227,17 @@ function SidebarGlyphIcon({ label, className }: { label: string; className: stri
         <circle cx="9" cy="19" r="1.5" />
         <circle cx="18" cy="19" r="1.5" />
         <path d="M3 4h2l2.4 9.6a1 1 0 0 0 1 .8h9.7a1 1 0 0 0 1-.8L21 7H7" />
+      </svg>
+    )
+  }
+
+  if (label === "PR") {
+    return (
+      <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M20 21a8 8 0 0 0-16 0" />
+        <circle cx="12" cy="8" r="4" />
+        <path d="M19 7h2" />
+        <path d="M20 6v2" />
       </svg>
     )
   }
