@@ -1,6 +1,7 @@
 // Authentication
 export * from "./auth/authService"
 export type * from "./auth/types"
+export * from "./profileService"
 
 // Products
 export * from "./products/productService"

@@ -1,19 +1,20 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState } from "react"
-import type { SupplierNotification, SupplierNotificationType } from "@/services"
+import { useState } from "react"
 
-type SupplierSection = "dashboard" | "rfqs" | "orders" | "supplies" | "analytics" | "settings"
+type SupplierSection = "dashboard" | "profile" | "rfqs" | "orders" | "supplies" | "analytics" | "settings"
 
 type SupplierSidebarProps = {
   active: SupplierSection
   username?: string
+  status?: string
   onSignOut?: () => void
 }
 
 const navItems: Array<{ key: SupplierSection; href: string; label: string; glyph: string }> = [
   { key: "dashboard", href: "/supplier/dashboard", label: "Dashboard", glyph: "DB" },
+  { key: "profile", href: "/supplier/profile", label: "Profile Setup", glyph: "PR" },
   { key: "rfqs", href: "/supplier/rfq", label: "RFQs", glyph: "RF" },
   { key: "supplies", href: "/supplier/products", label: "Add Products", glyph: "MD" },
   { key: "orders", href: "/supplier/orders", label: "My Orders", glyph: "OR" },
@@ -25,9 +26,10 @@ const getProfileInitials = (value?: string | null) => {
   return cleaned || "SP"
 }
 
-export default function SupplierSidebar({ active, username, onSignOut }: SupplierSidebarProps) {
+export default function SupplierSidebar({ active, username, status, onSignOut }: SupplierSidebarProps) {
   const initials = getProfileInitials(username)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const isPending = status === "pending"
 
   const closeMobileMenu = () => setMobileOpen(false)
 
@@ -61,7 +63,7 @@ export default function SupplierSidebar({ active, username, onSignOut }: Supplie
                 <div className="mt-1 flex items-center gap-2">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#7b8798]">
-                    Catalog Active
+                    {isPending ? "Verification Pending" : "Catalog Active"}
                   </p>
                 </div>
               </div>
@@ -70,32 +72,59 @@ export default function SupplierSidebar({ active, username, onSignOut }: Supplie
 
 
           <nav className="space-y-1" aria-label="Supplier">
-            {navItems.map((item) => (
-              <Link
-                key={item.key}
-                href={item.href}
-                className={`flex items-center gap-4 rounded-xl px-4 py-3.5 text-sm font-bold transition ${
-                  item.key === active
-                    ? "border border-[#dbe8ff] bg-white text-[#0f4fb6] shadow-[inset_4px_0_0_0_#0f4fb6]"
-                    : "text-[#64748b] hover:bg-white hover:text-[#0f172a]"
-                }`}
-              >
-                <SidebarGlyph label={item.glyph} tone={item.key === active ? "blue" : "slate"} />
-                {item.label}
-              </Link>
-            ))}
+            {navItems.map((item) => {
+              const isDisabled = isPending && item.key !== "profile"
+              return (
+                <Link
+                  key={item.key}
+                  href={isDisabled ? "#" : item.href}
+                  onClick={(e) => {
+                    if (isDisabled) e.preventDefault()
+                  }}
+                  className={`flex items-center gap-4 rounded-xl px-4 py-3.5 text-sm font-bold transition ${
+                    item.key === active
+                      ? "border border-[#dbe8ff] bg-white text-[#0f4fb6] shadow-[inset_4px_0_0_0_#0f4fb6]"
+                      : isDisabled
+                      ? "cursor-not-allowed opacity-40 text-[#64748b]"
+                      : "text-[#64748b] hover:bg-white hover:text-[#0f172a]"
+                  }`}
+                >
+                  <div className="relative">
+                    <SidebarGlyph label={item.glyph} tone={item.key === active ? "blue" : "slate"} />
+                    {isDisabled && (
+                      <div className="absolute -right-1 -top-1 rounded-full bg-white p-0.5 text-[#64748b] shadow-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                      </div>
+                    )}
+                  </div>
+                  {item.label}
+                </Link>
+              )
+            })}
           </nav>
 
           <div className="mt-auto border-t border-[#e5ebf3] pt-6">
             <Link
               href="/supplier/settings"
+              onClick={(e) => {
+                if (isPending) e.preventDefault()
+              }}
               className={`flex items-center gap-4 rounded-xl px-4 py-3 text-sm font-bold transition ${
                 active === "settings"
                   ? "border border-[#dbe8ff] bg-white text-[#0f4fb6] shadow-[inset_4px_0_0_0_#0f4fb6]"
+                  : isPending
+                  ? "cursor-not-allowed opacity-40 text-[#64748b]"
                   : "text-[#64748b] hover:bg-white hover:text-[#0f172a]"
               }`}
             >
-              <SidebarGlyph label="ST" tone={active === "settings" ? "blue" : "slate"} />
+              <div className="relative">
+                <SidebarGlyph label="ST" tone={active === "settings" ? "blue" : "slate"} />
+                {isPending && (
+                  <div className="absolute -right-1 -top-1 rounded-full bg-white p-0.5 text-[#64748b] shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  </div>
+                )}
+              </div>
               Settings
             </Link>
             <Link
@@ -143,7 +172,7 @@ export default function SupplierSidebar({ active, username, onSignOut }: Supplie
           />
           <aside className="relative flex h-full w-[min(84vw,21rem)] flex-col overflow-y-auto border-r border-white/80 bg-[#f6f8fb] px-4 py-5 shadow-[18px_0_48px_rgba(15,23,42,0.18)]">
             <div className="mb-5 flex items-center justify-between gap-3">
-              <Link href="/supplier/dashboard" onClick={closeMobileMenu} className="flex items-center gap-3">
+              <Link href="/supplier/dashboard" onClick={isPending ? (e) => e.preventDefault() : closeMobileMenu} className={`flex items-center gap-3 ${isPending ? "cursor-not-allowed" : ""}`}>
                 <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#0f4fb6,#1d72ff)] text-white shadow-[0_18px_28px_rgba(15,79,182,0.2)]">
                   <SidebarGlyphIcon label="MD" className="h-5 w-5" />
                 </span>
@@ -178,7 +207,7 @@ export default function SupplierSidebar({ active, username, onSignOut }: Supplie
                   <div className="mt-1 flex items-center gap-2">
                     <span className="h-1.5 w-1.5 rounded-full bg-[#10b981]" />
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#7b8798]">
-                      Catalog Active
+                      {isPending ? "Verification Pending" : "Catalog Active"}
                     </p>
                   </div>
                 </div>
@@ -186,30 +215,49 @@ export default function SupplierSidebar({ active, username, onSignOut }: Supplie
             </div>
 
             <nav className="space-y-2" aria-label="Supplier mobile">
-              {navItems.map((item) => (
-            <Link
-              key={item.key}
-              href={item.href}
-                  onClick={closeMobileMenu}
-                  className={`flex items-center gap-4 rounded-2xl px-4 py-4 text-sm font-black transition ${
-                    item.key === active
-                      ? "border border-[#dbe8ff] bg-white text-[#0f4fb6] shadow-[inset_4px_0_0_0_#0f4fb6]"
-                      : "text-[#64748b] hover:bg-white hover:text-[#0f172a]"
-              }`}
-            >
-                  <SidebarGlyph label={item.glyph} tone={item.key === active ? "blue" : "slate"} />
-              {item.label}
-            </Link>
-              ))}
+              {navItems.map((item) => {
+                const isDisabled = isPending && item.key !== "profile"
+                return (
+                  <Link
+                    key={item.key}
+                    href={isDisabled ? "#" : item.href}
+                    onClick={(e) => {
+                      if (isDisabled) {
+                        e.preventDefault()
+                      } else {
+                        closeMobileMenu()
+                      }
+                    }}
+                    className={`flex items-center gap-4 rounded-2xl px-4 py-4 text-sm font-black transition ${
+                      item.key === active
+                        ? "border border-[#dbe8ff] bg-white text-[#0f4fb6] shadow-[inset_4px_0_0_0_#0f4fb6]"
+                        : isDisabled
+                        ? "cursor-not-allowed opacity-40 text-[#64748b]"
+                        : "text-[#64748b] hover:bg-white hover:text-[#0f172a]"
+                    }`}
+                  >
+                    <SidebarGlyph label={item.glyph} tone={item.key === active ? "blue" : "slate"} />
+                    {item.label}
+                  </Link>
+                )
+              })}
             </nav>
 
             <div className="mt-auto border-t border-[#e5ebf3] pt-5">
               <Link
                 href="/supplier/settings"
-                onClick={closeMobileMenu}
+                onClick={(e) => {
+                  if (isPending) {
+                    e.preventDefault()
+                  } else {
+                    closeMobileMenu()
+                  }
+                }}
                 className={`flex items-center gap-4 rounded-2xl px-4 py-4 text-sm font-black transition ${
                   active === "settings"
                     ? "border border-[#dbe8ff] bg-white text-[#0f4fb6] shadow-[inset_4px_0_0_0_#0f4fb6]"
+                    : isPending
+                    ? "cursor-not-allowed opacity-40 text-[#64748b]"
                     : "text-[#64748b] hover:bg-white hover:text-[#0f172a]"
                 }`}
               >
@@ -241,97 +289,7 @@ export default function SupplierSidebar({ active, username, onSignOut }: Supplie
           </aside>
         </div>
       ) : null}
-      <SupplierNotificationHost />
     </>
-  )
-}
-
-function SupplierNotificationHost() {
-  const [notification, setNotification] = useState<(SupplierNotification & { id: number; type: SupplierNotificationType }) | null>(null)
-
-  useEffect(() => {
-    const handleNotification = (event: Event) => {
-      const detail = (event as CustomEvent<SupplierNotification>).detail
-      if (!detail?.message) return
-      setNotification({
-        id: Date.now(),
-        type: detail.type ?? "info",
-        title: detail.title,
-        message: detail.message,
-      })
-    }
-
-    window.addEventListener("supplier:notification", handleNotification)
-    return () => window.removeEventListener("supplier:notification", handleNotification)
-  }, [])
-
-  useEffect(() => {
-    if (!notification) return
-    const timeout = window.setTimeout(() => setNotification(null), 4200)
-    return () => window.clearTimeout(timeout)
-  }, [notification])
-
-  if (!notification) return null
-
-  const tone =
-    notification.type === "success"
-      ? "border-[#bbf7d0] bg-[#f0fdf4] text-[#166534]"
-      : notification.type === "error"
-        ? "border-[#fecaca] bg-[#fff7f7] text-[#991b1b]"
-        : notification.type === "warning"
-          ? "border-[#fed7aa] bg-[#fff7ed] text-[#9a3412]"
-          : "border-[#bfdbfe] bg-[#eff6ff] text-[#0f4fb6]"
-
-  const dot =
-    notification.type === "success"
-      ? "bg-[#22c55e]"
-      : notification.type === "error"
-        ? "bg-[#ef4444]"
-        : notification.type === "warning"
-          ? "bg-[#f97316]"
-          : "bg-[#0f4fb6]"
-
-  return (
-    <div className="fixed left-4 right-4 top-20 z-[70] sm:left-auto sm:right-5 sm:top-5 sm:w-[24rem]">
-      <div
-        key={notification.id}
-        className={`supplier-toast rounded-2xl border px-4 py-3 shadow-[0_20px_48px_rgba(15,23,42,0.18)] backdrop-blur ${tone}`}
-        role="status"
-        aria-live="polite"
-      >
-        <div className="flex items-start gap-3">
-          <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-black">{notification.title ?? "Supplier Desk"}</p>
-            <p className="mt-1 text-sm font-semibold leading-5 opacity-85">{notification.message}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setNotification(null)}
-            className="rounded-full px-2 text-lg font-black leading-none opacity-70 transition hover:bg-white/60 hover:opacity-100"
-            aria-label="Dismiss notification"
-          >
-            x
-          </button>
-        </div>
-      </div>
-      <style jsx>{`
-        .supplier-toast {
-          animation: supplier-toast-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
-        }
-
-        @keyframes supplier-toast-in {
-          from {
-            opacity: 0;
-            transform: translateY(-12px) scale(0.98);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-      `}</style>
-    </div>
   )
 }
 
@@ -422,6 +380,17 @@ function SidebarGlyphIcon({ label, className }: { label: string; className: stri
       <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <circle cx="12" cy="12" r="3" />
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82L4.21 7.2a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33h.01A1.65 1.65 0 0 0 10 3.25V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+      </svg>
+    )
+  }
+
+  if (label === "PR") {
+    return (
+      <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M20 21a8 8 0 0 0-16 0" />
+        <circle cx="12" cy="8" r="4" />
+        <path d="M19 7h2" />
+        <path d="M20 6v2" />
       </svg>
     )
   }

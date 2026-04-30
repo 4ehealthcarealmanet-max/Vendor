@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from vendor.models.account_profile import AccountProfile
 from vendor.models.vendor_profile import VendorProfile
+from vendor.utils.admin_auth import ADMIN_USERNAME
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -21,6 +22,8 @@ class RegisterSerializer(serializers.Serializer):
     address = serializers.CharField(required=False, allow_blank=True)
 
     def validate_username(self, value):
+        if value.strip().lower() == ADMIN_USERNAME:
+            raise serializers.ValidationError("This username is reserved.")
         if User.objects.filter(username=value).exists():
             raise serializers.ValidationError("Username already exists.")
         return value
@@ -56,6 +59,7 @@ class RegisterSerializer(serializers.Serializer):
         AccountProfile.objects.create(
             user=user,
             role=role,
+            status="pending",
             buyer_type=buyer_type or "",
         )
         if role == "supplier":

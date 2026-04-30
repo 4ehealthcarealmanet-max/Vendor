@@ -65,6 +65,8 @@ const formatCompactCurrency = (value: number) =>
     maximumFractionDigits: 1,
   }).format(value)
 
+const readableStatus = (value: string) => value.replaceAll("_", " ")
+
 const formatShortDate = (value?: string | null) => {
   if (!value) return "No date"
   const parsed = new Date(value)
@@ -84,9 +86,49 @@ const formatRelativeTime = (value?: string | null) => {
   return formatter.format(Math.round(diffHours / 24), "day")
 }
 
-const getProfileInitials = (value?: string | null) => {
-  const cleaned = (value ?? "").replace(/[^a-z0-9]/gi, "").slice(0, 2).toUpperCase()
-  return cleaned || "BV"
+const orderStatusLabel = (order: VendorOrder) => {
+  if (order.status === "po_released") return "Pending"
+  if (order.status === "po_accepted") return "Accepted"
+  if (order.status === "partially_subcontracted") return "Processing"
+  if (order.status === "ready_to_dispatch") return "Ready"
+  if (order.status === "goods_received") return "Completed"
+  if (order.status === "delivered" || order.delivery_status === "delivered") return "Delivered"
+  if (order.delivery_status === "out_for_delivery") return "Out For Delivery"
+  if (order.delivery_status === "in_transit") return "In Transit"
+  return readableStatus(order.status)
+}
+
+const orderStatusChipClass = (order: VendorOrder) => {
+  if (["completed", "goods_received"].includes(order.status) || order.delivery_status === "delivered") {
+    return "border-[#d7f0df] bg-[#f1fcf4] text-[#177245]"
+  }
+  if (order.status === "shipped" || order.delivery_status === "in_transit" || order.delivery_status === "out_for_delivery") {
+    return "border-[#dbe8ff] bg-[#f3f7ff] text-[#0f4fb6]"
+  }
+  if (order.status === "cancelled") {
+    return "border-[#fee2e2] bg-[#fff5f5] text-[#b91c1c]"
+  }
+  return "border-[#fde3b8] bg-[#fff8ec] text-[#ad6a08]"
+}
+
+const orderStatusDetail = (order: VendorOrder) =>
+  `Delivery ${readableStatus(order.delivery_status)} | Payment ${readableStatus(order.payment_status)}`
+
+const getLatestOrderTouch = (order: VendorOrder) => {
+  const timestamps = [
+    order.created_at,
+    order.po_released_at ?? "",
+    order.po_accepted_at ?? "",
+    order.shipped_at ?? "",
+    order.delivered_at ?? "",
+    order.goods_received_at ?? "",
+    ...order.events.map((event) => event.created_at),
+  ]
+    .filter(Boolean)
+    .map((value) => new Date(value).getTime())
+    .filter((value) => Number.isFinite(value))
+
+  return timestamps.length > 0 ? Math.max(...timestamps) : 0
 }
 
 const buildRfqIdentifier = (rfqId: number) => `RFQ-${new Date().getFullYear()}-${String(rfqId).padStart(3, "0")}`
@@ -149,7 +191,7 @@ const createActivityFeed = (rfqs: VendorRfq[], orders: VendorOrder[]) => {
     const createdEvent: DashboardActivity = {
       id: `order-created-${order.id}`,
       title: `Purchase order #${order.id} was created for vendor #${order.vendor}.`,
-      detail: `Status ${order.status.replaceAll("_", " ")} | Payment ${order.payment_status.replaceAll("_", " ")}`,
+      detail: `Status ${orderStatusLabel(order)} | Payment ${readableStatus(order.payment_status)}`,
       timestamp: order.created_at,
       accent: "slate",
       amount: formatCurrency(toNumber(order.total_amount)),
@@ -160,7 +202,7 @@ const createActivityFeed = (rfqs: VendorRfq[], orders: VendorOrder[]) => {
       order.delivered_at || order.goods_received_at
         ? {
           id: `order-complete-${order.id}`,
-          title: `Order #${order.id} moved to ${order.delivery_status.replaceAll("_", " ")} stage.`,
+          title: `Order #${order.id} moved to ${readableStatus(order.delivery_status)} stage.`,
           detail: order.tracking_note || "Delivery milestone updated.",
           timestamp: order.goods_received_at || order.delivered_at || order.created_at,
           accent: "amber" as const,
@@ -193,6 +235,10 @@ export default function BuyerDashboardPage() {
         const me = await getCurrentUser()
         if (me.role !== "buyer") {
           router.push("/supplier/dashboard")
+          return
+        }
+        if (me.status === "pending") {
+          router.replace("/buyer/profile")
           return
         }
 
@@ -231,6 +277,7 @@ export default function BuyerDashboardPage() {
     () => rfqs.filter((rfq) => rfq.buyer_name.trim().toLowerCase() === (user?.username ?? "").trim().toLowerCase()),
     [rfqs, user?.username]
   )
+  const buyerOrders = useMemo(() => orders.filter((order) => order.buyer === user?.id), [orders, user?.id])
 
   const liveCatalog = useMemo(() => products.filter((item) => item.is_active && item.stock > 0), [products])
   const openBuyerRfqs = useMemo(
@@ -238,7 +285,7 @@ export default function BuyerDashboardPage() {
     [buyerRfqs]
   )
   const totalQuotes = useMemo(() => buyerRfqs.reduce((sum, rfq) => sum + rfq.quotations.length, 0), [buyerRfqs])
-  const totalSpend = useMemo(() => orders.reduce((sum, order) => sum + toNumber(order.total_amount), 0), [orders])
+  const totalSpend = useMemo(() => buyerOrders.reduce((sum, order) => sum + toNumber(order.total_amount), 0), [buyerOrders])
 
   const uniqueSuppliers = useMemo(() => {
     const supplierKeys = new Set<string>()
@@ -252,12 +299,12 @@ export default function BuyerDashboardPage() {
 
   const overdueOrders = useMemo(
     () =>
-      orders.filter((order) => {
+      buyerOrders.filter((order) => {
         if (order.payment_status === "overdue") return true
         if (["completed", "cancelled"].includes(order.status)) return false
         return (Date.now() - new Date(order.created_at).getTime()) / 86_400_000 > 14
       }),
-    [orders]
+    [buyerOrders]
   )
 
   const pendingAwardRfqs = useMemo(
@@ -283,10 +330,10 @@ export default function BuyerDashboardPage() {
 
   const activityFeed = useMemo(() => {
     const query = deferredSearch.trim().toLowerCase()
-    const feed = createActivityFeed(buyerRfqs, orders)
+    const feed = createActivityFeed(buyerRfqs, buyerOrders)
     if (!query) return feed.slice(0, 4)
     return feed.filter((item) => `${item.title} ${item.detail}`.toLowerCase().includes(query)).slice(0, 4)
-  }, [buyerRfqs, deferredSearch, orders])
+  }, [buyerOrders, buyerRfqs, deferredSearch])
 
   const rfqSpark = useMemo(
     () => buildSparkline(openBuyerRfqs.slice(0, 7).map((rfq) => rfq.quantity), [20, 28, 24, 32, 36, 30, 42]),
@@ -308,8 +355,12 @@ export default function BuyerDashboardPage() {
     [buyerRfqs]
   )
   const spendSpark = useMemo(
-    () => buildSparkline(orders.slice(0, 7).map((order) => toNumber(order.total_amount)), [8, 12, 16, 18, 22, 26, 31]),
-    [orders]
+    () => buildSparkline(buyerOrders.slice(0, 7).map((order) => toNumber(order.total_amount)), [8, 12, 16, 18, 22, 26, 31]),
+    [buyerOrders]
+  )
+  const recentBuyerOrders = useMemo(
+    () => [...buyerOrders].sort((left, right) => getLatestOrderTouch(right) - getLatestOrderTouch(left)).slice(0, 4),
+    [buyerOrders]
   )
 
   const pendingActions = overdueOrders.length + pendingAwardRfqs.length
@@ -320,8 +371,6 @@ export default function BuyerDashboardPage() {
   const supplierDepth = Math.min(100, uniqueSuppliers.size * 14)
   const averageQuotes = buyerRfqs.length === 0 ? 0 : totalQuotes / buyerRfqs.length
   const organizationLabel = user?.buyer_type ? buyerTypeLabels[user.buyer_type] : "Buyer"
-  const buyerInitials = getProfileInitials(user?.username)
-
   const exportSnapshot = () => {
     if (!user) return
 
@@ -337,7 +386,7 @@ export default function BuyerDashboardPage() {
         active_suppliers: uniqueSuppliers.size,
       },
       rfqs: buyerRfqs,
-      orders,
+      orders: buyerOrders,
     }
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" })
@@ -394,6 +443,7 @@ export default function BuyerDashboardPage() {
         active="dashboard"
         username={user.username}
         buyerType={user.buyer_type}
+        status={user.status}
         onSignOut={signOut}
       />
 
@@ -427,7 +477,7 @@ export default function BuyerDashboardPage() {
             <MetricCard label="Active RFQs" value={String(openBuyerRfqs.length).padStart(2, "0")} hint={`${liveCatalog.length} live listings available`} trend={rfqSpark} accent="blue" glyph="RF" />
             <MetricCard label="Quotes Received" value={String(totalQuotes).padStart(2, "0")} hint={`Avg ${averageQuotes.toFixed(1)} per RFQ`} trend={quoteSpark} accent="slate" glyph="QT" />
             <MetricCard label="Pending Action" value={String(pendingActions).padStart(2, "0")} hint={pendingActions > 0 ? `${pendingAwardRfqs.length} RFQs need review` : "No blockers right now"} trend={riskSpark} accent="amber" glyph="AL" />
-            <MetricCard label="Total Spend" value={formatCompactCurrency(totalSpend)} hint={`${orders.length} orders tracked`} trend={spendSpark} accent="dark" glyph="IN" />
+            <MetricCard label="Total Spend" value={formatCompactCurrency(totalSpend)} hint={`${buyerOrders.length} orders tracked`} trend={spendSpark} accent="dark" glyph="IN" />
           </div>
 
           <div className="mt-10 grid grid-cols-1 gap-8 xl:grid-cols-12">
@@ -500,8 +550,41 @@ export default function BuyerDashboardPage() {
                 <h3 className="text-[10px] font-black uppercase tracking-[0.22em] text-[#9aa3b2]">Priority Actions</h3>
                 <div className="mt-6 space-y-3">
                   <QuickActionLink href="/buyer/rfq?view=new" glyph="RF" label="Create New RFQ" badge={`${openBuyerRfqs.length} LIVE`} />
-                  <QuickActionLink href="/buyer/orders" glyph="OR" label="Review All Orders" badge={`${orders.length} TRACKED`} />
+                  <QuickActionLink href="/buyer/orders" glyph="OR" label="Review All Orders" badge={`${buyerOrders.length} TRACKED`} />
                   <QuickActionLink href="/buyer/rfq?view=my" glyph="QT" label="Compare Supplier Quotes" badge={`${pendingAwardRfqs.length} HOT`} />
+                </div>
+              </section>
+
+              <section className="overflow-hidden rounded-[2rem] border border-white/80 bg-white/85 p-7 shadow-[0_20px_50px_rgba(15,23,42,0.06)] backdrop-blur">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h3 className="font-[family-name:var(--font-display)] text-xl font-black text-[#0f172a]">Order Status</h3>
+                    <p className="mt-1 text-xs font-medium text-[#94a3b8]">Latest buyer orders with live delivery and payment progress.</p>
+                  </div>
+                  <Link href="/buyer/orders" className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0f4fb6] transition hover:text-[#0b3d8d]">
+                    Open Desk
+                  </Link>
+                </div>
+                <div className="mt-6 space-y-3">
+                  {recentBuyerOrders.length > 0 ? recentBuyerOrders.map((order) => (
+                    <article key={order.id} className="rounded-[1.35rem] border border-[#edf1f7] bg-[#f8fafc] p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-black text-[#0f172a]">PO #{String(order.id).padStart(4, "0")}</p>
+                          <p className="mt-1 text-xs text-[#64748b]">{formatShortDate(order.created_at)} | {formatCompactCurrency(toNumber(order.total_amount))}</p>
+                        </div>
+                        <span className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${orderStatusChipClass(order)}`}>
+                          {orderStatusLabel(order)}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-xs font-medium text-[#64748b]">{orderStatusDetail(order)}</p>
+                      <p className="mt-2 text-[11px] text-[#94a3b8]">{order.tracking_note || "Tracking note will appear here as the supplier updates the order."}</p>
+                    </article>
+                  )) : (
+                    <div className="rounded-[1.35rem] border border-dashed border-[#dbe4ef] bg-[#f8fafc] px-4 py-6 text-sm text-[#64748b]">
+                      No buyer orders yet. New purchase orders will appear here with their live status.
+                    </div>
+                  )}
                 </div>
               </section>
 
@@ -525,7 +608,7 @@ export default function BuyerDashboardPage() {
                     <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
                       <div><p className="text-[#94a3b8]">Buyer Type</p><p className="mt-1 font-bold text-white">{organizationLabel}</p></div>
                       <div><p className="text-[#94a3b8]">Supplier Reach</p><p className="mt-1 font-bold text-white">{uniqueSuppliers.size} vendors</p></div>
-                      <div><p className="text-[#94a3b8]">Open Orders</p><p className="mt-1 font-bold text-white">{orders.filter((order) => !["completed", "cancelled"].includes(order.status)).length}</p></div>
+                      <div><p className="text-[#94a3b8]">Open Orders</p><p className="mt-1 font-bold text-white">{buyerOrders.filter((order) => !["completed", "cancelled"].includes(order.status)).length}</p></div>
                       <div><p className="text-[#94a3b8]">Catalog Depth</p><p className="mt-1 font-bold text-white">{liveCatalog.length} listings</p></div>
                     </div>
                   </div>
@@ -721,163 +804,12 @@ function GlyphIcon({ label, className }: { label: string; className: string }) {
   if (label === "UP") {
     return (
       <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M3 12a9 9 0 0 0 15.55 6.36L21 16" />
-        <path d="M21 12A9 9 0 0 0 5.64 5.64L3 8" />
-        <path d="M3 3v5h5" />
-        <path d="M16 16h5v5" />
+        <path d="M12 2v20" />
+        <path d="m17 7-5-5-5 5" />
+        <path d="m17 17-5 5-5-5" />
       </svg>
     )
   }
 
   return <span className="text-[10px] font-black uppercase">{label}</span>
-}
-
-function MetricCard({
-  label,
-  value,
-  hint,
-  trend,
-  accent,
-  glyph,
-}: {
-  label: string
-  value: string
-  hint: string
-  trend: number[]
-  accent: "blue" | "slate" | "amber" | "dark"
-  glyph: string
-}) {
-  const palette =
-    accent === "blue"
-      ? {
-        shell: "border-white/80 bg-white text-[#0f172a]",
-        bar: "bg-[#0f4fb6]/18 group-hover:bg-[#0f4fb6]/34",
-        label: "text-[#98a2b3]",
-        hint: "text-[#10b981]",
-        tone: "blue" as const,
-      }
-      : accent === "slate"
-        ? {
-          shell: "border-white/80 bg-white text-[#0f172a]",
-          bar: "bg-[#475569]/18 group-hover:bg-[#475569]/32",
-          label: "text-[#98a2b3]",
-          hint: "text-[#94a3b8]",
-          tone: "slate" as const,
-        }
-        : accent === "amber"
-          ? {
-            shell: "border-white/80 bg-white text-[#0f172a]",
-            bar: "bg-[#a93802]/18 group-hover:bg-[#a93802]/32",
-            label: "text-[#98a2b3]",
-            hint: "text-[#a93802]",
-            tone: "amber" as const,
-          }
-          : {
-            shell: "border-[#0f172a] bg-[#0f172a] text-white",
-            bar: "bg-white/10 group-hover:bg-white/24",
-            label: "text-[#64748b]",
-            hint: "text-[#cbd5e1]",
-            tone: "dark" as const,
-          }
-
-  return (
-    <article className={`group rounded-[1.8rem] border p-6 shadow-[0_15px_40px_rgba(15,23,42,0.05)] transition hover:-translate-y-1 ${palette.shell}`}>
-      <div className="flex items-start justify-between">
-        <p className={`text-[10px] font-black uppercase tracking-[0.24em] ${palette.label}`}>{label}</p>
-        <Glyph label={glyph} tone={palette.tone} />
-      </div>
-      <div className="mt-5">
-        <h3 className="font-[family-name:var(--font-display)] text-4xl font-black tracking-[-0.04em]">{value}</h3>
-        <p className={`mt-2 text-xs font-semibold ${palette.hint}`}>{hint}</p>
-      </div>
-      <div className="mt-5 flex h-10 items-end gap-1">
-        {trend.map((height, index) => (
-          <span key={`${height}-${index}`} className={`block w-full rounded-t-sm transition ${palette.bar}`} style={{ height: `${height}%` }} />
-        ))}
-      </div>
-    </article>
-  )
-}
-
-function ActivityCard({ activity }: { activity: DashboardActivity }) {
-  const tone =
-    activity.accent === "blue"
-      ? { border: "border-l-[#0f4fb6]", glyph: "blue" as const }
-      : activity.accent === "amber"
-        ? { border: "border-l-[#a93802]", glyph: "amber" as const }
-        : { border: "border-l-[#475569]", glyph: "slate" as const }
-
-  return (
-    <article className="rounded-[1.5rem] border border-white/80 bg-white/85 p-5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] transition hover:shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
-      <div className={`flex gap-4 rounded-[1.5rem] border-l-4 px-1 ${tone.border}`}>
-        <div className="mt-1">
-          <Glyph label={activity.glyph} tone={tone.glyph} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[15px] font-bold leading-7 text-[#0f172a]">{activity.title}</p>
-          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs font-medium text-[#94a3b8]">
-            <span>{formatRelativeTime(activity.timestamp)}</span>
-            <span>{activity.detail}</span>
-            {activity.amount ? (
-              <span className="rounded-md bg-[#f3f6fa] px-2 py-1 text-[10px] font-black text-[#475569]">{activity.amount}</span>
-            ) : null}
-          </div>
-        </div>
-      </div>
-    </article>
-  )
-}
-
-function QuickActionLink({
-  href,
-  glyph,
-  label,
-  badge,
-}: {
-  href: string
-  glyph: string
-  label: string
-  badge: string
-}) {
-  return (
-    <Link
-      href={href}
-      className="group flex items-center justify-between rounded-[1.2rem] border border-[#edf1f7] bg-[#f8fafc] px-5 py-4 transition hover:border-[#0f4fb6] hover:bg-[#0f4fb6] hover:text-white"
-    >
-      <div className="flex items-center gap-4">
-        <Glyph label={glyph} tone="blue" />
-        <span className="text-sm font-extrabold">{label}</span>
-      </div>
-      <div className="rounded-lg bg-[#e8efff] px-2.5 py-1 text-[10px] font-black text-[#0f4fb6] transition group-hover:bg-white/15 group-hover:text-white">
-        {badge}
-      </div>
-    </Link>
-  )
-}
-
-function HealthBar({
-  label,
-  value,
-  progress,
-  tone,
-}: {
-  label: string
-  value: string
-  progress: number
-  tone: "blue" | "amber"
-}) {
-  const barTone = tone === "blue" ? "bg-[#0f4fb6]" : "bg-[#f59e0b]"
-  const shadowTone = tone === "blue" ? "rgba(15,79,182,0.55)" : "rgba(245,158,11,0.45)"
-
-  return (
-    <div>
-      <div className="mb-3 flex items-center justify-between text-[10px] font-black uppercase tracking-[0.22em] text-[#94a3b8]">
-        <span>{label}</span>
-        <span className="text-white">{value}</span>
-      </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-white/8">
-        <div className={`${barTone} h-full rounded-full`} style={{ width: `${Math.max(8, progress)}%`, boxShadow: `0 0 14px ${shadowTone}` }} />
-      </div>
-    </div>
-  )
 }
