@@ -813,3 +813,134 @@ function GlyphIcon({ label, className }: { label: string; className: string }) {
 
   return <span className="text-[10px] font-black uppercase">{label}</span>
 }
+
+function MetricCard({
+  label,
+  value,
+  hint,
+  trend,
+  accent,
+  glyph,
+}: {
+  label: string
+  value: string
+  hint: string
+  trend: number[]
+  accent: "blue" | "slate" | "amber" | "dark"
+  glyph: string
+}) {
+  const accentClasses = {
+    blue: "text-[#0f4fb6] bg-[#0f4fb6]/5",
+    slate: "text-[#475569] bg-[#475569]/5",
+    amber: "text-[#ad6a08] bg-[#ad6a08]/5",
+    dark: "text-[#1e293b] bg-[#1e293b]/5",
+  }
+
+  return (
+    <article className="group relative overflow-hidden rounded-[2rem] border border-white/80 bg-white/80 p-6 shadow-[0_20px_50px_rgba(15,23,42,0.06)] backdrop-blur transition hover:bg-white">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#94a3b8]">{label}</p>
+          <p className="mt-2 text-4xl font-black tracking-[-0.04em] text-[#0f172a]">{value}</p>
+        </div>
+        <Glyph label={glyph} tone={accent === "dark" ? "slate" : accent} />
+      </div>
+
+      <div className="mt-6 flex h-10 items-end gap-[3px]">
+        {trend.map((h, i) => (
+          <div
+            key={i}
+            className={`flex-1 rounded-t-sm transition-all duration-500 group-hover:opacity-80 ${
+              accent === "blue" ? "bg-[#0f4fb6]" : accent === "amber" ? "bg-[#ad6a08]" : "bg-[#475569]"
+            }`}
+            style={{ height: `${h}%` }}
+          />
+        ))}
+      </div>
+
+      <p className="mt-4 text-xs font-semibold text-[#64748b]">{hint}</p>
+    </article>
+  )
+}
+
+function ActivityCard({ activity }: { activity: DashboardActivity }) {
+  return (
+    <article className="group flex items-start gap-5 rounded-[1.8rem] border border-white bg-white/60 p-5 shadow-[0_15px_35px_rgba(15,23,42,0.04)] backdrop-blur transition hover:bg-white hover:shadow-[0_20px_45px_rgba(15,23,42,0.08)]">
+      <div className="mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.2rem] bg-[#f8fafc] ring-1 ring-[#e5e9f0] transition group-hover:bg-white group-hover:ring-[#dbe4ef]">
+        <Glyph label={activity.glyph} tone={activity.accent} small />
+      </div>
+      <div className="flex-1">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-bold leading-6 text-[#0f172a]">{activity.title}</p>
+          <time className="text-[10px] font-black uppercase tracking-[0.15em] text-[#94a3b8]">{formatRelativeTime(activity.timestamp)}</time>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-4">
+          <p className="text-xs font-medium text-[#64748b]">{activity.detail}</p>
+          {activity.amount && (
+            <div className="rounded-full bg-[#f1f5f9] px-2.5 py-0.5 text-[10px] font-bold text-[#475569]">
+              {activity.amount}
+            </div>
+          )}
+        </div>
+      </div>
+    </article>
+  )
+}
+
+function QuickActionLink({
+  href,
+  glyph,
+  label,
+  badge,
+}: {
+  href: string
+  glyph: string
+  label: string
+  badge: string
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex items-center justify-between gap-4 rounded-[1.4rem] border border-[#f1f5f9] bg-[#f8fafc] p-4 transition hover:border-[#0f4fb6]/20 hover:bg-white hover:shadow-sm"
+    >
+      <div className="flex items-center gap-4">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#0f4fb6] shadow-sm ring-1 ring-[#e5e9f0] transition group-hover:ring-[#0f4fb6]/20">
+          <GlyphIcon label={glyph} className="h-4 w-4" />
+        </div>
+        <span className="text-sm font-bold text-[#0f172a]">{label}</span>
+      </div>
+      <span className="rounded-full bg-white px-2.5 py-1 text-[9px] font-black tracking-widest text-[#0f4fb6] ring-1 ring-[#0f4fb6]/10">
+        {badge}
+      </span>
+    </Link>
+  )
+}
+
+function HealthBar({
+  label,
+  value,
+  progress,
+  tone,
+}: {
+  label: string
+  value: string
+  progress: number
+  tone: "blue" | "amber"
+}) {
+  const bg = tone === "blue" ? "bg-[#0f4fb6]" : "bg-[#ad6a08]"
+
+  return (
+    <div>
+      <div className="mb-2.5 flex items-center justify-between">
+        <span className="text-[11px] font-bold text-white/70">{label}</span>
+        <span className="text-xs font-black text-white">{value}</span>
+      </div>
+      <div className="h-1.5 w-full rounded-full bg-white/10">
+        <div
+          className={`h-full rounded-full transition-all duration-1000 ease-out ${bg}`}
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+    </div>
+  )
+}
