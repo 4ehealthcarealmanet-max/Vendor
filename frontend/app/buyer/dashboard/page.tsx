@@ -455,7 +455,7 @@ export default function BuyerDashboardPage() {
                 <span className="text-[10px] font-black uppercase tracking-[0.22em]">{organizationLabel} Performance Cycle</span>
               </div>
               <h1 className="mt-4 font-[family-name:var(--font-display)] text-4xl font-black leading-[1.02] tracking-[-0.05em] text-[#0f172a] sm:text-5xl md:text-6xl">
-                Buyer <span className="font-medium italic text-[#0f4fb6]">Overview.</span>
+                Hi {user.username}, <span className="font-medium italic text-[#0f4fb6]">Welcome back.</span>
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-[#657286] sm:text-lg sm:leading-8">
                 Monitor procurement cycles, supplier response depth, and live order velocity across your buyer workspace with actual RFQ and order data.
@@ -850,9 +850,8 @@ function MetricCard({
         {trend.map((h, i) => (
           <div
             key={i}
-            className={`flex-1 rounded-t-sm transition-all duration-500 group-hover:opacity-80 ${
-              accent === "blue" ? "bg-[#0f4fb6]" : accent === "amber" ? "bg-[#ad6a08]" : "bg-[#475569]"
-            }`}
+            className={`flex-1 rounded-t-sm transition-all duration-500 group-hover:opacity-80 ${accent === "blue" ? "bg-[#0f4fb6]" : accent === "amber" ? "bg-[#ad6a08]" : "bg-[#475569]"
+              }`}
             style={{ height: `${h}%` }}
           />
         ))}

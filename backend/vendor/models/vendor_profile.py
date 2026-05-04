@@ -32,9 +32,11 @@ class VendorProfile(models.Model):
     bank_account_name = models.CharField(max_length=255, blank=True, default="")
     bank_account_number = models.CharField(max_length=100, blank=True, default="")
     ifsc_code = models.CharField(max_length=20, blank=True, default="")
-    gst_document = models.CharField(max_length=255, blank=True, default="")
-    license_document = models.CharField(max_length=255, blank=True, default="")
-    iso_certificate = models.CharField(max_length=255, blank=True, default="")
+    gst_document = models.TextField(blank=True, default="")
+    license_document = models.TextField(blank=True, default="")
+    iso_certificate = models.TextField(blank=True, default="")
+    latitude = models.CharField(max_length=50, blank=True, default="")
+    longitude = models.CharField(max_length=50, blank=True, default="")
 
     verification_status = models.CharField(
         max_length=20,

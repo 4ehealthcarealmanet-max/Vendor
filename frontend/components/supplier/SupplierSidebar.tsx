@@ -81,19 +81,18 @@ export default function SupplierSidebar({ active, username, status, onSignOut }:
                   onClick={(e) => {
                     if (isDisabled) e.preventDefault()
                   }}
-                  className={`flex items-center gap-4 rounded-xl px-4 py-3.5 text-sm font-bold transition ${
-                    item.key === active
+                  className={`flex items-center gap-4 rounded-xl px-4 py-3.5 text-sm font-bold transition ${item.key === active
                       ? "border border-[#dbe8ff] bg-white text-[#0f4fb6] shadow-[inset_4px_0_0_0_#0f4fb6]"
                       : isDisabled
-                      ? "cursor-not-allowed opacity-40 text-[#64748b]"
-                      : "text-[#64748b] hover:bg-white hover:text-[#0f172a]"
-                  }`}
+                        ? "cursor-not-allowed opacity-40 text-[#64748b]"
+                        : "text-[#64748b] hover:bg-white hover:text-[#0f172a]"
+                    }`}
                 >
                   <div className="relative">
                     <SidebarGlyph label={item.glyph} tone={item.key === active ? "blue" : "slate"} />
                     {isDisabled && (
                       <div className="absolute -right-1 -top-1 rounded-full bg-white p-0.5 text-[#64748b] shadow-sm">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
                       </div>
                     )}
                   </div>
@@ -109,19 +108,18 @@ export default function SupplierSidebar({ active, username, status, onSignOut }:
               onClick={(e) => {
                 if (isPending) e.preventDefault()
               }}
-              className={`flex items-center gap-4 rounded-xl px-4 py-3 text-sm font-bold transition ${
-                active === "settings"
+              className={`flex items-center gap-4 rounded-xl px-4 py-3 text-sm font-bold transition ${active === "settings"
                   ? "border border-[#dbe8ff] bg-white text-[#0f4fb6] shadow-[inset_4px_0_0_0_#0f4fb6]"
                   : isPending
-                  ? "cursor-not-allowed opacity-40 text-[#64748b]"
-                  : "text-[#64748b] hover:bg-white hover:text-[#0f172a]"
-              }`}
+                    ? "cursor-not-allowed opacity-40 text-[#64748b]"
+                    : "text-[#64748b] hover:bg-white hover:text-[#0f172a]"
+                }`}
             >
               <div className="relative">
                 <SidebarGlyph label="ST" tone={active === "settings" ? "blue" : "slate"} />
                 {isPending && (
                   <div className="absolute -right-1 -top-1 rounded-full bg-white p-0.5 text-[#64748b] shadow-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
                   </div>
                 )}
               </div>
@@ -228,13 +226,12 @@ export default function SupplierSidebar({ active, username, status, onSignOut }:
                         closeMobileMenu()
                       }
                     }}
-                    className={`flex items-center gap-4 rounded-2xl px-4 py-4 text-sm font-black transition ${
-                      item.key === active
+                    className={`flex items-center gap-4 rounded-2xl px-4 py-4 text-sm font-black transition ${item.key === active
                         ? "border border-[#dbe8ff] bg-white text-[#0f4fb6] shadow-[inset_4px_0_0_0_#0f4fb6]"
                         : isDisabled
-                        ? "cursor-not-allowed opacity-40 text-[#64748b]"
-                        : "text-[#64748b] hover:bg-white hover:text-[#0f172a]"
-                    }`}
+                          ? "cursor-not-allowed opacity-40 text-[#64748b]"
+                          : "text-[#64748b] hover:bg-white hover:text-[#0f172a]"
+                      }`}
                   >
                     <SidebarGlyph label={item.glyph} tone={item.key === active ? "blue" : "slate"} />
                     {item.label}
@@ -253,13 +250,12 @@ export default function SupplierSidebar({ active, username, status, onSignOut }:
                     closeMobileMenu()
                   }
                 }}
-                className={`flex items-center gap-4 rounded-2xl px-4 py-4 text-sm font-black transition ${
-                  active === "settings"
+                className={`flex items-center gap-4 rounded-2xl px-4 py-4 text-sm font-black transition ${active === "settings"
                     ? "border border-[#dbe8ff] bg-white text-[#0f4fb6] shadow-[inset_4px_0_0_0_#0f4fb6]"
                     : isPending
-                    ? "cursor-not-allowed opacity-40 text-[#64748b]"
-                    : "text-[#64748b] hover:bg-white hover:text-[#0f172a]"
-                }`}
+                      ? "cursor-not-allowed opacity-40 text-[#64748b]"
+                      : "text-[#64748b] hover:bg-white hover:text-[#0f172a]"
+                  }`}
               >
                 <SidebarGlyph label="ST" tone={active === "settings" ? "blue" : "slate"} />
                 Settings

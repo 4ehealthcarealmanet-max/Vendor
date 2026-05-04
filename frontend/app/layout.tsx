@@ -12,6 +12,8 @@ export const metadata: Metadata = {
   description: "Premium healthcare procurement marketplace for buyers, suppliers, and live tender workflows.",
 }
 
+import NotificationToast from "@/components/common/NotificationToast"
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -19,7 +21,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="scroll-smooth">
-      <body className="antialiased" style={fontVariables}>{children}</body>
+      <body className="antialiased" style={fontVariables}>
+        {children}
+        <NotificationToast />
+      </body>
     </html>
   )
 }

@@ -50,12 +50,48 @@ export interface AdminUser {
   buyer_type: "hospital" | "pharmacy" | "ngo" | "clinic" | null
   created_at: string
   verification_info?: {
+    // Common
     company_name?: string
+    organization_name?: string
     gst_number?: string
-    license_number?: string
     address?: string
+    city?: string
+    state?: string
+    pincode?: string
+    contact_name?: string
+    designation?: string
+    phone?: string
+    email?: string
+    procurement_contact_name?: string
+    latitude?: string
+    longitude?: string
+    // Supplier only
     brand_name?: string
+    license_number?: string
+    business_category?: string
+    years_in_business?: string
+    product_categories?: string
+    supply_regions?: string
+    minimum_order_value?: string
+    average_lead_time?: string
+    warehouse_capacity?: string
+    bank_account_name?: string
+    bank_account_number?: string
+    ifsc_code?: string
+    gst_document?: string
+    license_document?: string
+    iso_certificate?: string
+    // Buyer only
     buyer_type?: string
     department?: string
+    institution_size?: string
+    monthly_spend?: string
+    payment_terms?: string
+    approval_flow?: string
+    categories_needed?: string
+    delivery_locations?: string
+    urgency_window?: string
+    compliance_needs?: string
+    onboarding_documents?: string
   }
 }

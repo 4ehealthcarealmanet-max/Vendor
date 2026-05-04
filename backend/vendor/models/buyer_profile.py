@@ -24,7 +24,8 @@ class BuyerProfile(models.Model):
     urgency_window = models.CharField(max_length=100, blank=True, default="")
     compliance_needs = models.TextField(blank=True, default="")
     onboarding_documents = models.TextField(blank=True, default="")
-    
+    latitude = models.CharField(max_length=50, blank=True, default="")
+    longitude = models.CharField(max_length=50, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
