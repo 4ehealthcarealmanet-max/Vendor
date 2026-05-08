@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { clearToken } from "@/services"
 
@@ -15,14 +15,8 @@ export default function AdminTopBar({
   onSearchChange?: (val: string) => void;
   onProfileClick?: () => void;
 }) {
-  const [currentTime, setCurrentTime] = useState(new Date())
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const router = useRouter()
-
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000)
-    return () => clearInterval(timer)
-  }, [])
 
   const handleLogout = () => {
     clearToken()
@@ -33,11 +27,7 @@ export default function AdminTopBar({
     <header className="sticky top-0 z-40 flex h-24 w-full items-center justify-between border-b border-[#e5e9f0] bg-white/80 px-8 backdrop-blur-md">
       <div className="flex items-center gap-8">
         <div className="flex flex-col">
-          <h1 className="text-[15px] font-black tracking-[0.15em] text-[#0f172a] uppercase">Command Center</h1>
-          <div className="flex items-center gap-2 mt-0.5">
-             <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
-             <span className="text-[10px] font-bold tracking-widest text-emerald-600 uppercase">System Status: Operational</span>
-          </div>
+          <h1 className="text-[15px] font-black tracking-[0.15em] text-[#0f172a] uppercase">Admin Dashboard</h1>
         </div>
 
         <div className="relative group">
@@ -54,13 +44,6 @@ export default function AdminTopBar({
       </div>
 
       <div className="flex items-center gap-8">
-        <div className="text-right">
-          <p className="text-[15px] font-black tracking-tighter text-[#0f172a]">
-            {currentTime.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-          </p>
-          <p className="text-[9px] font-black tracking-[0.2em] text-[#94a3b8] uppercase mt-0.5">Digital Clock (UTC)</p>
-        </div>
-
         <div className="flex items-center gap-4">
            <button className="relative rounded-[0.9rem] bg-[#f8fafc] p-2.5 text-[#64748b] transition-all hover:bg-[#f1f5f9] hover:text-[#0f172a]">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
@@ -81,12 +64,7 @@ export default function AdminTopBar({
           >
             <div className="text-right">
                 <div className="flex items-center justify-end gap-2">
-                  <span className="text-[9px] font-black uppercase tracking-[0.2em] px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-md">Master Admin</span>
-                  <p className="text-xs font-black text-slate-950">Admin. {adminName}</p>
-                </div>
-                <div className="flex items-center justify-end gap-2 mt-1">
-                  <p className="text-[9px] font-black tracking-widest text-slate-400 uppercase">Level 4 Clearance</p>
-                  <svg className="text-emerald-500" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  <p className="text-xs font-black text-slate-950 capitalize">{adminName}</p>
                 </div>
             </div>
             <div className="h-12 w-12 rounded-[1.25rem] bg-white border-2 border-slate-100 p-1 shadow-lg group-hover:rotate-3 transition-transform">
