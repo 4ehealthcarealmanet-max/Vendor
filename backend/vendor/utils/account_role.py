@@ -16,5 +16,6 @@ def get_or_create_account_profile(user):
     return AccountProfile.objects.create(
         user=user,
         role=inferred_role,
+        status="approved",
         buyer_type=inferred_buyer_type,
     )

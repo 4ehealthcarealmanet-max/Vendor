@@ -1,4 +1,5 @@
 from .account_profile import AccountProfile
+from .buyer_profile import BuyerProfile
 from .vendor_order import VendorOrder
 from .vendor_order_event import VendorOrderEvent
 from .vendor_order_item import VendorOrderItem
@@ -10,6 +11,7 @@ from .vendor_rfq_invitation import VendorRfqInvitation
 
 __all__ = [
     "AccountProfile",
+    "BuyerProfile",
     "VendorOrder",
     "VendorOrderEvent",
     "VendorOrderItem",

@@ -1,16 +1,16 @@
-export type SupplierNotificationType = "success" | "error" | "info" | "warning"
+export type AppNotificationType = "success" | "error" | "info" | "warning"
 
-export type SupplierNotification = {
-  type?: SupplierNotificationType
+export type AppNotification = {
+  type?: AppNotificationType
   title?: string
   message: string
 }
 
-export const notifySupplier = ({ type = "info", title, message }: SupplierNotification) => {
+export const notifyUser = ({ type = "info", title, message }: AppNotification) => {
   if (typeof window === "undefined" || !message.trim()) return
 
   window.dispatchEvent(
-    new CustomEvent<SupplierNotification>("supplier:notification", {
+    new CustomEvent<AppNotification>("app:notification", {
       detail: { type, title, message },
     })
   )

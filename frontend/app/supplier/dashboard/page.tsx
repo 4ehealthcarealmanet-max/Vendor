@@ -15,7 +15,6 @@ import {
   getRfqs,
   isAuthSessionError,
   logoutUser,
-  notifySupplier,
   submitQuotation,
   updateOrderTracking,
 } from "@/services"
@@ -267,6 +266,10 @@ function SupplierDashboardPageContent() {
           router.push("/buyer/dashboard")
           return
         }
+        if (me.status === "pending") {
+          router.replace("/supplier/profile")
+          return
+        }
         setUser(me)
         const [productData, orderData, rfqData] = await Promise.all([getProducts(), getOrders(), getRfqs()])
         setProducts(productData)
@@ -277,13 +280,11 @@ function SupplierDashboardPageContent() {
           clearToken()
           const sessionMessage = "Your supplier session expired. Please login again."
           setError(sessionMessage)
-          notifySupplier({ type: "warning", title: "Session Expired", message: sessionMessage })
           router.push("/login?next=%2Fsupplier%2Fdashboard")
           return
         }
         const loadMessage = "Could not load your supplier dashboard right now. Check the backend and try again."
         setError(loadMessage)
-        notifySupplier({ type: "error", title: "Dashboard Error", message: loadMessage })
       } finally {
         setLoading(false)
       }
@@ -429,21 +430,18 @@ function SupplierDashboardPageContent() {
     if (!quoteListingOptions.length) {
       const validationMessage = "Add an active listing before submitting a quote for this RFQ."
       setQuoteMessage(validationMessage)
-      notifySupplier({ type: "warning", title: "Listing Required", message: validationMessage })
       return
     }
 
     if (!quoteForm.product_id) {
       const validationMessage = "Select a listing for this quotation."
       setQuoteMessage(validationMessage)
-      notifySupplier({ type: "warning", title: "Select Listing", message: validationMessage })
       return
     }
 
     if (quoteForm.unit_price <= 0 || quoteForm.lead_time_days <= 0 || quoteForm.validity_days <= 0) {
       const validationMessage = "Enter valid quote amount, lead time, and validity days."
       setQuoteMessage(validationMessage)
-      notifySupplier({ type: "warning", title: "Invalid Quote", message: validationMessage })
       return
     }
 
@@ -453,12 +451,10 @@ function SupplierDashboardPageContent() {
       await submitQuotation(activeQuoteRfq.rfq.id, quoteForm)
       const refreshedRfqs = await getRfqs()
       setRfqs(refreshedRfqs)
-      notifySupplier({ type: "success", title: "Quote Submitted", message: `Quotation submitted for ${activeQuoteRfq.rfq.title}.` })
       closeQuoteModal()
     } catch (submitError) {
       const errorMessage = getApiErrorMessage(submitError, "Could not submit quotation right now.")
       setQuoteMessage(errorMessage)
-      notifySupplier({ type: "error", title: "Quote Failed", message: errorMessage })
     } finally {
       setSubmittingQuote(false)
     }
@@ -481,11 +477,9 @@ function SupplierDashboardPageContent() {
       replaceOrder(updatedOrder)
       const successMessage = `Order #ORD-${updatedOrder.id} updated to ${orderStatusLabel(updatedOrder)}.`
       setOrderActionMessage(successMessage)
-      notifySupplier({ type: "success", title: "Order Updated", message: successMessage })
     } catch (actionError) {
       const errorMessage = getApiErrorMessage(actionError, "Could not update this order right now.")
       setOrderActionMessage(errorMessage)
-      notifySupplier({ type: "error", title: "Order Update Failed", message: errorMessage })
     } finally {
       setUpdatingOrderId(null)
     }
@@ -505,7 +499,7 @@ function SupplierDashboardPageContent() {
       }}
     >
       <SupplierDashboardHeader user={user} rfqs={rfqs} products={products} />
-      <SupplierSidebar active="dashboard" username={user.username} onSignOut={signOut} />
+      <SupplierSidebar active="dashboard" username={user.username} status={user.status} onSignOut={signOut} />
 
       <main className="px-4 py-8 pb-24 sm:px-6 lg:pl-[calc(18rem+2.5rem)] lg:pr-10 lg:py-10">
         <div className="mx-auto max-w-7xl">
@@ -808,243 +802,81 @@ function SupplierDashboardPageContent() {
                   </select>
                 </label>
 
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-3">
                   <label className="grid gap-2 text-sm">
                     <span className="font-bold text-white">Unit Price</span>
                     <input
                       type="number"
-                      min={0}
                       value={quoteForm.unit_price}
                       onChange={(event) => setQuoteForm((prev) => ({ ...prev, unit_price: Number(event.target.value) }))}
-                      className="rounded-[1rem] border border-white/20 bg-white/10 px-4 py-3 text-sm text-white outline-none placeholder:text-white/50"
+                      className="rounded-[1rem] border border-white/20 bg-white/10 px-4 py-3 text-sm text-white outline-none backdrop-blur placeholder:text-white/50"
+                      placeholder="0.00"
                     />
                   </label>
                   <label className="grid gap-2 text-sm">
-                    <span className="font-bold text-white">Lead Time (days)</span>
+                    <span className="font-bold text-white">Lead Time (Days)</span>
                     <input
                       type="number"
-                      min={1}
                       value={quoteForm.lead_time_days}
                       onChange={(event) => setQuoteForm((prev) => ({ ...prev, lead_time_days: Number(event.target.value) }))}
-                      className="rounded-[1rem] border border-white/20 bg-white/10 px-4 py-3 text-sm text-white outline-none placeholder:text-white/50"
+                      className="rounded-[1rem] border border-white/20 bg-white/10 px-4 py-3 text-sm text-white outline-none backdrop-blur placeholder:text-white/50"
+                      placeholder="7"
+                    />
+                  </label>
+                  <label className="grid gap-2 text-sm">
+                    <span className="font-bold text-white">Validity (Days)</span>
+                    <input
+                      type="number"
+                      value={quoteForm.validity_days}
+                      onChange={(event) => setQuoteForm((prev) => ({ ...prev, validity_days: Number(event.target.value) }))}
+                      className="rounded-[1rem] border border-white/20 bg-white/10 px-4 py-3 text-sm text-white outline-none backdrop-blur placeholder:text-white/50"
+                      placeholder="15"
                     />
                   </label>
                 </div>
 
                 <label className="grid gap-2 text-sm">
-                  <span className="font-bold text-white">Validity (days)</span>
-                  <input
-                    type="number"
-                    min={1}
-                    value={quoteForm.validity_days}
-                    onChange={(event) => setQuoteForm((prev) => ({ ...prev, validity_days: Number(event.target.value) }))}
-                    className="rounded-[1rem] border border-white/20 bg-white/10 px-4 py-3 text-sm text-white outline-none placeholder:text-white/50"
-                  />
-                </label>
-
-                <label className="grid gap-2 text-sm">
-                  <span className="font-bold text-white">Commercial Notes</span>
+                  <span className="font-bold text-white">Terms & Remarks</span>
                   <textarea
-                    rows={5}
                     value={quoteForm.notes}
                     onChange={(event) => setQuoteForm((prev) => ({ ...prev, notes: event.target.value }))}
-                    placeholder="Warranty, delivery notes, installation support, payment terms."
-                    className="rounded-[1rem] border border-white/20 bg-white/10 px-4 py-3 text-sm text-white outline-none placeholder:text-white/50"
+                    className="h-32 resize-none rounded-[1.2rem] border border-white/20 bg-white/10 px-4 py-3 text-sm text-white outline-none backdrop-blur placeholder:text-white/50"
+                    placeholder="Enter special terms or product details..."
                   />
                 </label>
 
                 {quoteMessage ? (
-                  <p className="rounded-[1rem] border border-white/18 bg-white/12 px-4 py-3 text-sm text-white">{quoteMessage}</p>
-                ) : null}
-
-                {!quoteListingOptions.length ? (
-                  <p className="rounded-[1rem] border border-white/18 bg-white/12 px-4 py-3 text-sm text-white/88">
-                    You need at least one active {activeQuoteRfq.rfq.product_type} listing before sending a quotation.
+                  <p className="rounded-xl bg-[#ba1a1a]/10 px-4 py-3 text-xs font-bold text-[#ffb4ab]">
+                    {quoteMessage}
                   </p>
                 ) : null}
-              </div>
-              </div>
-              <div className="sticky bottom-0 border-t border-white/14 bg-[rgba(7,30,76,0.72)] px-6 py-4 backdrop-blur sm:px-8">
-                <div className="flex flex-wrap gap-3">
+
+                <div className="pt-4">
                   <button
                     type="button"
                     onClick={handleSubmitQuote}
-                    disabled={submittingQuote || !quoteListingOptions.length}
-                    className="rounded-[1rem] bg-white px-5 py-3 text-sm font-black text-[#0f4fb6] shadow-[0_16px_36px_rgba(10,23,55,0.16)] transition hover:bg-[#f8fbff] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {submittingQuote ? "Submitting..." : "Submit Final Quote"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={closeQuoteModal}
                     disabled={submittingQuote}
-                    className="rounded-[1rem] border border-white/24 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/14 disabled:opacity-60"
+                    className="flex w-full items-center justify-center rounded-[1.2rem] bg-white px-6 py-4 text-sm font-black text-[#0f4fb6] shadow-[0_20px_40px_rgba(0,0,0,0.15)] transition hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Cancel
+                    {submittingQuote ? "Submitting Quote..." : "Submit Quotation"}
                   </button>
                 </div>
               </div>
             </div>
           </div>
           </div>
+          </div>
         </div>
       ) : null}
-      <style jsx>{`
-        .quote-modal-shell {
-          animation: quote-modal-rise 260ms cubic-bezier(0.22, 1, 0.36, 1);
-        }
-
-        .supplier-dashboard-root :global(main article) {
-          position: relative;
-          overflow: hidden;
-          transition:
-            transform 240ms ease,
-            box-shadow 240ms ease,
-            border-color 240ms ease;
-        }
-
-        .supplier-dashboard-root :global(main article::before) {
-          content: "";
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-          background:
-            linear-gradient(120deg, transparent 0%, rgba(15, 79, 182, 0.05) 45%, transparent 72%);
-          opacity: 0;
-          transform: translateX(-35%);
-          transition:
-            opacity 240ms ease,
-            transform 700ms ease;
-        }
-
-        .supplier-dashboard-root :global(main article:hover) {
-          transform: translateY(-2px);
-          border-color: rgba(15, 79, 182, 0.18);
-          box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
-        }
-
-        .supplier-dashboard-root :global(main article:hover::before) {
-          opacity: 1;
-          transform: translateX(35%);
-        }
-
-        .supplier-dashboard-root :global(tbody tr) {
-          transition:
-            background-color 180ms ease,
-            transform 180ms ease;
-        }
-
-        .supplier-dashboard-root :global(tbody tr:hover) {
-          transform: translateX(2px);
-        }
-
-        .order-road-track {
-          background:
-            repeating-linear-gradient(
-              90deg,
-              #d9e2f1 0 18px,
-              transparent 18px 28px
-            ),
-            linear-gradient(90deg, #e8eef7, #dbe4ef);
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
-          animation: road-flow 900ms linear infinite;
-        }
-
-        .order-road-progress {
-          background:
-            repeating-linear-gradient(
-              90deg,
-              rgba(255, 255, 255, 0.35) 0 14px,
-              transparent 14px 24px
-            ),
-            linear-gradient(90deg, #0f4fb6, #1d72ff);
-          box-shadow: 0 0 18px rgba(15, 79, 182, 0.26);
-          animation: road-flow 720ms linear infinite;
-        }
-
-        .order-truck {
-          animation: truck-bob 720ms ease-in-out infinite;
-        }
-
-        .order-truck::after {
-          content: "";
-          position: absolute;
-          left: -10px;
-          top: 50%;
-          width: 7px;
-          height: 4px;
-          border-radius: 999px;
-          background: rgba(15, 79, 182, 0.18);
-          transform: translateY(-50%);
-          animation: exhaust-puff 850ms ease-out infinite;
-        }
-
-        .order-stage-dot.is-active {
-          animation: checkpoint-pulse 1.6s ease-in-out infinite;
-          box-shadow: 0 0 0 6px rgba(15, 79, 182, 0.08);
-        }
-
-        @keyframes road-flow {
-          from {
-            background-position: 0 0, 0 0;
-          }
-          to {
-            background-position: 28px 0, 0 0;
-          }
-        }
-
-        @keyframes truck-bob {
-          0%,
-          100% {
-            margin-top: 0;
-          }
-          50% {
-            margin-top: -2px;
-          }
-        }
-
-        @keyframes exhaust-puff {
-          0% {
-            opacity: 0.6;
-            transform: translate(0, -50%) scale(0.7);
-          }
-          100% {
-            opacity: 0;
-            transform: translate(-14px, -50%) scale(1.5);
-          }
-        }
-
-        @keyframes checkpoint-pulse {
-          0%,
-          100% {
-            box-shadow: 0 0 0 5px rgba(15, 79, 182, 0.08);
-          }
-          50% {
-            box-shadow: 0 0 0 9px rgba(15, 79, 182, 0.14);
-          }
-        }
-
-        @keyframes quote-modal-rise {
-          from {
-            opacity: 0;
-            transform: translateY(18px) scale(0.985);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-      `}</style>
     </div>
   )
 }
 
 function QuoteInfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[1rem] border border-[#e5ebf3] bg-white px-4 py-3 shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8a97aa]">{label}</p>
-      <p className="mt-2 text-sm font-bold leading-6 text-[#0f172a]">{value}</p>
+    <div className="rounded-xl border border-[#edf1f7] bg-[#fbfcff] px-4 py-3">
+      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#94a3b8]">{label}</p>
+      <p className="mt-1 text-sm font-bold text-[#0f172a]">{value}</p>
     </div>
   )
 }
-

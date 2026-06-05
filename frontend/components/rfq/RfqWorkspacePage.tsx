@@ -21,7 +21,6 @@ import {
   getToken,
   getUniqueVendorsFromProducts,
   isAuthSessionError,
-  notifySupplier,
   rejectQuotation,
   reopenRfq,
   submitQuotation,
@@ -169,17 +168,6 @@ function RfqPageContent() {
     rfqId: null,
   })
   const hasAuthToken = () => Boolean(getToken())
-
-  useEffect(() => {
-    if (userRole !== "supplier" || !message) return
-    const isErrorMessage = /could not|cannot|required|must|missing|not found|invalid|failed|select|add an active/i.test(message)
-    const isSuccessMessage = /success|submitted|updated|issued|awarded|rejected|closed|reopened|deleted/i.test(message)
-    notifySupplier({
-      type: isErrorMessage ? "error" : isSuccessMessage ? "success" : "info",
-      title: isErrorMessage ? "RFQ Needs Attention" : "RFQ Update",
-      message,
-    })
-  }, [message, userRole])
 
   const handleTenderDocumentChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null
@@ -1150,40 +1138,7 @@ function RfqPageContent() {
                   </div>
                 ) : null}
               </article>
-            ) : userRole === "supplier" ? (
-              null
-            ) : userRole === "buyer" ? (
-              null
-            ) : (
-              <article className="soft-panel rounded-[20px] p-5">
-                <h2 className="text-2xl font-extrabold">Public Tender Board</h2>
-                <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
-                  All published tenders are visible here. Register as a vendor to submit quotations, download documents, and participate in procurement.
-                </p>
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                  <MetricCard label="Total Tenders" value={rfqs.length} />
-                  <MetricCard label="Open Now" value={rfqs.filter((item) => item.status === "open" || item.status === "under_review").length} />
-                  <MetricCard label="Register Path" value="Vendor Signup" />
-                </div>
-                <div className="mt-4 rounded-lg border border-[#d8e8f6] bg-[#f8fbff] px-4 py-3 text-sm text-[#476673]">
-                  You can browse every tender from this page. To respond or manage bids, click the register button and continue to the RFQ desk.
-                </div>
-                <div className="mt-5 flex flex-wrap gap-3">
-                  <Link
-                    href={`/register?next=${supplierRfqAuthNext}`}
-                    className="rounded-xl bg-[var(--brand)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[var(--brand-strong)]"
-                  >
-                    Register as Vendor
-                  </Link>
-                  <Link
-                    href={`/login?next=${supplierRfqAuthNext}`}
-                    className="rounded-xl border border-[#cbd9f0] bg-white px-4 py-3 text-sm font-semibold text-[#33556b] transition hover:bg-[#f5f9ff]"
-                  >
-                    Login to Tender Desk
-                  </Link>
-                </div>
-              </article>
-            )}
+            ) : null}
 
           </section>
 
@@ -2072,22 +2027,6 @@ function RfqPageContent() {
   )
 }
 
-function MetricCard({ label, value }: { label: string; value: number | string }) {
-  const normalizedLabel = label.toLowerCase()
-  const tone = normalizedLabel.includes("active")
-    ? "border-[#d7e5ff] bg-[linear-gradient(135deg,#eef4ff_0%,#f8fbff_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_10px_24px_rgba(15,79,182,0.06)]"
-    : normalizedLabel.includes("listing")
-      ? "border-[#d8f3e5] bg-[linear-gradient(135deg,#ecfdf5_0%,#f8fffb_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_10px_24px_rgba(16,185,129,0.06)]"
-      : "border-[#fde7c7] bg-[linear-gradient(135deg,#fff7ed_0%,#fffdf8_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_10px_24px_rgba(245,158,11,0.06)]"
-
-  return (
-    <div className={`rounded-xl border p-4 ${tone}`}>
-      <p className="text-xs font-semibold tracking-[0.08em] text-[#5b6b85] uppercase">{label}</p>
-      <p className="mt-2 text-3xl font-extrabold text-[#0b1426]">{value}</p>
-    </div>
-  )
-}
-
 function InfoPill({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="rounded-xl border border-[#e0e8f8] bg-[#f8faff] px-4 py-3">
@@ -2096,37 +2035,6 @@ function InfoPill({ label, value }: { label: string; value: number | string }) {
     </div>
   )
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -9,7 +9,6 @@ import {
   getCurrentUser,
   isAuthSessionError,
   logoutUser,
-  notifySupplier,
   resetPassword,
 } from "@/services"
 
@@ -23,15 +22,6 @@ export default function SupplierSettingsPage() {
   const [message, setMessage] = useState("")
   const [isError, setIsError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-
-  useEffect(() => {
-    if (!message) return
-    notifySupplier({
-      type: isError ? "error" : "success",
-      title: isError ? "Settings Alert" : "Settings Updated",
-      message,
-    })
-  }, [isError, message])
 
   useEffect(() => {
     const loadUser = async () => {

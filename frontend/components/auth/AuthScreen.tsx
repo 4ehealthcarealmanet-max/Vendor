@@ -110,18 +110,30 @@ export default function AuthScreen({
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [message, setMessage] = useState("")
+  const [messageTone, setMessageTone] = useState<"error" | "success">("error")
   const [loading, setLoading] = useState(false)
   const [checkingSession, setCheckingSession] = useState(true)
 
   const activePanel = authPanels[mode]
 
-  const redirectToDashboard = useCallback((userRole: "supplier" | "buyer") => {
+  const redirectToDashboard = useCallback((user: any) => {
     if (nextPath && nextPath.startsWith("/")) {
       router.replace(nextPath)
       return
     }
 
-    router.replace(userRole === "buyer" ? "/buyer/dashboard" : "/supplier/dashboard")
+    if (user.role === "admin") {
+      router.replace("/admin/dashboard")
+      return
+    }
+
+    // Redirect pending users to profile setup
+    if (user.status === "pending") {
+      router.replace(user.role === "buyer" ? "/buyer/profile" : "/supplier/profile")
+      return
+    }
+
+    router.replace(user.role === "buyer" ? "/buyer/dashboard" : "/supplier/dashboard")
   }, [nextPath, router])
 
   useEffect(() => {
@@ -137,7 +149,7 @@ export default function AuthScreen({
       try {
         const user = await getCurrentUser()
         if (!active) return
-        redirectToDashboard(user.role)
+        redirectToDashboard(user)
       } catch {
         clearToken()
         if (active) setCheckingSession(false)
@@ -163,21 +175,34 @@ export default function AuthScreen({
     event.preventDefault()
     setLoading(true)
     setMessage("")
+    setMessageTone("error")
 
     try {
-      const response =
-        mode === "register"
-          ? await registerUser({
-              username,
-              email,
-              password,
-              role,
-              ...(role === "buyer" ? { buyer_type: buyerType } : {}),
-            })
-          : await loginUser({ username, password })
+      if (mode === "register") {
+        const response = await registerUser({
+          username,
+          email,
+          password,
+          role,
+          ...(role === "buyer" ? { buyer_type: buyerType } : {}),
+        })
+        
+        if (response.token) {
+          setToken(response.token)
+          redirectToDashboard(response.user)
+        } else {
+          setMessageTone("success")
+          setMessage(response.message)
+          setUsername("")
+          setEmail("")
+          setPassword("")
+        }
+        return
+      }
 
+      const response = await loginUser({ username, password })
       setToken(response.token)
-      redirectToDashboard(response.user.role)
+      redirectToDashboard(response.user)
     } catch (error: unknown) {
       setMessage(getAuthErrorMessage(error as ApiError, mode))
     } finally {
@@ -335,7 +360,13 @@ export default function AuthScreen({
             />
 
             {message ? (
-              <p className="rounded-2xl border border-[#f1d0d0] bg-[#fff7f7] px-4 py-3 text-sm text-[#a02828]">
+              <p
+                className={`rounded-2xl border px-4 py-3 text-sm ${
+                  messageTone === "success"
+                    ? "border-[#cfe9d8] bg-[#f4fff7] text-[#166534]"
+                    : "border-[#f1d0d0] bg-[#fff7f7] text-[#a02828]"
+                }`}
+              >
                 {message}
               </p>
             ) : null}

@@ -1,5 +1,5 @@
 import axios from "axios"
-import { AuthResponse, AuthUser, LoginInput, RegisterInput, ResetPasswordInput, ResetPasswordResponse } from "./types"
+import { AdminUser, AuthResponse, AuthUser, LoginInput, RegisterInput, RegisterResponse, ResetPasswordInput, ResetPasswordResponse } from "./types"
 import { API_URLS } from "../utils/apiConfig"
 
 const TOKEN_KEY = "vendor_auth_token"
@@ -28,8 +28,16 @@ export const isAuthSessionError = (error: unknown) => {
   return error instanceof Error && error.message === "Missing auth token"
 }
 
+const getAuthHeaders = () => {
+  const token = getToken()
+  if (!token) {
+    throw new Error("Missing auth token")
+  }
+  return { Authorization: `Token ${token}` }
+}
+
 export const registerUser = async (data: RegisterInput) => {
-  const res = await axios.post<AuthResponse>(`${API_URLS.AUTH}/register/`, data)
+  const res = await axios.post<RegisterResponse>(`${API_URLS.AUTH}/register/`, data)
   return res.data
 }
 
@@ -39,36 +47,45 @@ export const loginUser = async (data: LoginInput) => {
 }
 
 export const getCurrentUser = async () => {
-  const token = getToken()
-  if (!token) {
-    throw new Error("Missing auth token")
-  }
   const res = await axios.get<AuthUser>(`${API_URLS.AUTH}/me/`, {
-    headers: { Authorization: `Token ${token}` },
+    headers: getAuthHeaders(),
   })
   return res.data
 }
 
 export const logoutUser = async () => {
-  const token = getToken()
-  if (!token) return
+  if (!getToken()) return
   await axios.post(
     `${API_URLS.AUTH}/logout/`,
     {},
     {
-      headers: { Authorization: `Token ${token}` },
+      headers: getAuthHeaders(),
     }
   )
 }
 
 export const resetPassword = async (data: ResetPasswordInput) => {
-  const token = getToken()
-  if (!token) {
-    throw new Error("Missing auth token")
-  }
   const res = await axios.post<ResetPasswordResponse>(`${API_URLS.AUTH}/reset-password/`, data, {
-    headers: { Authorization: `Token ${token}` },
+    headers: getAuthHeaders(),
   })
   setToken(res.data.token)
+  return res.data
+}
+
+export const getAdminUsers = async () => {
+  const res = await axios.get<AdminUser[]>(`${API_URLS.AUTH}/admin/users/`, {
+    headers: getAuthHeaders(),
+  })
+  return res.data
+}
+
+export const updateAdminUserStatus = async (userId: number, status: "approved" | "rejected") => {
+  const res = await axios.post<{ detail: string; user: AuthUser }>(
+    `${API_URLS.AUTH}/admin/users/${userId}/status/`,
+    { status },
+    {
+      headers: getAuthHeaders(),
+    }
+  )
   return res.data
 }
