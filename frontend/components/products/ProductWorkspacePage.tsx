@@ -34,7 +34,7 @@ function ProductsPageContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [username, setUsername] = useState<string>("")
-  const [userRole, setUserRole] = useState<"supplier" | "buyer" | "">("")
+  const [userRole, setUserRole] = useState<"supplier" | "buyer" | "admin" | "">("")
   const [buyerType, setBuyerType] = useState<string>("")
   const [editingProductId, setEditingProductId] = useState<number | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<VendorProductService | null>(null)

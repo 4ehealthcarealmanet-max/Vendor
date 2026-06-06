@@ -129,7 +129,7 @@ function RfqPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [username, setUsername] = useState("")
-  const [userRole, setUserRole] = useState<"supplier" | "buyer" | "">("")
+  const [userRole, setUserRole] = useState<"supplier" | "buyer" | "admin" | "">("")
   const [buyerType, setBuyerType] = useState<"hospital" | "pharmacy" | "ngo" | "clinic" | null>(null)
   const [products, setProducts] = useState<VendorProductService[]>([])
   const [rfqs, setRfqs] = useState<VendorRfq[]>([])
