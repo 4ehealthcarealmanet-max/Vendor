@@ -8,6 +8,7 @@ from .vendor_profile import VendorProfile
 from .vendor_quotation import VendorQuotation
 from .vendor_rfq import VendorRfq
 from .vendor_rfq_invitation import VendorRfqInvitation
+from .subscription import SubscriptionPlan, UserSubscription
 
 __all__ = [
     "AccountProfile",
@@ -20,4 +21,6 @@ __all__ = [
     "VendorQuotation",
     "VendorRfq",
     "VendorRfqInvitation",
+    "SubscriptionPlan",
+    "UserSubscription",
 ]

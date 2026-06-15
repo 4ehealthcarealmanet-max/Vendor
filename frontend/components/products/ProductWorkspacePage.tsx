@@ -61,6 +61,7 @@ function ProductsPageContent() {
   const [query, setQuery] = useState("")
   const [category, setCategory] = useState<"all" | "product" | "service">("all")
   const [highlightedProductId, setHighlightedProductId] = useState<number | null>(null)
+  const [hasActiveSub, setHasActiveSub] = useState(true)
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -76,9 +77,14 @@ function ProductsPageContent() {
           router.replace("/buyer/products")
           return
         }
+        if (!me.has_active_subscription) {
+          router.replace(me.role === "supplier" ? "/supplier/subscription" : "/buyer/subscription")
+          return
+        }
         setUsername(me.username)
         setUserRole(me.role)
         setBuyerType(me.buyer_type || "")
+        setHasActiveSub(me.has_active_subscription ?? true)
         const data = await getProducts()
         setProducts(data)
       } catch (error) {
@@ -294,6 +300,7 @@ function ProductsPageContent() {
         minPrice: number
         totalStock: number
         sellerCount: number
+        vendorIds: Set<number>
       }
     >()
 
@@ -310,26 +317,41 @@ function ProductsPageContent() {
           minPrice: price,
           totalStock: product.stock,
           sellerCount: 1,
+          vendorIds: new Set([product.vendor]),
         })
         return
       }
 
       current.minPrice = Math.min(current.minPrice, price)
       current.totalStock += product.stock
-      current.sellerCount += 1
+      current.vendorIds.add(product.vendor)
+      current.sellerCount = current.vendorIds.size
     })
 
     return Array.from(grouped.values())
   }, [filteredProducts])
 
-  const stats = useMemo(
-    () => ({
+  const stats = useMemo(() => {
+    if (isBuyerRoute) {
+      const grouped = new Map<string, number>()
+      products.forEach((product) => {
+        const key = `${product.name.trim().toLowerCase()}::${product.product_type}`
+        const currentStock = grouped.get(key) || 0
+        grouped.set(key, currentStock + product.stock)
+      })
+      const groupedList = Array.from(grouped.values())
+      return {
+        total: groupedList.length,
+        active: groupedList.length,
+        inStock: groupedList.filter((stock) => stock > 0).length,
+      }
+    }
+    return {
       total: products.length,
       active: products.filter((p) => p.is_active).length,
       inStock: products.filter((p) => p.stock > 0).length,
-    }),
-    [products]
-  )
+    }
+  }, [isBuyerRoute, products])
 
   return (
     <>
@@ -338,12 +360,14 @@ function ProductsPageContent() {
           active="marketplace"
           username={username}
           buyerType={buyerType || null}
+          hasActiveSubscription={hasActiveSub}
           onSignOut={signOut}
         />
       ) : isSupplierRoute ? (
         <SupplierSidebar
           active="supplies"
           username={username}
+          hasActiveSubscription={hasActiveSub}
           onSignOut={signOut}
         />
       ) : null}

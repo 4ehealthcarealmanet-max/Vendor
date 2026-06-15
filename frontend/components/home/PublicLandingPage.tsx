@@ -15,18 +15,20 @@ import {
 } from "@/components/home/landingData"
 import Navbar from "@/components/common/Navbar"
 import {
-  AnalyticsIcon,
-  ArrowRightIcon,
-  CheckCircleIcon,
-  GavelIcon,
-  GlobeIcon,
-  HospitalIcon,
-  InventoryIcon,
-  InventoryStackIcon,
-  PublicGridIcon,
-  ShieldIcon,
-  VerifiedIcon,
-} from "@/components/home/HomeIcons"
+  Hospital,
+  Package,
+  BadgeCheck,
+  CheckCircle,
+  ArrowRight,
+  Gavel,
+  LineChart,
+  Boxes,
+  Globe,
+  Grid,
+  Shield,
+  Calendar,
+  IndianRupee
+} from "lucide-react"
 
 const animationStyles = `
   @keyframes scrollVerified {
@@ -39,6 +41,7 @@ const animationStyles = `
   .animate-scroll-verified {
     animation: scrollVerified 3.8s ease-in-out infinite;
   }
+  
   @keyframes floatCard {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-8px); }
@@ -46,54 +49,58 @@ const animationStyles = `
   .animate-float-card {
     animation: floatCard 8s ease-in-out infinite;
   }
+
   @keyframes stepPulse {
-    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(0, 86, 210, 0.4); }
-    50% { transform: scale(1.08); box-shadow: 0 0 0 12px rgba(0, 86, 210, 0); }
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
+    50% { transform: scale(1.08); box-shadow: 0 0 0 12px rgba(37, 99, 235, 0); }
   }
   .animate-step-pulse {
     animation: stepPulse 3s ease-in-out infinite;
   }
-  @keyframes slideInUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+
+  @keyframes orbitRing {
+    0% { transform: scale(1); opacity: 0.6; }
+    50% { transform: scale(1.6); opacity: 0; }
+    100% { transform: scale(1); opacity: 0; }
   }
-  .animate-slide-in-up {
-    animation: slideInUp 0.6s ease-out forwards;
+  .animate-orbit-ring {
+    animation: orbitRing 2.2s ease-out infinite;
   }
-  .step-card-hover {
-    transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  @keyframes fadeSlideUp {
+    0% { opacity: 0; transform: translateY(28px); }
+    100% { opacity: 1; transform: translateY(0); }
   }
-  .step-card-hover:hover {
-    transform: translateY(-10px) scale(1.04);
+  .animate-fade-slide-up {
+    animation: fadeSlideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
-  .step-number {
-    position: relative;
-    transition: all 0.35s ease;
+
+  @keyframes lineGrow {
+    0% { transform: scaleY(0); }
+    100% { transform: scaleY(1); }
   }
-  .step-number::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.36), transparent 65%);
-    opacity: 0;
-    transition: opacity 0.35s ease;
+  .animate-line-grow {
+    animation: lineGrow 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+    transform-origin: top;
   }
-  .step-card-hover:hover .step-number {
-    transform: scale(1.12) rotate(4deg);
-    filter: drop-shadow(0 6px 18px rgba(0, 86, 210, 0.28));
+
+  .bg-premium-grid {
+    background-size: 40px 40px;
+    background-image: 
+      linear-gradient(to right, rgba(37, 99, 235, 0.02) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(37, 99, 235, 0.02) 1px, transparent 1px);
   }
-  .step-card-hover:hover .step-number::after {
-    opacity: 1;
+
+  .interactive-glass-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  .hero-glow {
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(circle at 30% 20%, rgba(56, 147, 255, 0.18), transparent 32%),
-                radial-gradient(circle at 80% 80%, rgba(4, 120, 255, 0.12), transparent 24%);
-    pointer-events: none;
-    opacity: 0.9;
-    mix-blend-mode: screen;
+  .interactive-glass-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(37, 99, 235, 0.2);
+    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
   }
 `
 
@@ -101,10 +108,23 @@ export default function PublicLandingPage() {
   const [rfqs, setRfqs] = useState<VendorRfq[]>([])
   const [loadingRfqs, setLoadingRfqs] = useState(true)
   const [hasToken, setHasToken] = useState(false)
+  const [activeHighlight, setActiveHighlight] = useState(0)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollY = window.scrollY
+      const closestIdx = Math.min(3, Math.floor(scrollY / 40))
+      setActiveHighlight(closestIdx)
+    }
+
+    window.addEventListener("scroll", handleScroll)
+    // Run once after mount
+    setTimeout(handleScroll, 100)
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
 
   useEffect(() => {
     let isActive = true
-
     const loadRfqs = async () => {
       try {
         const data = await getPublicRfqs()
@@ -115,9 +135,7 @@ export default function PublicLandingPage() {
         if (isActive) setLoadingRfqs(false)
       }
     }
-
     loadRfqs()
-
     return () => {
       isActive = false
     }
@@ -147,470 +165,882 @@ export default function PublicLandingPage() {
   const protectedHref = (path: string) =>
     hasToken ? path : `/login?next=${encodeURIComponent(path)}`
 
+  const triggerAuthModal = (mode: "login" | "register", role?: "supplier" | "buyer", next?: string) => {
+    window.dispatchEvent(new CustomEvent("open-auth-modal", { detail: { mode, role, next } }))
+  }
+
+  const handleProtectedAction = (e: React.MouseEvent, path: string) => {
+    if (!hasToken) {
+      e.preventDefault()
+      let nextDest = path
+      if (path.includes("next=")) {
+        try {
+          const urlObj = new URL(path, window.location.href)
+          nextDest = urlObj.searchParams.get("next") || path
+        } catch {
+          // fallback
+        }
+      }
+      triggerAuthModal("login", undefined, nextDest)
+    }
+  }
+
   return (
-    <main className="min-h-screen bg-[#f7f9fb] text-[#191c1e] selection:bg-[#dae2ff] selection:text-[#001847]">
+    <main className="min-h-screen bg-[#F8FAFC] text-[#0F172A] selection:bg-[#dae2ff] selection:text-[#001847] relative overflow-hidden">
       <style>{animationStyles}</style>
+
       <Navbar />
 
-      <section className="mx-auto grid max-w-7xl gap-4 px-6 pb-8 pt-16 md:grid-cols-12 md:items-center md:pb-12 md:pt-20 md:px-8">
-        <div className="md:col-span-6 lg:col-span-7">
-          <h1 className="max-w-2xl text-balance font-[family-name:var(--font-display)] text-[2.2rem] font-extrabold leading-[0.98] tracking-[-0.05em] sm:text-[2.6rem] md:text-4xl md:leading-[1.02]">
-            <span className="block">The Future of</span>
-            <span className="mt-1 block bg-gradient-to-r from-[#0040a1] to-[#0056d2] bg-clip-text text-transparent md:mt-0">
+      {/* Hero Section */}
+      <section className="mx-auto max-w-7xl px-6 py-24 md:px-12 md:py-32 lg:py-40 grid gap-12 md:grid-cols-12 md:items-center mt-16">
+        
+        {/* Left Content */}
+        <div className="md:col-span-6 lg:col-span-6 space-y-8 text-center md:text-left order-2 md:order-none">
+          <h1 className="max-w-2xl font-[family-name:var(--font-display)] text-4xl sm:text-5xl md:text-6xl font-extrabold leading-[1.02] tracking-[-0.05em] text-[#0F172A]">
+            The Future of <br />
+            <span className="text-[#2563EB]">
               Clinical Sourcing
             </span>
           </h1>
-          <p className="mt-6 max-w-2xl text-sm leading-7 text-[#5d6577] md:text-base">
-            MedVendor transforms healthcare procurement into a seamless, high-performance operation.
-            Navigate the marketplace with verified suppliers, live RFQs, and buyer-supplier workflows
-            that feel enterprise-ready from day one.
-          </p>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <Link href="/register?role=buyer" className="solid-action inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-[0_16px_34px_rgba(0,86,210,0.22)]">
-              Register as Buyer
-            </Link>
-            <Link href="/register?role=supplier" className="ghost-action inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-sm font-bold text-[#191c1e]">
-              Join as Supplier
-            </Link>
-          </div>
-        </div>
 
-        <div className="relative md:col-span-6 lg:col-span-5">
-          <div className="relative mx-auto aspect-[3/4] max-w-[420px] overflow-hidden rounded-[1.8rem] bg-[#0d1b2e] shadow-[0_24px_54px_rgba(0,0,0,0.16)] transition-transform duration-300 will-change-transform hover:-translate-y-1.5 hover:scale-[1.02] animate-float-card">
-            <Image
-              src="/images/procurement-doctor.jpg"
-              alt="Doctor using a smartphone with a digital healthcare interface"
-              fill
-              priority
-              sizes="(max-width: 768px) 100vw, 40vw"
-              className="object-cover object-center transition-transform duration-700 hover:scale-105"
-            />
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,18,33,0.06)_0%,rgba(9,20,36,0.14)_35%,rgba(6,16,30,0.48)_100%)]" />
-            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#0d1b2e]/72 via-[#0d1b2e]/18 to-transparent" />
-            <div className="absolute inset-x-10 top-8 rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-xs font-semibold uppercase tracking-[0.24em] text-white/80 backdrop-blur-sm">
-              Sourcing Center
+          <p className="max-w-xl mx-auto md:mx-0 text-sm md:text-base leading-relaxed text-[#64748B]">
+            MedVendor transforms healthcare procurement into a seamless, high-performance operation.
+            Navigate the marketplace with verified suppliers, live RFQs, and secure escrow workflows.
+          </p>
+
+          {/* Hero Feature Highlights with Icons */}
+          {/* Desktop grid (hidden on mobile, shown on sm and above) */}
+          <div className="hidden sm:grid gap-6 sm:grid-cols-2 max-w-xl mx-auto md:mx-0 pt-2">
+            <div className="flex flex-col items-center text-center sm:flex-row sm:items-start sm:text-left gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB]">
+                <Shield className="h-5 w-5" />
+              </div>
+              <div className="space-y-0.5">
+                <h3 className="text-sm font-bold text-[#0F172A]">Verified Clinical Suppliers</h3>
+                <p className="text-[11px] text-[#64748B]">Audited global supply chains.</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center text-center sm:flex-row sm:items-start sm:text-left gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-[#14B8A6]">
+                <Gavel className="h-5 w-5" />
+              </div>
+              <div className="space-y-0.5">
+                <h3 className="text-sm font-bold text-[#0F172A]">Live Tendering Feed</h3>
+                <p className="text-[11px] text-[#64748B]">Real-time open bidding.</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center text-center sm:flex-row sm:items-start sm:text-left gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-[#F59E0B]">
+                <Boxes className="h-5 w-5" />
+              </div>
+              <div className="space-y-0.5">
+                <h3 className="text-sm font-bold text-[#0F172A]">Intelligent Catalog Control</h3>
+                <p className="text-[11px] text-[#64748B]">Predictive stock planning.</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center text-center sm:flex-row sm:items-start sm:text-left gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB]">
+                <Globe className="h-5 w-5" />
+              </div>
+              <div className="space-y-0.5">
+                <h3 className="text-sm font-bold text-[#0F172A]">Global Network Scales</h3>
+                <p className="text-[11px] text-[#64748B]">Multi-facility clinical systems.</p>
+              </div>
             </div>
           </div>
 
-          <button
-            type="button"
-            className="absolute -bottom-3 left-4 rounded-2xl border border-[#dbe1ea] bg-white px-3 py-2 text-left shadow-[0_18px_30px_rgba(20,27,45,0.12)] transition-all duration-300 hover:-translate-y-1 hover:border-[#c8d4ea] hover:shadow-[0_22px_34px_rgba(20,27,45,0.16)] active:translate-y-[2px] active:border-[#10233d] active:bg-[#10233d] active:shadow-[0_10px_18px_rgba(16,35,61,0.28)] active:[&_p]:text-white/85 active:[&_svg]:text-white md:-left-6"
-          >
-            <div className="flex items-center gap-3">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#dae2ff] text-[#0040a1] transition-colors duration-300 active:bg-white/15 active:text-white">
-                <VerifiedIcon />
+          {/* Mobile Vertical Connected Stepper (shown only on mobile, hidden on sm and above) */}
+          <div id="mobile-stepper" className="sm:hidden relative pl-8 max-w-sm mx-auto pt-2 space-y-6 text-left">
+            {/* The vertical connector track */}
+            <div className="absolute left-[18px] top-4 bottom-4 w-0.5 bg-slate-200">
+              {/* Animated fill line based on activeHighlight */}
+              <div 
+                className="absolute top-0 left-0 w-full bg-[#2563EB] transition-all duration-700 rounded-full"
+                style={{
+                  height: `${(activeHighlight / 3) * 100}%`
+                }}
+              />
+            </div>
+
+            {[
+              {
+                title: "Verified Clinical Suppliers",
+                desc: "Audited global supply chains.",
+                icon: <Shield className="h-4.5 w-4.5" />
+              },
+              {
+                title: "Live Tendering Feed",
+                desc: "Real-time open bidding.",
+                icon: <Gavel className="h-4.5 w-4.5" />
+              },
+              {
+                title: "Intelligent Catalog Control",
+                desc: "Predictive stock planning.",
+                icon: <Boxes className="h-4.5 w-4.5" />
+              },
+              {
+                title: "Global Network Scales",
+                desc: "Multi-facility clinical systems.",
+                icon: <Globe className="h-4.5 w-4.5" />
+              }
+            ].map((item, idx) => {
+              const isActive = activeHighlight === idx;
+              return (
+                <div 
+                  key={idx} 
+                  className={`mobile-step-item flex items-start gap-4 transition-all duration-500 relative ${
+                    isActive ? "opacity-100 scale-[1.02] translate-x-1" : "opacity-45 scale-100 translate-x-0"
+                  }`}
+                >
+                  {/* Bullet Node */}
+                  <div 
+                    className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-500 ${
+                      isActive 
+                        ? "bg-white border-[#2563EB] text-[#2563EB] shadow-md shadow-blue-500/10" 
+                        : "bg-slate-50 border-slate-200 text-slate-400"
+                    }`}
+                  >
+                    {item.icon}
+                  </div>
+
+                  {/* Text Details */}
+                  <div className="space-y-0.5">
+                    <h3 className={`text-xs font-bold transition-colors duration-500 ${
+                      isActive ? "text-[#0F172A]" : "text-[#64748B]"
+                    }`}>
+                      {item.title}
+                    </h3>
+                    <p className={`text-[10px] transition-colors duration-500 ${
+                      isActive ? "text-[#475569]" : "text-[#94A3B8]"
+                    }`}>
+                      {item.desc}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-col sm:flex-row justify-center md:justify-start gap-4 pt-2">
+            <button 
+              onClick={() => triggerAuthModal("register", "buyer")}
+              className="inline-flex items-center justify-center rounded-2xl bg-[#2563EB] px-6 py-3.5 text-sm font-bold text-white shadow-[0_16px_34px_rgba(37,99,235,0.22)] hover:bg-[#1D4ED8] transition-all duration-300 active:scale-95"
+            >
+              Register as Buyer
+            </button>
+            <button 
+              onClick={() => triggerAuthModal("register", "supplier")}
+              className="inline-flex items-center justify-center rounded-2xl border border-[#E2E8F0] bg-[#FFFFFF] px-6 py-3.5 text-sm font-bold text-[#0F172A] shadow-sm hover:bg-[#F1F5F9] transition-all duration-300 active:scale-95"
+            >
+              Join as Supplier
+            </button>
+          </div>
+        </div>
+
+        {/* Right Visuals */}
+        <div className="relative md:col-span-6 lg:col-span-6 flex justify-center w-full order-1 md:order-none">
+          <div className="relative w-full max-w-[640px]">
+            <div className="relative w-full aspect-[4/3] overflow-hidden rounded-3xl border border-[#E2E8F0] shadow-xl transition-all duration-300 hover:-translate-y-1.5 hover:scale-[1.01] group">
+              <Image
+                src="/images/clinical-sourcing-user-hero-v3.jpg"
+                alt="Clinical Sourcing Collaboration - MedVendor"
+                fill
+                priority
+                sizes="(max-width: 768px) 100vw, 50vw"
+                className="object-cover object-[65%_center] transition-transform duration-700 group-hover:scale-105"
+              />
+            </div>
+
+            {/* Floating Verified Badge */}
+            <div className="absolute -top-4 left-4 sm:-top-6 sm:-left-4 w-fit bg-[#FFFFFF] border border-[#E2E8F0] rounded-xl p-2.5 shadow-xl flex items-center gap-2.5 transition-all duration-300 hover:-translate-y-1">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                <BadgeCheck className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <p className="text-[9px] font-black uppercase tracking-[0.28em] text-[#8790a1] transition-colors duration-300">
-                  Verified Leads
-                </p>
-                <div className="mt-1 h-6 overflow-hidden">
-                  <p className="animate-scroll-verified text-sm font-extrabold text-[#191c1e] transition-colors duration-300">
-                    {loadingRfqs ? "Loading..." : `${activeRfqs.length} Active`}
-                  </p>
-                </div>
-                <p className="text-xs text-[#6a7284] transition-colors duration-300">
-                  {loadingRfqs
-                    ? "Updating market feed"
-                    : activeRfqs.length > 0
-                      ? `${activeBuyerCount} buyers | INR ${formatCompactCurrency(totalPipelineValue)}`
-                      : "No live tenders yet"}
-                </p>
+                <p className="text-[9px] font-bold uppercase tracking-wider text-emerald-600">Verified Network</p>
+                <p className="text-xs font-black text-[#0F172A] mt-0.5 leading-none">100% Secure B2B</p>
+                <p className="text-[10px] text-[#64748B] whitespace-nowrap mt-0.5 leading-none">Audited clinical logistics</p>
               </div>
             </div>
-          </button>
+          </div>
         </div>
       </section>
 
-      <section id="suppliers" className="mx-auto max-w-6xl px-6 py-8 md:px-8 md:py-10">
-        <div className="grid gap-5 md:grid-cols-2">
-          <article className="interactive-card relative min-h-[24rem] overflow-hidden rounded-[1.5rem] border border-[#d9e7ff] bg-white p-5 shadow-[0_14px_32px_rgba(15,79,182,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_42px_rgba(15,79,182,0.1)] md:min-h-[26rem] md:p-6">
-            <div className="pointer-events-none absolute inset-0">
-              <Image
-                src="/images/for buyer.jpeg"
-                alt="Buyer card visual background"
-                fill
-                sizes="50vw"
-                className="object-cover object-[72%_top] opacity-32 brightness-[0.88] contrast-[1.05] saturate-[1.02] md:object-right-top md:opacity-66 md:brightness-[0.74] md:contrast-[1.12]"
-              />
-              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(255,255,255,0.8)_34%,rgba(255,255,255,0.74)_62%,rgba(255,255,255,0.86)_100%)] md:bg-[linear-gradient(90deg,rgba(255,255,255,0.99)_0%,rgba(255,255,255,0.96)_28%,rgba(255,255,255,0.78)_48%,rgba(255,255,255,0.34)_68%,rgba(255,255,255,0.08)_100%)]" />
-              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.16)_0%,rgba(255,255,255,0.06)_30%,rgba(255,255,255,0.22)_100%)] md:bg-[linear-gradient(180deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.02)_30%,rgba(255,255,255,0.16)_100%)]" />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_24%,rgba(196,220,255,0.22),rgba(255,255,255,0)_34%)] md:bg-[radial-gradient(circle_at_80%_36%,rgba(196,220,255,0.16),rgba(255,255,255,0)_32%)]" />
+      {/* Buyer & Supplier Space Sections */}
+      <section id="suppliers" className="w-full bg-[#FFFFFF] border-t border-b border-[#E2E8F0] py-20 md:py-28">
+        <div className="mx-auto max-w-7xl px-6 md:px-12 space-y-20 md:space-y-36">
+          
+          {/* Buyer Row */}
+          <div className="grid gap-12 md:grid-cols-12 md:items-center">
+            {/* Left Side Image */}
+            <div className="md:col-span-6 flex justify-center w-full order-1 md:order-none">
+              <div className="relative w-full max-w-[580px] aspect-[4/3] overflow-hidden rounded-3xl border border-[#E2E8F0] shadow-lg transition-all duration-300 hover:-translate-y-1.5 hover:scale-[1.01] group">
+                <Image
+                  src="/images/buyer-human-sourcing-v2.png"
+                  alt="MedVendor Buyer Procurement Admin"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
+                />
+              </div>
             </div>
-            <div className="relative z-10 max-w-[25rem]">
-              <div className="max-w-[25rem]">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0056d2] text-white shadow-[0_10px_26px_rgba(0,86,210,0.18)]">
-                  <HospitalIcon />
+            {/* Right Side Content */}
+            <div className="md:col-span-6 space-y-6 order-2 md:order-none">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#DBEAFE] border border-blue-100 text-[#2563EB] shadow-sm">
+                  <Hospital className="h-6 w-6" />
                 </div>
-                <h2 className="mt-5 font-[family-name:var(--font-display)] text-2xl font-bold tracking-[-0.04em] text-[#12356b]">
+                <h2 className="font-[family-name:var(--font-display)] text-3xl font-black tracking-[-0.04em] text-black">
                   For Buyers
                 </h2>
-                <ul className="mt-5 space-y-2.5">
-              {buyerBenefits.map((benefit) => (
-                <li key={benefit} className="flex items-center gap-2.5 text-sm text-[#596171]">
-                  <span className="text-[#0056d2]">
-                    <CheckCircleIcon />
-                  </span>
-                  <span className="leading-6">{benefit}</span>
-                </li>
-              ))}
-                </ul>
-                <Link href={protectedHref("/buyer/dashboard")} className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-[#0056d2] transition hover:gap-3">
+              </div>
+              <p className="text-sm md:text-base text-[#0F172A] font-medium leading-relaxed">
+                Standardize your sourcing pipeline, automate documentation audit trails, and gain access to verified global suppliers.
+              </p>
+              <ul className="space-y-3 pt-2">
+                {buyerBenefits.map((benefit) => (
+                  <li key={benefit} className="flex items-center gap-3 text-sm font-semibold text-[#0F172A]">
+                    <span className="text-[#14B8A6]">
+                      <CheckCircle className="h-5 w-5" />
+                    </span>
+                    <span className="leading-6">{benefit}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="pt-4">
+                <Link 
+                  href={protectedHref("/buyer/dashboard")} 
+                  onClick={(e) => handleProtectedAction(e, "/buyer/dashboard")}
+                  className="inline-flex items-center gap-2 text-sm font-black text-[#2563EB] hover:text-[#1D4ED8] group/link transition-colors duration-300"
+                >
                   Explore Buyer Solutions
-                  <ArrowRightIcon />
+                  <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover/link:translate-x-1" />
                 </Link>
               </div>
             </div>
-          </article>
+          </div>
 
-          <article className="interactive-card relative min-h-[24rem] overflow-hidden rounded-[1.5rem] border border-[#d9e7ff] bg-white p-5 shadow-[0_14px_32px_rgba(15,79,182,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_42px_rgba(15,79,182,0.1)] md:min-h-[26rem] md:p-6">
-            <div className="pointer-events-none absolute inset-0">
-              <Image
-                src="/images/for supplier.jpeg"
-                alt="Supplier card visual background"
-                fill
-                sizes="50vw"
-                className="object-cover object-[72%_top] opacity-32 brightness-[0.88] contrast-[1.05] saturate-[1.02] md:object-right-top md:opacity-66 md:brightness-[0.74] md:contrast-[1.12]"
-              />
-              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(255,255,255,0.8)_34%,rgba(255,255,255,0.74)_62%,rgba(255,255,255,0.86)_100%)] md:bg-[linear-gradient(90deg,rgba(255,255,255,0.99)_0%,rgba(255,255,255,0.96)_28%,rgba(255,255,255,0.78)_48%,rgba(255,255,255,0.34)_68%,rgba(255,255,255,0.08)_100%)]" />
-              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.16)_0%,rgba(255,255,255,0.06)_30%,rgba(255,255,255,0.22)_100%)] md:bg-[linear-gradient(180deg,rgba(255,255,255,0.12)_0%,rgba(255,255,255,0.02)_30%,rgba(255,255,255,0.16)_100%)]" />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_24%,rgba(196,220,255,0.18),rgba(255,255,255,0)_34%)] md:bg-[radial-gradient(circle_at_80%_36%,rgba(196,220,255,0.14),rgba(255,255,255,0)_32%)]" />
-            </div>
-            <div className="relative z-10 max-w-[25rem]">
-              <div className="max-w-[25rem]">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0056d2] text-white shadow-[0_10px_26px_rgba(0,86,210,0.18)]">
-                  <InventoryIcon />
+          {/* Supplier Row */}
+          <div className="grid gap-12 md:grid-cols-12 md:items-center">
+            {/* Left Side Content (Rendered below on mobile, left on desktop) */}
+            <div className="md:col-span-6 space-y-6 order-2 md:order-none">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-teal-50 border border-teal-150 text-[#14B8A6] shadow-sm">
+                  <Package className="h-6 w-6" />
                 </div>
-                <h2 className="mt-5 font-[family-name:var(--font-display)] text-2xl font-bold tracking-[-0.04em] text-[#12356b]">
+                <h2 className="font-[family-name:var(--font-display)] text-3xl font-black tracking-[-0.04em] text-black">
                   For Suppliers
                 </h2>
-                <ul className="mt-5 space-y-2.5">
-              {supplierBenefits.map((benefit) => (
-                <li key={benefit} className="flex items-center gap-2.5 text-sm text-[#596171]">
-                  <span className="text-[#0056d2]">
-                    <CheckCircleIcon />
-                  </span>
-                  <span className="leading-6">{benefit}</span>
-                </li>
-              ))}
-                </ul>
-                <Link href={protectedHref("/supplier/dashboard")} className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-[#0056d2] transition hover:gap-3">
+              </div>
+              <p className="text-sm md:text-base text-[#0F172A] font-medium leading-relaxed">
+                Showcase your clinical catalog, access highly qualified buying leads, and close orders using integrated payment systems.
+              </p>
+              <ul className="space-y-3 pt-2">
+                {supplierBenefits.map((benefit) => (
+                  <li key={benefit} className="flex items-center gap-3 text-sm font-semibold text-[#0F172A]">
+                    <span className="text-[#14B8A6]">
+                      <CheckCircle className="h-5 w-5" />
+                    </span>
+                    <span className="leading-6">{benefit}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="pt-4">
+                <Link 
+                  href={protectedHref("/supplier/dashboard")} 
+                  onClick={(e) => handleProtectedAction(e, "/supplier/dashboard")}
+                  className="inline-flex items-center gap-2 text-sm font-black text-[#14B8A6] hover:text-[#0d9488] group/link transition-colors duration-300"
+                >
                   Join Supplier Network
-                  <ArrowRightIcon />
+                  <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover/link:translate-x-1" />
                 </Link>
               </div>
             </div>
-          </article>
+            {/* Right Side Image (Rendered on top on mobile, right on desktop) */}
+            <div className="md:col-span-6 flex justify-center w-full order-1 md:order-none">
+              <div className="relative w-full max-w-[580px] aspect-[4/3] overflow-hidden rounded-3xl border border-[#E2E8F0] shadow-lg transition-all duration-300 hover:-translate-y-1.5 hover:scale-[1.01] group">
+                <Image
+                  src="/images/supplier-human-logistics-v2.png"
+                  alt="MedVendor Supplier Logistics Manager"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
+                />
+              </div>
+            </div>
+          </div>
+
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-6 py-12 md:px-8 md:py-16">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h2 className="font-[family-name:var(--font-display)] text-2xl font-extrabold tracking-[-0.04em]">
-              Live Public Tenders
-            </h2>
-            <p className="mt-4 max-w-2xl text-sm text-[#5d6577]">
-              Ongoing procurement opportunities across the MedVendor network.
-            </p>
+      {/* Live Public Tenders List */}
+      <section id="tenders" className="w-full bg-[#F8FAFC] py-16 md:py-24">
+        <div className="mx-auto max-w-7xl px-6 md:px-12">
+          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between border-b border-[#E2E8F0] pb-8">
+            <div>
+              <h2 className="font-[family-name:var(--font-display)] text-3xl font-black tracking-[-0.04em] text-[#0F172A]">
+                Live Public <span className="text-[#2563EB]">Tenders</span>
+              </h2>
+              <p className="mt-2 text-sm text-[#64748B]">
+                Browse active, open-bidding clinical opportunities across the MedVendor ecosystem.
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <span className="rounded-full bg-blue-50 border border-blue-100 px-3 py-1 text-xs font-bold text-[#2563EB]">
+                {loadingRfqs ? "Refreshing..." : "Live Market Feed"}
+              </span>
+              <Link 
+                href={protectedHref("/supplier/rfq")} 
+                onClick={(e) => handleProtectedAction(e, "/supplier/rfq")}
+                className="inline-flex items-center gap-2 text-xs font-black text-[#2563EB] hover:text-[#1D4ED8]"
+              >
+                View All Active RFQs
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="rounded-full bg-[#eef3fb] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-[#51617a]">
-              {loadingRfqs ? "Refreshing" : activeRfqs.length > 0 ? "Live Market Feed" : "Waiting for RFQs"}
-            </span>
-            <Link href={protectedHref("/supplier/rfq")} className="inline-flex items-center gap-2 text-xs font-bold text-[#0056d2] hover:underline">
-              View All Active RFQs
-              <ArrowRightIcon />
-            </Link>
-          </div>
-        </div>
 
-        <div className="mt-10 space-y-3">
-          {loadingRfqs ? (
-            <div className="rounded-[1.4rem] border border-[#dbe1ea] bg-white px-6 py-8 text-xs text-[#6a7284] shadow-[0_14px_30px_rgba(20,27,45,0.04)]">
-              Loading live public tenders...
-            </div>
-          ) : displayedTenders.length === 0 ? (
-            <div className="rounded-[1.4rem] border border-[#dbe1ea] bg-white px-6 py-8 text-xs text-[#6a7284] shadow-[0_14px_30px_rgba(20,27,45,0.04)]">
-              No live public tenders are available right now. Real tenders will appear here when
-              buyers publish open RFQs.
-            </div>
-          ) : (
-            displayedTenders.map((tender) => (
-              <article key={tender.id} className="group flex flex-col gap-5 rounded-[1.4rem] border border-transparent bg-white p-5 shadow-[0_14px_30px_rgba(20,27,45,0.04)] transition hover:border-[#d4daea] hover:shadow-[0_20px_40px_rgba(20,27,45,0.08)] md:flex-row md:items-center md:justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#ffefe8] text-[10px] font-black text-[#a93802] transition group-hover:scale-110">
-                    {tender.initials}
-                  </div>
-                  <div>
-                    <Link href={protectedHref("/supplier/rfq")} className="text-sm font-bold transition hover:text-[#0056d2]">
+          {/* Tender Listing Cards */}
+          <div className="mt-10">
+            {loadingRfqs ? (
+              <div className="rounded-2xl border border-[#E2E8F0] bg-[#FFFFFF] p-8 text-center text-sm text-[#64748B] shadow-sm">
+                <span className="inline-flex h-2 w-2 rounded-full bg-[#2563EB] animate-ping mr-2" />
+                Loading live public tenders...
+              </div>
+            ) : displayedTenders.length === 0 ? (
+              <div className="rounded-2xl border border-[#E2E8F0] bg-[#FFFFFF] p-8 text-center text-sm text-[#64748B] shadow-sm">
+                No live public tenders are available at this time. New RFQs will appear here when published.
+              </div>
+            ) : (
+              <div className="grid gap-6 md:grid-cols-3">
+                {displayedTenders.map((tender) => (
+                  <article 
+                    key={tender.id} 
+                    className="group relative flex flex-col items-center text-center rounded-3xl border border-[#E2E8F0] bg-[#FFFFFF] p-8 shadow-sm transition-all duration-500 ease-out hover:-translate-y-2 hover:border-[#2563EB]/40 hover:shadow-xl hover:shadow-[#2563EB]/5"
+                  >
+                    {/* Centered Initials */}
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 border border-blue-100 text-sm font-black text-[#2563EB] transition-transform duration-300 group-hover:scale-110 mb-4">
+                      {tender.initials}
+                    </div>
+
+                    {/* Title */}
+                    <Link 
+                      href={protectedHref("/supplier/rfq")} 
+                      onClick={(e) => handleProtectedAction(e, "/supplier/rfq")}
+                      className="text-base font-extrabold text-[#0F172A] hover:text-[#2563EB] transition-colors duration-300 max-w-xs line-clamp-2"
+                    >
                       {tender.title}
                     </Link>
-                    <p className="mt-1 text-xs text-[#6a7284]">
-                      Ref: {tender.reference} | {tender.buyer}
+
+                    {/* Status Badge */}
+                    <div className="mt-3">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-100">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Bidding Open
+                      </span>
+                    </div>
+
+                    {/* Reference / Buyer */}
+                    <p className="mt-3 text-xs text-[#64748B] font-medium">
+                      Ref: <span className="font-bold text-[#475569]">{tender.reference}</span> &bull; {tender.buyer}
                     </p>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-6">
-                  <div className="text-left md:text-right">
-                    <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#8a90a0]">
-                      Value
-                    </p>
-                    <p className="mt-0.5 text-xs font-bold">{tender.budget}</p>
-                  </div>
-                  <div className="text-left md:text-right">
-                    <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#8a90a0]">
-                      Ends In
-                    </p>
-                    <p className={`mt-0.5 text-xs font-bold ${tender.urgent ? "text-[#ba1a1a]" : "text-[#191c1e]"}`}>
-                      {tender.endsIn}
-                    </p>
-                  </div>
-                  <Link href={protectedHref("/supplier/rfq")} className="inline-flex items-center justify-center rounded-lg border-2 border-[#0056d2] px-4 py-2 text-xs font-bold text-[#0056d2] transition hover:bg-[#0056d2] hover:text-white">
-                    Place Bid
-                  </Link>
-                </div>
-              </article>
-            ))
-          )}
+
+                    {/* Description preview */}
+                    {tender.description && (
+                      <p className="mt-3 text-[11px] text-[#64748B] line-clamp-2 italic px-2">
+                        "{tender.description}"
+                      </p>
+                    )}
+
+                    {/* Specifications */}
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
+                      {tender.quantity !== undefined && (
+                        <span className="inline-flex items-center rounded-md bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-700 ring-1 ring-inset ring-slate-500/10">
+                          Qty: {tender.quantity.toLocaleString()}
+                        </span>
+                      )}
+                      {tender.tenderType && (
+                        <span className="inline-flex items-center rounded-md bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-700 ring-1 ring-inset ring-slate-500/10 capitalize">
+                          Type: {tender.tenderType}
+                        </span>
+                      )}
+                      {tender.deliveryLocation && (
+                        <span className="inline-flex items-center rounded-md bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-700 ring-1 ring-inset ring-slate-500/10 line-clamp-1 max-w-[120px]">
+                          Loc: {tender.deliveryLocation}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Est. Value and Deadline */}
+                    <div className="my-6 grid grid-cols-2 gap-4 w-full border-t border-b border-slate-100 py-4">
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#94A3B8] flex items-center justify-center gap-1">
+                          <IndianRupee className="h-3 w-3 text-[#2563EB]" />
+                          Est. Value
+                        </p>
+                        <p className="text-sm font-black text-[#0F172A]">{tender.budget}</p>
+                      </div>
+                      <div className="space-y-1 border-l border-slate-100">
+                        <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#94A3B8] flex items-center justify-center gap-1">
+                          <Calendar className="h-3 w-3 text-[#F59E0B]" />
+                          Deadline
+                        </p>
+                        <p className="text-sm font-black text-[#F59E0B]">{tender.endsIn}</p>
+                      </div>
+                    </div>
+
+                    {/* Button */}
+                    <Link 
+                      href={protectedHref("/supplier/rfq")} 
+                      onClick={(e) => handleProtectedAction(e, "/supplier/rfq")}
+                      className="w-full inline-flex items-center justify-center rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] px-6 py-3 text-xs font-black text-white transition-all duration-300 shadow-sm hover:shadow active:scale-95 mt-auto"
+                    >
+                      Submit Bid
+                    </Link>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
-      <section id="marketplace" className="bg-[#f2f4f6] py-10 md:py-12">
-        <div className="mx-auto max-w-7xl px-6 md:px-8">
-          <div className="mb-10">
-            <h2 className="font-[family-name:var(--font-display)] text-2xl font-extrabold tracking-[-0.04em] md:text-[2rem]">
-              Platform Capabilities
+      {/* Platform Capabilities with Section Background (#F1F5F9) */}
+      <section id="marketplace" className="border-t border-[#E2E8F0] bg-[#F1F5F9] py-16 md:py-24">
+        <div className="mx-auto max-w-7xl px-6 md:px-12">
+          
+          <div className="mb-12 max-w-2xl">
+            <h2 className="font-[family-name:var(--font-display)] text-3xl font-black tracking-[-0.04em] text-[#0F172A]">
+              Platform <span className="text-[#2563EB]">Capabilities</span>
             </h2>
-            <p className="mt-3 max-w-2xl text-xs leading-6 text-[#5d6577] md:text-sm">
-              A comprehensive ecosystem designed to handle every facet of clinical procurement with
-              architectural precision.
+            <p className="mt-3 text-sm text-[#64748B] leading-relaxed">
+              A comprehensive ecosystem designed to handle every facet of medical procurement with architectural precision.
             </p>
           </div>
-          <div className="grid gap-5 md:grid-cols-4 md:grid-rows-2 md:[grid-auto-rows:minmax(140px,auto)]">
-            <article className="interactive-card relative overflow-hidden rounded-[1.8rem] bg-gradient-to-br from-white to-[#f9f9f9] p-6 md:col-span-2 md:row-span-2">
-              <div className="relative z-10">
-                <h3 className="font-[family-name:var(--font-display)] text-lg font-bold tracking-[-0.03em] md:text-[1.35rem]">
-                  B2C Marketplace
-                </h3>
-                <p className="mt-2.5 max-w-[30rem] text-xs leading-5 text-[#5d6577]">
-                  Instant access to standardized supplies with direct ordering, transparent pricing,
-                  and ready-to-ship catalog visibility.
-                </p>
+
+          <div className="grid gap-6 md:grid-cols-4 md:grid-rows-2">
+            
+            {/* Grid Box 1 (B2C Marketplace - Double Size) */}
+            <article className="interactive-glass-card group rounded-[2rem] p-6 md:col-span-2 md:row-span-2 flex flex-col justify-between relative overflow-hidden min-h-[22rem] bg-[#FFFFFF]">
+              <div className="relative z-10 space-y-4">
+                <div className="space-y-2">
+                  <h3 className="font-[family-name:var(--font-display)] text-xl font-bold tracking-[-0.03em] text-[#0F172A] transition-colors duration-300 group-hover:text-[#2563EB]">
+                    B2C Marketplace
+                  </h3>
+                  <p className="text-xs leading-relaxed text-[#64748B]">
+                    Instant access to standardized supplies with direct ordering, transparent pricing, and ready-to-ship catalog visibility.
+                  </p>
+                </div>
+
+                {/* Mock product ledger for visual content */}
+                <div className="space-y-2.5 pt-2">
+                  <div className="flex items-center justify-between rounded-xl bg-[#F8FAFC] p-3 border border-[#F1F5F9] hover:bg-slate-50 transition-colors duration-300">
+                    <span className="text-xs font-semibold text-[#334155]">Surgical Gloves (Box of 100)</span>
+                    <span className="text-xs font-black text-[#2563EB]">₹450</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl bg-[#F8FAFC] p-3 border border-[#F1F5F9] hover:bg-slate-50 transition-colors duration-300">
+                    <span className="text-xs font-semibold text-[#334155]">Digital Pulse Oximeter</span>
+                    <span className="text-xs font-black text-[#2563EB]">₹1,200</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl bg-[#F8FAFC] p-3 border border-[#F1F5F9] hover:bg-slate-50 transition-colors duration-300">
+                    <span className="text-xs font-semibold text-[#334155]">N95 Respirators (Pack of 50)</span>
+                    <span className="text-xs font-black text-[#2563EB]">₹2,100</span>
+                  </div>
+                </div>
               </div>
-              <div className="absolute bottom-0 right-0 h-[68%] w-[74%] overflow-hidden rounded-tl-[1.8rem]">
-                <Image
-                  src={marketplaceImage}
-                  alt="Doctor using a smartphone with digital healthcare procurement interface"
-                  fill
-                  sizes="(max-width: 768px) 100vw, 35vw"
-                  className="object-cover object-center opacity-70 transition-transform duration-700 hover:scale-110 hover:opacity-80"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-white via-white/18 to-transparent" />
+              <div className="absolute -bottom-6 -right-6 text-[#F8FAFC] pointer-events-none transition-transform duration-700 ease-out group-hover:scale-110">
+                <Globe className="h-44 w-44 text-[#F1F5F9]" />
               </div>
-              <span className="absolute bottom-5 left-5 inline-flex rounded-full bg-[#dae2ff] px-3 py-1 text-[8px] font-black uppercase tracking-[0.18em] text-[#0040a1]">
-                Active Now
+              <span className="relative z-10 mt-4 inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-100 px-3 py-1 text-[9px] font-black uppercase tracking-wider text-[#2563EB] w-fit">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
+                Live Now
               </span>
             </article>
 
-            <article className="interactive-card flex items-center justify-between gap-3 rounded-[1.8rem] bg-white p-6 shadow-sm md:col-span-2">
-              <div>
-                <h3 className="font-[family-name:var(--font-display)] text-base font-bold tracking-[-0.03em] md:text-[1.35rem]">
+            {/* Grid Box 2 (RFQ Tendering) */}
+            <article className="interactive-glass-card group rounded-[2rem] p-6 md:col-span-2 flex items-center justify-between gap-4 bg-[#FFFFFF]">
+              <div className="space-y-2">
+                <h3 className="font-[family-name:var(--font-display)] text-lg font-bold tracking-[-0.03em] text-[#0F172A] transition-colors duration-300 group-hover:text-[#2563EB]">
                   RFQ Tendering
                 </h3>
-                <p className="mt-2 text-xs leading-5 text-[#5d6577]">
-                  Complex bidding made simple with multi-vendor comparison, live quotation review,
-                  and tender workflows that feel operationally real.
+                <p className="text-xs leading-relaxed text-[#64748B]">
+                  Complex bidding made simple with multi-vendor comparison, live quotation review, and tender workflows.
                 </p>
               </div>
-              <div className="hidden text-[#0056d2]/20 md:block shrink-0">
-                <GavelIcon />
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB] border border-blue-100 transition-all duration-500 group-hover:scale-110 group-hover:bg-[#2563EB] group-hover:text-white">
+                <Gavel className="h-6 w-6 transition-transform duration-550 group-hover:rotate-12" />
               </div>
             </article>
 
-            <article className="interactive-card rounded-[1.4rem] bg-white p-6 shadow-sm">
-              <span className="text-[#0056d2]">
-                <AnalyticsIcon />
-              </span>
-              <h3 className="mt-3 text-sm font-bold">Compliance Analytics</h3>
-              <p className="mt-2 text-xs leading-5 text-[#5d6577]">
-                Real-time tracking of sourcing ethics, documentation status, and regulatory signals.
-              </p>
+            {/* Grid Box 3 (Compliance Analytics) */}
+            <article className="interactive-glass-card group rounded-[2rem] p-6 flex flex-col justify-between bg-[#FFFFFF]">
+              <div className="space-y-2">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-50 text-[#14B8A6] border border-teal-100 transition-all duration-500 group-hover:scale-110 group-hover:bg-[#14B8A6] group-hover:text-white">
+                  <LineChart className="h-5 w-5" />
+                </div>
+                <h3 className="text-sm font-bold text-[#0F172A] pt-2 transition-colors duration-300 group-hover:text-[#14B8A6]">Compliance Analytics</h3>
+                <p className="text-[11px] leading-relaxed text-[#64748B]">
+                  Real-time tracking of sourcing ethics, documentation status, and regulatory signals.
+                </p>
+              </div>
             </article>
 
-            <article className="interactive-card rounded-[1.4rem] bg-white p-6 shadow-sm">
-              <span className="text-[#515f74]">
-                <InventoryStackIcon />
-              </span>
-              <h3 className="mt-3 text-sm font-bold">Inventory Control</h3>
-              <p className="mt-2 text-xs leading-5 text-[#5d6577]">
-                Predictive stock management and supply continuity planning for multi-facility teams.
-              </p>
+            {/* Grid Box 4 (Inventory Control) */}
+            <article className="interactive-glass-card group rounded-[2rem] p-6 flex flex-col justify-between bg-[#FFFFFF]">
+              <div className="space-y-2">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-[#F59E0B] border border-amber-100 transition-all duration-500 group-hover:scale-110 group-hover:bg-[#F59E0B] group-hover:text-white">
+                  <Boxes className="h-5 w-5" />
+                </div>
+                <h3 className="text-sm font-bold text-[#0F172A] pt-2 transition-colors duration-300 group-hover:text-[#F59E0B]">Inventory Control</h3>
+                <p className="text-[11px] leading-relaxed text-[#64748B]">
+                  Predictive stock management and supply continuity planning for multi-facility teams.
+                </p>
+              </div>
             </article>
+
           </div>
         </div>
       </section>
 
-      <section id="solutions" className="relative overflow-hidden bg-gradient-to-b from-[#f7f9fb] to-[#eef2f9] py-16 md:py-20">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute inset-0">
-            <Image
-              src="/images/procurement-lifecycle.png"
-              alt="Healthcare procurement operations background"
-              fill
-              sizes="100vw"
-              className="object-cover object-center opacity-[0.88] contrast-[1.28] brightness-[0.72] saturate-[1.08] mix-blend-multiply"
-            />
-          </div>
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(214,227,248,0.24)_0%,rgba(207,222,246,0.2)_28%,rgba(192,210,239,0.34)_100%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(10,40,92,0.06),rgba(21,56,109,0.18)_48%,rgba(27,58,105,0.28)_100%)]" />
-          <div className="absolute left-1/2 top-1/2 h-[24rem] w-[24rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#0056d2]/16 blur-3xl" />
+      {/* Sourcing Lifecycle Section */}
+      <section id="solutions" className="relative overflow-hidden py-20 md:py-28 bg-[#FFFFFF] border-t border-b border-[#E2E8F0]">
+        <div className="pointer-events-none absolute inset-0 z-0">
+          <Image
+            src="/images/procurement-lifecycle.png"
+            alt="Healthcare procurement operations"
+            fill
+            sizes="100vw"
+            className="object-cover object-center opacity-5 mix-blend-multiply"
+          />
         </div>
-        <div className="relative z-10 mx-auto max-w-7xl px-6 md:px-8">
-          <div className="text-center mb-10">
-            <h2 className="font-[family-name:var(--font-display)] text-xl md:text-2xl font-extrabold tracking-[-0.04em] animate-slide-in-up">
-              The Procurement Lifecycle
+
+        <div className="relative z-10 mx-auto max-w-7xl px-6 md:px-12">
+          
+          <div className="text-center mb-16 space-y-4">
+            <h2 className="font-[family-name:var(--font-display)] text-3xl md:text-4xl font-extrabold tracking-[-0.04em] text-[#0F172A]">
+              The Procurement <span className="text-[#2563EB]">Lifecycle</span>
             </h2>
-            <p className="mx-auto mt-2 max-w-2xl text-xs text-[#5d6577] animate-slide-in-up" style={{ animationDelay: '0.1s' }}>
+            <p className="mx-auto max-w-xl text-sm text-[#64748B] leading-relaxed">
               Three steps to a more efficient, compliant, and cost-effective clinical supply chain.
             </p>
           </div>
-          
-          <div className="relative mt-10 grid gap-8 md:grid-cols-3">
-            <div className="pointer-events-none absolute left-0 right-0 top-8 hidden border-t-2 border-dashed border-[#a8adbb]/50 md:block" />
-            
-            {lifecycleSteps.map((item, index) => (
-              <article 
-                key={item.step} 
-                className="step-card-hover relative z-10 rounded-[1.2rem] border border-transparent p-3 text-center group transition-colors duration-300 hover:border-[#c7daf8] hover:bg-transparent active:border-[#7aa7ea]"
-                style={{ animationDelay: `${index * 0.15}s` }}
-              >
-                <div className="relative inline-block">
-                  <div className="mx-auto flex h-14 w-14 md:h-16 md:w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#0056d2] to-[#0040a1] text-lg md:text-xl font-black text-white shadow-[0_12px_28px_rgba(0,86,210,0.25)] step-number group-hover:animate-step-pulse relative">
-                    {item.step}
-                    <div className="absolute inset-0 rounded-full bg-white/0 group-hover:bg-white/5 transition-all duration-300" />
-                  </div>
-                  <div className="absolute -inset-2 rounded-full bg-[#0056d2]/0 group-hover:bg-[#0056d2]/10 blur-lg transition-all duration-300 -z-10" />
-                </div>
-                
-                <h3 className="mt-4 md:mt-5 font-[family-name:var(--font-display)] text-xs md:text-sm font-bold tracking-[-0.02em] text-[#191c1e] group-hover:text-[#0056d2] transition-colors duration-300">
-                  {item.title}
-                </h3>
-                
-                <p className="mx-auto mt-2 md:mt-3 max-w-xs text-[10px] md:text-xs leading-5 text-[#5d6577] group-hover:text-[#4a5568] transition-colors duration-300">
-                  {item.text}
-                </p>
 
-                <div className="absolute -inset-2 rounded-[1.2rem] bg-[#0056d2]/0 opacity-0 blur-xl transition-all duration-300 group-hover:bg-[#0056d2]/10 group-hover:opacity-100 active:bg-[#0056d2]/14 -z-10 md:block hidden" />
-              </article>
-            ))}
+          {/* 3-column centered layout with connector */}
+          <div className="relative mt-14">
+
+            {/* Horizontal connector line (desktop only) */}
+            <div className="hidden md:block absolute top-[3.25rem] left-[calc(16.67%+2rem)] right-[calc(16.67%+2rem)] h-px bg-gradient-to-r from-[#2563EB] via-[#14B8A6] to-[#F59E0B] opacity-25" />
+
+            <div className="grid gap-10 md:grid-cols-3 md:gap-6">
+              {lifecycleSteps.map((item, index) => {
+                const stepMeta = [
+                  {
+                    accent: "#2563EB",
+                    glow: "rgba(37,99,235,0.18)",
+                    bgLight: "#EFF6FF",
+                    tag: "Discover",
+                    icon: <Globe className="h-5 w-5" />,
+                  },
+                  {
+                    accent: "#14B8A6",
+                    glow: "rgba(20,184,166,0.18)",
+                    bgLight: "#F0FDFA",
+                    tag: "Negotiate",
+                    icon: <Gavel className="h-5 w-5" />,
+                  },
+                  {
+                    accent: "#F59E0B",
+                    glow: "rgba(245,158,11,0.18)",
+                    bgLight: "#FFFBEB",
+                    tag: "Execute",
+                    icon: <CheckCircle className="h-5 w-5" />,
+                  },
+                ][index] ?? { accent: "#2563EB", glow: "rgba(37,99,235,0.18)", bgLight: "#EFF6FF", tag: "", icon: null };
+
+                return (
+                  <div
+                    key={item.step}
+                    className="group flex flex-col items-center text-center animate-fade-slide-up transition-all duration-500 hover:-translate-y-2"
+                    style={{ animationDelay: `${index * 0.18}s` }}
+                  >
+                    {/* Glowing orbital node */}
+                    <div className="relative mb-7 flex items-center justify-center">
+                      {/* Orbit ping ring */}
+                      <span
+                        className="absolute h-20 w-20 rounded-full opacity-0 group-hover:opacity-100 animate-orbit-ring pointer-events-none"
+                        style={{ backgroundColor: stepMeta.glow }}
+                      />
+                      {/* Outer tinted ring */}
+                      <div
+                        className="flex h-16 w-16 items-center justify-center rounded-full border-2 transition-all duration-500 group-hover:scale-110 group-hover:shadow-2xl"
+                        style={{
+                          borderColor: `${stepMeta.accent}55`,
+                          backgroundColor: stepMeta.bgLight,
+                          boxShadow: `0 0 0 0 ${stepMeta.glow}`,
+                        }}
+                      >
+                        {/* Inner solid disc */}
+                        <div
+                          className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-black text-white shadow-md transition-all duration-300 group-hover:scale-105"
+                          style={{ backgroundColor: stepMeta.accent }}
+                        >
+                          {item.step}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tag */}
+                    <span
+                      className="mb-3 inline-block rounded-full px-3 py-0.5 text-[10px] font-black uppercase tracking-widest"
+                      style={{ color: stepMeta.accent, backgroundColor: stepMeta.bgLight }}
+                    >
+                      {stepMeta.tag}
+                    </span>
+
+                    {/* Icon + Title */}
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <span
+                        className="transition-colors duration-300"
+                        style={{ color: stepMeta.accent }}
+                      >
+                        {stepMeta.icon}
+                      </span>
+                      <h3
+                        className="font-[family-name:var(--font-display)] text-lg font-extrabold tracking-tight text-[#0F172A] transition-colors duration-300"
+                        style={{ color: undefined }}
+                      >
+                        <span
+                          className="transition-colors duration-300 group-hover:text-[var(--sa)] "
+                          style={{ "--sa": stepMeta.accent } as React.CSSProperties}
+                        >
+                          {item.title}
+                        </span>
+                      </h3>
+                    </div>
+
+                    {/* Body */}
+                    <p className="text-sm leading-relaxed text-[#475569] max-w-xs px-2">
+                      {item.text}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-6 py-12 md:px-8 md:py-16">
-        <div className="relative overflow-hidden rounded-[2.4rem] bg-[#0056d2] px-8 py-10 text-center text-white shadow-[0_25px_60px_rgba(0,86,210,0.26)] md:px-16 md:py-12">
-          <div className="relative z-10">
-            <h2 className="font-[family-name:var(--font-display)] text-2xl font-extrabold tracking-[-0.04em] md:text-3xl">
-              Ready to Modernize Your
-              <br />
-              Clinical Supply Chain?
+      <section className="w-full bg-[#F8FAFC] border-b border-[#E2E8F0] py-16 md:py-24">
+        <div className="mx-auto max-w-7xl px-6 md:px-12">
+          <div className="max-w-2xl mx-auto text-center space-y-6">
+            <h2 className="font-[family-name:var(--font-display)] text-3xl md:text-5xl font-extrabold tracking-[-0.04em] leading-tight text-[#0F172A]">
+              Ready to Modernize Your <br />
+              <span className="text-[#2563EB]">Clinical Supply Chain?</span>
             </h2>
-            <div className="mt-8 flex flex-wrap justify-center gap-4">
-              <Link href="/login" className="inline-flex items-center justify-center rounded-xl bg-white px-6 py-3 text-sm font-black text-[#0040a1] transition hover:scale-[1.02]">
+            <p className="text-sm md:text-base text-[#475569] leading-relaxed max-w-lg mx-auto">
+              Create an account or connect with procurement experts to setup custom integrations, payment gates, and user hierarchies.
+            </p>
+            <div className="pt-4 flex flex-wrap justify-center gap-4">
+              <button 
+                onClick={() => triggerAuthModal("register")}
+                className="inline-flex items-center justify-center rounded-2xl bg-[#2563EB] hover:bg-[#1D4ED8] px-8 py-4 text-sm font-black text-white shadow-sm hover:scale-105 active:scale-95 transition-all duration-300"
+              >
                 Create Free Account
-              </Link>
-              <Link href="mailto:demo@medvendor.in?subject=Schedule%20a%20MedVendor%20Demo" className="inline-flex items-center justify-center rounded-xl border border-white/25 bg-[#0040a1] px-6 py-3 text-sm font-black text-white transition hover:bg-[#0b4bbb]">
+              </button>
+              <Link 
+                href="mailto:demo@medvendor.in?subject=Schedule%20a%20MedVendor%20Demo" 
+                className="inline-flex items-center justify-center rounded-2xl border border-[#E2E8F0] bg-[#FFFFFF] px-8 py-4 text-sm font-black text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A] hover:scale-105 active:scale-95 transition-all duration-300"
+              >
                 Schedule Demo
               </Link>
             </div>
           </div>
-          <span className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-center font-[family-name:var(--font-display)] text-[9rem] font-black tracking-[-0.08em] text-white/6 md:text-[18rem]">
-            MED
-          </span>
         </div>
       </section>
 
-      <footer id="resources" className="border-t border-[#d7dce6] bg-[#f2f4f6] px-6 py-12 md:px-8">
-        <div className="mx-auto grid max-w-7xl gap-12 md:grid-cols-4">
-          <div>
-            <span className="block font-[family-name:var(--font-display)] text-lg font-black tracking-[-0.03em]">
-              MedVendor
-            </span>
-            <p className="mt-6 text-xs leading-6 text-[#6a7284]">
-              Architectural procurement for modern healthcare. Streamlining the global supply chain
-              through transparency and verified intelligence.
-            </p>
-          </div>
-          <FooterColumn
-            title="Platform"
-            links={[
-              { href: protectedHref("/buyer/products"), label: "Marketplace" },
-              { href: protectedHref("/supplier/rfq"), label: "Tendering System" },
-              { href: "#marketplace", label: "Compliance Hub" },
-              { href: protectedHref("/supplier/dashboard"), label: "Supplier Verification" },
-            ]}
-          />
-          <FooterColumn
-            title="Resources"
-            links={[
-              { href: "/login", label: "Help Center" },
-              { href: protectedHref("/buyer/dashboard"), label: "Buyer Workspace" },
-              { href: "#solutions", label: "Sourcing Guide" },
-              { href: protectedHref("/supplier/dashboard"), label: "Case Studies" },
-            ]}
-          />
-          <FooterColumn
-            title="Legal"
-            compact
-            links={[
-              { href: "mailto:legal@medvendor.in?subject=Privacy%20Policy", label: "Privacy Policy" },
-              { href: "mailto:legal@medvendor.in?subject=Terms%20of%20Service", label: "Terms of Service" },
-              { href: "mailto:legal@medvendor.in?subject=Compliance", label: "Compliance" },
-              { href: "mailto:legal@medvendor.in?subject=Global%20Sourcing", label: "Global Sourcing" },
-            ]}
-          />
-        </div>
-        <div className="mx-auto mt-12 flex max-w-7xl flex-col items-center justify-between gap-6 border-t border-[#d7dce6] pt-8 md:flex-row">
-          <p className="text-[9px] font-semibold uppercase tracking-[0.24em] text-[#8a90a0]">
-            (c) 2024 MedVendor Architectural Procurement. All rights reserved.
-          </p>
-          <div className="flex items-center gap-5 text-[#9aa1af]">
-            <Link href="#resources" className="transition hover:text-[#0056d2]" aria-label="Resources">
-              <GlobeIcon />
-            </Link>
-            <Link href="#marketplace" className="transition hover:text-[#0056d2]" aria-label="Platform">
-              <PublicGridIcon />
-            </Link>
-            <Link href="mailto:security@medvendor.in" className="transition hover:text-[#0056d2]" aria-label="Security">
-              <ShieldIcon />
-            </Link>
-          </div>
-        </div>
-      </footer>
+      {/* Footer */}
+      <HomeFooter protectedHref={protectedHref} onClickProtected={handleProtectedAction} />
     </main>
   )
 }
 
-function FooterColumn({
-  title,
-  links,
-  compact = false,
+function HomeFooter({
+  protectedHref,
+  onClickProtected,
 }: {
-  title: string
-  links: { href: string; label: string }[]
-  compact?: boolean
+  protectedHref: (href: string) => string
+  onClickProtected?: (e: React.MouseEvent, path: string) => void
 }) {
   return (
-    <div>
-      <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-[#0056d2]">{title}</h3>
-      <div className={`mt-6 space-y-3 ${compact ? "text-xs font-semibold uppercase tracking-[0.16em]" : "text-xs"} text-[#6a7284]`}>
-        {links.map((link) => (
-          <Link key={link.label} href={link.href} className="block transition hover:text-[#0056d2]">
-            {link.label}
-          </Link>
-        ))}
+    <footer
+      id="resources"
+      className="bg-gradient-to-b from-[#FFFFFF] to-[#F8FAFC] px-6 py-16 md:px-12"
+    >
+      {/* Top grid */}
+      <div className="mx-auto grid max-w-7xl gap-12 md:grid-cols-4 border-b border-[#E2E8F0] pb-12">
+
+        {/* Brand */}
+        <div className="flex flex-col items-start space-y-3 text-left">
+          <span className="flex items-center gap-2 text-xl font-black tracking-[-0.04em] text-[#0F172A]">
+            MedVendor
+            <span className="inline-flex items-center rounded bg-[#DBEAFE] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-[#2563EB]">
+              Enterprise
+            </span>
+          </span>
+          <p className="max-w-[220px] text-[13px] font-normal leading-relaxed text-[#475569]">
+            Standardizing healthcare sourcing globally. Built for modern clinical
+            networks, verified suppliers, and automated audit trails.
+          </p>
+        </div>
+
+        {/* Buyer Solutions */}
+        <div className="flex flex-col items-start space-y-4 text-left">
+          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[#0F172A]">
+            Buyer solutions
+          </h3>
+          <ul className="flex flex-col space-y-2.5">
+            {[
+              { href: protectedHref("/buyer/dashboard"), label: "Procurement dashboard" },
+              { href: protectedHref("/buyer/products"),  label: "Medical marketplace" },
+              { href: protectedHref("/buyer/rfq"),       label: "RFQs & tenders" },
+              { href: protectedHref("/buyer/analytics"), label: "Procurement analytics" },
+              { href: protectedHref("/buyer/subscription"), label: "Membership plans" },
+            ].map(({ href, label }) => (
+              <li key={label}>
+                <Link
+                  href={href}
+                  onClick={(e) => onClickProtected?.(e, href)}
+                  className="text-[13px] font-normal text-[#475569] transition-colors duration-200 hover:text-[#2563EB]"
+                >
+                  {label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Supplier Solutions */}
+        <div className="flex flex-col items-start space-y-4 text-left">
+          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[#0F172A]">
+            Supplier solutions
+          </h3>
+          <ul className="flex flex-col space-y-2.5">
+            {[
+              { href: protectedHref("/supplier/dashboard"),     label: "Supplier dashboard" },
+              { href: protectedHref("/supplier/products"),      label: "Inventory manager" },
+              { href: protectedHref("/supplier/products/new"),  label: "List new supplies" },
+              { href: protectedHref("/supplier/orders"),        label: "Sales & orders" },
+              { href: protectedHref("/supplier/analytics"),     label: "Sales analytics" },
+            ].map(({ href, label }) => (
+              <li key={label}>
+                <Link
+                  href={href}
+                  onClick={(e) => onClickProtected?.(e, href)}
+                  className="text-[13px] font-normal text-[#475569] transition-colors duration-200 hover:text-[#2563EB]"
+                >
+                  {label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Trust & Support */}
+        <div className="flex flex-col items-start space-y-4 text-left">
+          <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[#0F172A]">
+            Trust & support
+          </h3>
+          <ul className="flex flex-col space-y-2.5">
+            {[
+              { href: "mailto:legal@medvendor.in?subject=Terms%20of%20Service",   label: "Terms of service" },
+              { href: "mailto:legal@medvendor.in?subject=Privacy%20Policy",       label: "Privacy policy" },
+              { href: "mailto:support@medvendor.in?subject=MedVendor%20Support",  label: "Help & support" },
+            ].map(({ href, label }) => (
+              <li key={label}>
+                <Link
+                  href={href}
+                  className="text-[13px] font-normal text-[#475569] transition-colors duration-200 hover:text-[#2563EB]"
+                >
+                  {label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
-    </div>
+
+      {/* Bottom bar */}
+      <div className="mx-auto mt-10 flex max-w-7xl flex-col items-center justify-between gap-4 md:flex-row">
+        <p className="text-xs font-normal text-[#94A3B8]">
+          © 2026 MedVendor Architectural Procurement. All rights reserved.
+        </p>
+
+        <div className="flex items-center gap-4">
+          {/* LinkedIn */}
+          <Link
+            href="https://linkedin.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="LinkedIn"
+            className="text-[#94A3B8] transition-all duration-200 hover:scale-110 hover:text-[#0A66C2]"
+          >
+            <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
+              <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.779-1.75-1.75s.784-1.75 1.75-1.75 1.75.779 1.75 1.75-.784 1.75-1.75 1.75zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+            </svg>
+          </Link>
+
+          {/* X / Twitter */}
+          <Link
+            href="https://twitter.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="X / Twitter"
+            className="text-[#94A3B8] transition-all duration-200 hover:scale-110 hover:text-[#0F1419]"
+          >
+            <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+            </svg>
+          </Link>
+
+          {/* Facebook */}
+          <Link
+            href="https://facebook.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Facebook"
+            className="text-[#94A3B8] transition-all duration-200 hover:scale-110 hover:text-[#1877F2]"
+          >
+            <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
+              <path d="M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.808c-3.596 0-5.192 1.583-5.192 4.615v3.385z" />
+            </svg>
+          </Link>
+
+          {/* Instagram */}
+          <Link
+            href="https://instagram.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Instagram"
+            className="text-[#94A3B8] transition-all duration-200 hover:scale-110 hover:text-[#E1306C]"
+          >
+            <svg
+              className="h-4 w-4 fill-none stroke-current"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              viewBox="0 0 24 24"
+            >
+              <rect x="2" y="2" width="20" height="20" rx="5" />
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+              <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+            </svg>
+          </Link>
+        </div>
+      </div>
+    </footer>
   )
 }

@@ -140,6 +140,7 @@ function RfqPageContent() {
   const [recentlyPublishedRfqId, setRecentlyPublishedRfqId] = useState<number | null>(null)
   const [expandedRfqIds, setExpandedRfqIds] = useState<number[]>([])
   const [requestFilter, setRequestFilter] = useState<"all" | "my_rfqs" | VendorRfq["status"]>("all")
+  const [hasActiveSub, setHasActiveSub] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [tenderTypeFilter, setTenderTypeFilter] = useState<"all" | VendorRfq["tender_type"]>("all")
   const [sortBy, setSortBy] = useState<"latest" | "oldest" | "budget_high" | "budget_low" | "deadline_nearest">("latest")
@@ -205,9 +206,14 @@ function RfqPageContent() {
           router.replace("/buyer/rfq")
           return
         }
+        if (!me.has_active_subscription) {
+          router.replace(me.role === "supplier" ? "/supplier/subscription" : "/buyer/subscription")
+          return
+        }
         setUsername(me.username)
         setUserRole(me.role)
         setBuyerType(me.buyer_type)
+        setHasActiveSub(me.has_active_subscription ?? true)
       } catch (error) {
         if (!isAuthSessionError(error)) {
           setMessage("Could not verify your session right now. Check whether the backend API is running.")
@@ -804,12 +810,14 @@ function RfqPageContent() {
           active="rfqs"
           username={username}
           buyerType={buyerType}
+          hasActiveSubscription={hasActiveSub}
           onSignOut={signOut}
         />
       ) : isSupplierRoute ? (
         <SupplierSidebar
           active="rfqs"
           username={username}
+          hasActiveSubscription={hasActiveSub}
           onSignOut={signOut}
         />
       ) : null}

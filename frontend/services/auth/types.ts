@@ -5,7 +5,10 @@ export interface AuthUser {
   role: "supplier" | "buyer" | "admin"
   status: "pending" | "approved" | "rejected"
   buyer_type: "hospital" | "pharmacy" | "ngo" | "clinic" | null
+  has_active_subscription?: boolean
+  active_subscription_plan_id?: number | null
 }
+
 
 export interface AuthResponse {
   token: string

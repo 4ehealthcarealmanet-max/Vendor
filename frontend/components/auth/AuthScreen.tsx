@@ -11,6 +11,8 @@ type AuthScreenProps = {
   defaultMode: AuthMode
   nextPath?: string | null
   defaultRole?: "supplier" | "buyer"
+  isModal?: boolean
+  onClose?: () => void
 }
 
 type ApiErrorData = {
@@ -101,9 +103,16 @@ export default function AuthScreen({
   defaultMode,
   nextPath,
   defaultRole = "supplier",
+  isModal = false,
+  onClose,
 }: AuthScreenProps) {
   const router = useRouter()
-  const mode = defaultMode
+  const [mode, setMode] = useState<AuthMode>(defaultMode)
+
+  useEffect(() => {
+    setMode(defaultMode)
+  }, [defaultMode])
+
   const [role, setRole] = useState<"supplier" | "buyer">(defaultRole)
   const [buyerType, setBuyerType] = useState<"hospital" | "pharmacy" | "ngo" | "clinic">("hospital")
   const [username, setUsername] = useState("")
@@ -137,6 +146,10 @@ export default function AuthScreen({
   }, [nextPath, router])
 
   useEffect(() => {
+    if (isModal) {
+      setCheckingSession(false)
+      return
+    }
     let active = true
 
     const redirectAuthenticatedUser = async () => {
@@ -161,7 +174,7 @@ export default function AuthScreen({
     return () => {
       active = false
     }
-  }, [redirectToDashboard])
+  }, [redirectToDashboard, isModal])
 
   const buildAuthHref = (targetMode: AuthMode) => {
     const params = new URLSearchParams()
@@ -211,6 +224,7 @@ export default function AuthScreen({
   }
 
   if (checkingSession) {
+    if (isModal) return null
     return (
       <main className="min-h-screen bg-[linear-gradient(180deg,#f6f8fb_0%,#eef3f8_100%)] px-4 py-10 text-[#1b2330]">
         <div className="mx-auto flex w-full max-w-[520px] flex-col items-center">
@@ -222,11 +236,36 @@ export default function AuthScreen({
     )
   }
 
-  return (
-    <main className="min-h-screen bg-[linear-gradient(180deg,#f6f8fb_0%,#eef3f8_100%)] px-4 py-10 text-[#1b2330]">
-      <div className="mx-auto flex w-full max-w-[520px] flex-col items-center">
-        <div className="glass-card interactive-card w-full rounded-[28px] p-5 sm:p-6 md:p-8">
-          <div className="grid grid-cols-2 gap-2 rounded-xl bg-[#f1f4f8] p-1.5">
+  const cardContent = (
+    <div className={isModal ? "w-full text-left" : "glass-card interactive-card w-full rounded-[28px] p-5 sm:p-6 md:p-8 text-left"}>
+      <div className="grid grid-cols-2 gap-2 rounded-xl bg-[#f1f4f8] p-1.5">
+        {isModal ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setMode("login")}
+              className={`rounded-lg px-4 py-2.5 text-center text-sm font-bold transition ${
+                mode === "login"
+                  ? "bg-[#0f4fb6] text-white shadow-[0_8px_22px_rgba(15,79,182,0.24)]"
+                  : "text-[#7a8497] hover:text-[#0f4fb6]"
+              }`}
+            >
+              Login
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("register")}
+              className={`rounded-lg px-4 py-2.5 text-center text-sm font-bold transition ${
+                mode === "register"
+                  ? "bg-[#0f4fb6] text-white shadow-[0_8px_22px_rgba(15,79,182,0.24)]"
+                  : "text-[#7a8497] hover:text-[#0f4fb6]"
+              }`}
+            >
+              Register
+            </button>
+          </>
+        ) : (
+          <>
             <Link
               href={buildAuthHref("login")}
               className={`rounded-lg px-4 py-2.5 text-center text-sm font-bold transition ${
@@ -247,140 +286,204 @@ export default function AuthScreen({
             >
               Register
             </Link>
-          </div>
+          </>
+        )}
+      </div>
 
-          {mode === "register" ? (
-            <div className="mt-6">
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#9aa3b2]">
-                Select Role
-              </p>
-              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {(["supplier", "buyer"] as const).map((item) => {
-                  const card = roleCards[item]
-                  const selected = role === item
+      {mode === "register" ? (
+        <div className="mt-6">
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#9aa3b2]">
+            Select Role
+          </p>
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {(["supplier", "buyer"] as const).map((item) => {
+              const card = roleCards[item]
+              const selected = role === item
 
-                  return (
-                    <button
-                      key={item}
-                      type="button"
-                      onClick={() => setRole(item)}
-                      className={`rounded-2xl border p-4 text-left transition ${
-                        selected
-                          ? "border-[#0f4fb6] bg-[#f5f8ff] shadow-[0_10px_24px_rgba(15,79,182,0.08)]"
-                          : "border-[#dce3ec] bg-white hover:border-[#b8c8e2]"
+              return (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setRole(item)}
+                  className={`rounded-2xl border p-4 text-left transition ${
+                    selected
+                      ? "border-[#0f4fb6] bg-[#f5f8ff] shadow-[0_10px_24px_rgba(15,79,182,0.08)]"
+                      : "border-[#dce3ec] bg-white hover:border-[#b8c8e2]"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <span className={selected ? "text-[#0f4fb6]" : "text-[#6b7687]"}>{card.icon}</span>
+                    <span
+                      className={`mt-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full border ${
+                        selected ? "border-[#0f4fb6]" : "border-[#c4ccd8]"
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <span className={selected ? "text-[#0f4fb6]" : "text-[#6b7687]"}>{card.icon}</span>
-                        <span
-                          className={`mt-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full border ${
-                            selected ? "border-[#0f4fb6]" : "border-[#c4ccd8]"
-                          }`}
-                        >
-                          {selected ? <span className="h-2 w-2 rounded-full bg-[#0f4fb6]" /> : null}
-                        </span>
-                      </div>
-                      <p className="mt-4 text-sm font-bold text-[#1b2330]">{card.title}</p>
-                      <p className="mt-1 text-xs text-[#8b95a7]">{card.description}</p>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          ) : null}
-
-          <form onSubmit={submitForm} className="mt-6 grid gap-5">
-            <FieldShell
-              label="Username"
-              icon={<UserIcon />}
-              input={
-                <input
-                  required
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
-                  placeholder="e.g. medical_admin"
-                  className="w-full border-0 bg-transparent p-0 text-sm text-[#1b2330] outline-none placeholder:text-[#9aa3b2]"
-                />
-              }
-            />
-
-            {mode === "register" ? (
-              <FieldShell
-                label="Email Address"
-                icon={<MailIcon />}
-                input={
-                  <input
-                    required
-                    type="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    placeholder="admin@healthcare.org"
-                    className="w-full border-0 bg-transparent p-0 text-sm text-[#1b2330] outline-none placeholder:text-[#9aa3b2]"
-                  />
-                }
-              />
-            ) : null}
-
-            {mode === "register" && role === "buyer" ? (
-              <FieldShell
-                label="Organization Type"
-                icon={<BuildingIcon />}
-                input={
-                  <select
-                    value={buyerType}
-                    onChange={(event) =>
-                      setBuyerType(event.target.value as "hospital" | "pharmacy" | "ngo" | "clinic")
-                    }
-                    className="w-full border-0 bg-transparent p-0 text-sm text-[#1b2330] outline-none"
-                  >
-                    {Object.entries(buyerTypeLabels).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                }
-              />
-            ) : null}
-
-            <FieldShell
-              label="Password"
-              icon={<LockIcon />}
-              input={
-                <input
-                  required
-                  minLength={8}
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="••••••••"
-                  className="w-full border-0 bg-transparent p-0 text-sm text-[#1b2330] outline-none placeholder:text-[#9aa3b2]"
-                />
-              }
-            />
-
-            {message ? (
-              <p
-                className={`rounded-2xl border px-4 py-3 text-sm ${
-                  messageTone === "success"
-                    ? "border-[#cfe9d8] bg-[#f4fff7] text-[#166534]"
-                    : "border-[#f1d0d0] bg-[#fff7f7] text-[#a02828]"
-                }`}
-              >
-                {message}
-              </p>
-            ) : null}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="solid-action inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              <span>{loading ? "Please wait..." : activePanel.primaryAction}</span>
-              <ArrowLineIcon />
-            </button>
-          </form>
+                      {selected ? <span className="h-2 w-2 rounded-full bg-[#0f4fb6]" /> : null}
+                    </span>
+                  </div>
+                  <p className="mt-4 text-sm font-bold text-[#1b2330]">{card.title}</p>
+                  <p className="mt-1 text-xs text-[#8b95a7]">{card.description}</p>
+                </button>
+              )
+            })}
+          </div>
         </div>
+      ) : null}
+
+      <form onSubmit={submitForm} className="mt-6 grid gap-5">
+        <FieldShell
+          label="Username"
+          icon={<UserIcon />}
+          input={
+            <input
+              required
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              placeholder="e.g. medical_admin"
+              className="w-full border-0 bg-transparent p-0 text-sm text-[#1b2330] outline-none placeholder:text-[#9aa3b2]"
+            />
+          }
+        />
+
+        {mode === "register" ? (
+          <FieldShell
+            label="Email Address"
+            icon={<MailIcon />}
+            input={
+              <input
+                required
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="admin@healthcare.org"
+                className="w-full border-0 bg-transparent p-0 text-sm text-[#1b2330] outline-none placeholder:text-[#9aa3b2]"
+              />
+            }
+          />
+        ) : null}
+
+        {mode === "register" && role === "buyer" ? (
+          <FieldShell
+            label="Organization Type"
+            icon={<BuildingIcon />}
+            input={
+              <select
+                value={buyerType}
+                onChange={(event) =>
+                  setBuyerType(event.target.value as "hospital" | "pharmacy" | "ngo" | "clinic")
+                }
+                className="w-full border-0 bg-transparent p-0 text-sm text-[#1b2330] outline-none"
+              >
+                {Object.entries(buyerTypeLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            }
+          />
+        ) : null}
+
+        <FieldShell
+          label="Password"
+          icon={<LockIcon />}
+          input={
+            <input
+              required
+              minLength={8}
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="••••••••"
+              className="w-full border-0 bg-transparent p-0 text-sm text-[#1b2330] outline-none placeholder:text-[#9aa3b2]"
+            />
+          }
+        />
+
+        {message ? (
+          <p
+            className={`rounded-2xl border px-4 py-3 text-sm ${
+              messageTone === "success"
+                ? "border-[#cfe9d8] bg-[#f4fff7] text-[#166534]"
+                : "border-[#f1d0d0] bg-[#fff7f7] text-[#a02828]"
+            }`}
+          >
+            {message}
+          </p>
+        ) : null}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="solid-action inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          <span>{loading ? "Please wait..." : activePanel.primaryAction}</span>
+          <ArrowLineIcon />
+        </button>
+      </form>
+    </div>
+  )
+
+  if (isModal) {
+    return (
+      <div className="w-full bg-white rounded-[32px] p-6 sm:p-8 md:p-10 border border-[#e2e8f0]/85 shadow-2xl relative text-left">
+        {/* Modal Header with Logo and Close Button */}
+        <div className="flex items-center justify-between mb-6 border-b border-[#e2e8f0]/60 pb-4">
+          <span className="flex items-center gap-2 text-xl font-black tracking-[-0.04em] text-[#0F172A]">
+            MedVendor
+            <span className="inline-flex items-center rounded bg-[#DBEAFE] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-[#2563EB]">
+              Enterprise
+            </span>
+          </span>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+              aria-label="Close"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+        
+        <div>
+          {cardContent}
+        </div>
+
+        <div className="mt-6 flex flex-col items-center gap-3 text-center border-t border-[#e2e8f0]/60 pt-5">
+          <p className="text-sm text-[#475569] font-medium">
+            {activePanel.secondaryLabel}{" "}
+            <button
+              type="button"
+              onClick={() => setMode(mode === "login" ? "register" : "login")}
+              className="font-bold text-[#0f4fb6] hover:underline"
+            >
+              {activePanel.secondaryText}
+            </button>
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs font-semibold text-[#64748B]">
+            <Link href="mailto:legal@medvendor.in?subject=Terms%20of%20Service" className="hover:text-[#0f4fb6]">
+              Terms of Service
+            </Link>
+            <Link href="mailto:legal@medvendor.in?subject=Privacy%20Policy" className="hover:text-[#0f4fb6]">
+              Privacy Policy
+            </Link>
+            <Link href="mailto:support@medvendor.in" className="hover:text-[#0f4fb6]">
+              Contact Support
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <main className="min-h-screen bg-[linear-gradient(180deg,#f6f8fb_0%,#eef3f8_100%)] px-4 py-10 text-[#1b2330]">
+      <div className="mx-auto flex w-full max-w-[520px] flex-col items-center">
+        {cardContent}
 
         <div className="mt-7 flex flex-col items-center gap-3 text-center">
           <Link href="/" className="inline-flex items-center gap-2 text-sm font-medium text-[#667389] transition hover:text-[#0f4fb6]">

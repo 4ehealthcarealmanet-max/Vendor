@@ -23,6 +23,8 @@ export default function SupplierSettingsPage() {
   const [isError, setIsError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
+  const [hasActiveSub, setHasActiveSub] = useState(true)
+
   useEffect(() => {
     const loadUser = async () => {
       try {
@@ -31,7 +33,12 @@ export default function SupplierSettingsPage() {
           router.replace("/buyer/dashboard")
           return
         }
+        if (!me.has_active_subscription) {
+          router.replace("/supplier/subscription")
+          return
+        }
         setUsername(me.username)
+        setHasActiveSub(me.has_active_subscription ?? true)
       } catch (error) {
         if (isAuthSessionError(error)) {
           clearToken()
@@ -90,7 +97,7 @@ export default function SupplierSettingsPage() {
 
   return (
     <>
-      <SupplierSidebar active="settings" username={username} onSignOut={signOut} />
+      <SupplierSidebar active="settings" username={username} hasActiveSubscription={hasActiveSub} onSignOut={signOut} />
       <main className="px-4 py-8 pb-24 md:px-6 md:py-12 lg:pl-[calc(18rem+2.5rem)]">
         <div className="mx-auto w-full max-w-xl space-y-5">
           <header className="settings-card rounded-xl border border-[#dbe4ef] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">

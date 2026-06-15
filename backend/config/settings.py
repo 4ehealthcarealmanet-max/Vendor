@@ -24,7 +24,9 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'cloudinary_storage',
     'django.contrib.staticfiles',
+    'cloudinary',
     'corsheaders',
     'rest_framework',
     'rest_framework.authtoken',
@@ -87,10 +89,20 @@ TIME_ZONE = 'UTC'
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STORAGES = {
+    "default": {
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage" if os.getenv("CLOUDINARY_NAME") else "django.core.files.storage.FileSystemStorage",
+    },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
+
+CLOUDINARY_STORAGE = {
+    "CLOUD_NAME": os.getenv("CLOUDINARY_NAME", ""),
+    "API_KEY": os.getenv("CLOUDINARY_KEY", ""),
+    "API_SECRET": os.getenv("CLOUDINARY_SECRET", ""),
+}
+
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -126,3 +138,8 @@ REST_FRAMEWORK = {
         "vendor.permissions.IsApprovedUser",
     ],
 }
+
+PLATFORM_RAZORPAY_KEY_ID = os.getenv("PLATFORM_RAZORPAY_KEY_ID", "")
+PLATFORM_RAZORPAY_KEY_SECRET = os.getenv("PLATFORM_RAZORPAY_KEY_SECRET", "")
+PLATFORM_RAZORPAY_WEBHOOK_SECRET = os.getenv("PLATFORM_RAZORPAY_WEBHOOK_SECRET", "")
+

@@ -14,6 +14,7 @@ from vendor.views.auth_view import (
     reset_password_view,
 )
 from vendor.views.profile_view import get_profile_view, update_profile_view
+from vendor.views.subscription_view import list_plans, initialize_payment, verify_payment
 
 router = DefaultRouter()
 
@@ -31,5 +32,9 @@ urlpatterns = [
     path("auth/profile/update/", update_profile_view),
     path("auth/admin/users/", admin_users_view),
     path("auth/admin/users/<int:user_id>/status/", admin_user_status_view),
+    path("subscriptions/plans/", list_plans),
+    path("subscriptions/initialize/", initialize_payment),
+    path("subscriptions/verify/", verify_payment),
     path("", include(router.urls)),
 ]
+

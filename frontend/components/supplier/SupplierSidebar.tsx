@@ -3,12 +3,13 @@
 import Link from "next/link"
 import { useState } from "react"
 
-type SupplierSection = "dashboard" | "profile" | "rfqs" | "orders" | "supplies" | "analytics" | "settings"
+type SupplierSection = "dashboard" | "profile" | "rfqs" | "orders" | "supplies" | "analytics" | "settings" | "subscription"
 
 type SupplierSidebarProps = {
   active: SupplierSection
   username?: string
   status?: string
+  hasActiveSubscription?: boolean
   onSignOut?: () => void
 }
 
@@ -16,9 +17,10 @@ const navItems: Array<{ key: SupplierSection; href: string; label: string; glyph
   { key: "dashboard", href: "/supplier/dashboard", label: "Dashboard", glyph: "DB" },
   { key: "profile", href: "/supplier/profile", label: "Profile Setup", glyph: "PR" },
   { key: "rfqs", href: "/supplier/rfq", label: "RFQs", glyph: "RF" },
-  { key: "supplies", href: "/supplier/products", label: "Add Products", glyph: "MD" },
+  { key: "supplies", href: "/supplier/products", label: "My Products", glyph: "MD" },
   { key: "orders", href: "/supplier/orders", label: "My Orders", glyph: "OR" },
   { key: "analytics", href: "/supplier/analytics", label: "Analytics", glyph: "AN" },
+  { key: "subscription", href: "/supplier/subscription", label: "Subscription", glyph: "SB" },
 ]
 
 const getProfileInitials = (value?: string | null) => {
@@ -26,18 +28,36 @@ const getProfileInitials = (value?: string | null) => {
   return cleaned || "SP"
 }
 
-export default function SupplierSidebar({ active, username, status, onSignOut }: SupplierSidebarProps) {
+export default function SupplierSidebar({
+  active,
+  username,
+  status,
+  hasActiveSubscription = true,
+  onSignOut,
+}: SupplierSidebarProps) {
   const initials = getProfileInitials(username)
   const [mobileOpen, setMobileOpen] = useState(false)
   const isPending = status === "pending"
 
+  const isItemDisabled = (itemKey: SupplierSection) => {
+    if (isPending) {
+      return itemKey !== "profile" && itemKey !== "subscription"
+    }
+    if (!hasActiveSubscription) {
+      return itemKey !== "profile" && itemKey !== "subscription"
+    }
+    return false
+  }
+
   const closeMobileMenu = () => setMobileOpen(false)
+
+  const isSettingsDisabled = isItemDisabled("settings")
 
   return (
     <>
       <aside className="fixed left-0 top-0 z-40 hidden h-screen w-[18rem] overflow-y-auto border-r border-[#e5ebf3] bg-[#f6f8fb]/95 pt-8 shadow-[0_18px_40px_rgba(15,23,42,0.04)] backdrop-blur lg:flex">
         <div className="flex min-h-full flex-1 flex-col px-4 pb-8">
-          <Link href="/supplier/dashboard" className="mb-8 flex items-center gap-3 px-2">
+          <Link href="/supplier/dashboard" onClick={(e) => { if (isItemDisabled("dashboard")) e.preventDefault() }} className={`mb-8 flex items-center gap-3 px-2 ${isItemDisabled("dashboard") ? "cursor-not-allowed" : ""}`}>
             <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#0f4fb6,#1d72ff)] text-white shadow-[0_18px_28px_rgba(15,79,182,0.2)]">
               <SidebarGlyphIcon label="MD" className="h-5 w-5" />
             </span>
@@ -70,10 +90,9 @@ export default function SupplierSidebar({ active, username, status, onSignOut }:
             </div>
           </div>
 
-
           <nav className="space-y-1" aria-label="Supplier">
             {navItems.map((item) => {
-              const isDisabled = isPending && item.key !== "profile"
+              const isDisabled = isItemDisabled(item.key)
               return (
                 <Link
                   key={item.key}
@@ -106,18 +125,18 @@ export default function SupplierSidebar({ active, username, status, onSignOut }:
             <Link
               href="/supplier/settings"
               onClick={(e) => {
-                if (isPending) e.preventDefault()
+                if (isSettingsDisabled) e.preventDefault()
               }}
               className={`flex items-center gap-4 rounded-xl px-4 py-3 text-sm font-bold transition ${active === "settings"
                   ? "border border-[#dbe8ff] bg-white text-[#0f4fb6] shadow-[inset_4px_0_0_0_#0f4fb6]"
-                  : isPending
+                  : isSettingsDisabled
                     ? "cursor-not-allowed opacity-40 text-[#64748b]"
                     : "text-[#64748b] hover:bg-white hover:text-[#0f172a]"
                 }`}
             >
               <div className="relative">
                 <SidebarGlyph label="ST" tone={active === "settings" ? "blue" : "slate"} />
-                {isPending && (
+                {isSettingsDisabled && (
                   <div className="absolute -right-1 -top-1 rounded-full bg-white p-0.5 text-[#64748b] shadow-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
                   </div>
@@ -170,7 +189,7 @@ export default function SupplierSidebar({ active, username, status, onSignOut }:
           />
           <aside className="relative flex h-full w-[min(84vw,21rem)] flex-col overflow-y-auto border-r border-white/80 bg-[#f6f8fb] px-4 py-5 shadow-[18px_0_48px_rgba(15,23,42,0.18)]">
             <div className="mb-5 flex items-center justify-between gap-3">
-              <Link href="/supplier/dashboard" onClick={isPending ? (e) => e.preventDefault() : closeMobileMenu} className={`flex items-center gap-3 ${isPending ? "cursor-not-allowed" : ""}`}>
+              <Link href="/supplier/dashboard" onClick={isItemDisabled("dashboard") ? (e) => e.preventDefault() : closeMobileMenu} className={`flex items-center gap-3 ${isItemDisabled("dashboard") ? "cursor-not-allowed" : ""}`}>
                 <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#0f4fb6,#1d72ff)] text-white shadow-[0_18px_28px_rgba(15,79,182,0.2)]">
                   <SidebarGlyphIcon label="MD" className="h-5 w-5" />
                 </span>
@@ -214,7 +233,7 @@ export default function SupplierSidebar({ active, username, status, onSignOut }:
 
             <nav className="space-y-2" aria-label="Supplier mobile">
               {navItems.map((item) => {
-                const isDisabled = isPending && item.key !== "profile"
+                const isDisabled = isItemDisabled(item.key)
                 return (
                   <Link
                     key={item.key}
@@ -244,7 +263,7 @@ export default function SupplierSidebar({ active, username, status, onSignOut }:
               <Link
                 href="/supplier/settings"
                 onClick={(e) => {
-                  if (isPending) {
+                  if (isSettingsDisabled) {
                     e.preventDefault()
                   } else {
                     closeMobileMenu()
@@ -252,7 +271,7 @@ export default function SupplierSidebar({ active, username, status, onSignOut }:
                 }}
                 className={`flex items-center gap-4 rounded-2xl px-4 py-4 text-sm font-black transition ${active === "settings"
                     ? "border border-[#dbe8ff] bg-white text-[#0f4fb6] shadow-[inset_4px_0_0_0_#0f4fb6]"
-                    : isPending
+                    : isSettingsDisabled
                       ? "cursor-not-allowed opacity-40 text-[#64748b]"
                       : "text-[#64748b] hover:bg-white hover:text-[#0f172a]"
                   }`}
@@ -411,5 +430,16 @@ function SidebarGlyphIcon({ label, className }: { label: string; className: stri
     )
   }
 
+  if (label === "SB") {
+    return (
+      <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="2" y="5" width="20" height="14" rx="2" />
+        <line x1="2" y1="10" x2="22" y2="10" />
+        <line x1="7" y1="15" x2="11" y2="15" />
+      </svg>
+    )
+  }
+
   return <span className="text-[10px] font-black uppercase">{label}</span>
 }
+

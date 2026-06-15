@@ -150,6 +150,7 @@ export default function ProfileSetupWorkspace({ role }: { role: ProfileRole }) {
   const [buyerForm, setBuyerForm] = useState<BuyerProfileForm>(defaultBuyerForm())
   const [originalSupplierForm, setOriginalSupplierForm] = useState<SupplierProfileForm | null>(null)
   const [originalBuyerForm, setOriginalBuyerForm] = useState<BuyerProfileForm | null>(null)
+  const [hasActiveSub, setHasActiveSub] = useState(true)
 
   const isSupplierFormDirty = () => {
     if (!originalSupplierForm) return true
@@ -172,6 +173,7 @@ export default function ProfileSetupWorkspace({ role }: { role: ProfileRole }) {
         }
 
         setUser(me)
+        setHasActiveSub(me.has_active_subscription ?? true)
 
         // Load profile from backend
         try {
@@ -362,6 +364,7 @@ export default function ProfileSetupWorkspace({ role }: { role: ProfileRole }) {
       const response = await updateUserProfile(data)
       const freshUser = await getCurrentUser()
       setUser(freshUser)
+      setHasActiveSub(freshUser.has_active_subscription ?? true)
       setOriginalSupplierForm(supplierForm)
 
       const successTitle = freshUser.status === "approved" ? "Profile Updated" : "Profile Saved"
@@ -450,6 +453,7 @@ export default function ProfileSetupWorkspace({ role }: { role: ProfileRole }) {
       const response = await updateUserProfile(data)
       const freshUser = await getCurrentUser()
       setUser(freshUser)
+      setHasActiveSub(freshUser.has_active_subscription ?? true)
       setOriginalBuyerForm(buyerForm)
 
       const successTitle = freshUser.status === "approved" ? "Profile Updated" : "Profile Saved"
@@ -499,9 +503,9 @@ export default function ProfileSetupWorkspace({ role }: { role: ProfileRole }) {
   return (
     <div className="min-h-screen bg-[#f6f8fb] text-[#0f172a]">
       {role === "supplier" ? (
-        <SupplierSidebar active="profile" username={user.username} status={user.status} onSignOut={signOut} />
+        <SupplierSidebar active="profile" username={user.username} status={user.status} hasActiveSubscription={hasActiveSub} onSignOut={signOut} />
       ) : (
-        <BuyerSidebar active="profile" username={user.username} buyerType={user.buyer_type} status={user.status} onSignOut={signOut} />
+        <BuyerSidebar active="profile" username={user.username} buyerType={user.buyer_type} status={user.status} hasActiveSubscription={hasActiveSub} onSignOut={signOut} />
       )}
 
       <main className="px-4 py-6 pb-24 sm:px-6 lg:pl-[calc(18rem+2rem)] lg:pr-6 lg:py-8">

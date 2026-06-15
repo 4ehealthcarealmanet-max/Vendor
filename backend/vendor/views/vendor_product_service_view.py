@@ -5,12 +5,13 @@ from vendor.models.vendor_product_service import VendorProductService
 from vendor.models.vendor_profile import VendorProfile
 from vendor.serializers.vendor_product_service_serializer import VendorProductServiceSerializer
 from vendor.utils.account_role import get_or_create_account_role
+from vendor.permissions import HasActiveSubscription
 
 class VendorProductServiceViewSet(viewsets.ModelViewSet):
 
     queryset = VendorProductService.objects.none()
     serializer_class = VendorProductServiceSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasActiveSubscription]
 
     def get_queryset(self):
         role = get_or_create_account_role(self.request.user)

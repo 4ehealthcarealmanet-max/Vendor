@@ -53,6 +53,10 @@ export type LandingTender = {
   endsIn: string
   href: string
   urgent: boolean
+  quantity?: number
+  deliveryLocation?: string
+  tenderType?: string
+  description?: string
 }
 
 export const formatCurrency = (value: number) =>
@@ -106,5 +110,9 @@ export const mapRfqToTender = (rfq: VendorRfq): LandingTender => {
     endsIn,
     href: "/register?role=supplier&next=%2Fsupplier%2Frfq",
     urgent: endsIn === "Ends Today" || endsIn.startsWith("1 Day") || endsIn.startsWith("2 Days"),
+    quantity: rfq.quantity,
+    deliveryLocation: rfq.delivery_location || "Not specified",
+    tenderType: rfq.tender_type || "open",
+    description: rfq.description || "",
   }
 }
