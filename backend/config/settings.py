@@ -24,7 +24,9 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'cloudinary_storage',
     'django.contrib.staticfiles',
+    'cloudinary',
     'corsheaders',
     'rest_framework',
     'rest_framework.authtoken',
@@ -67,34 +69,14 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 database_url = os.getenv("DATABASE_URL")
-use_remote_db = os.getenv("USE_REMOTE_DB", "False").lower() == "true"
 
-if database_url:
-    ssl_required = database_url.startswith(("postgres://", "postgresql://"))
-    DATABASES = {
-        "default": dj_database_url.parse(database_url, conn_max_age=600, ssl_require=ssl_required),
-    }
-elif use_remote_db:
-    # If USE_REMOTE_DB is True, we MUST have the credentials.
-    # We use a dictionary-based check to ensure all required vars are present.
-    required_vars = ["SUPABASE_DB", "SUPABASE_USER", "SUPABASE_PASSWORD", "SUPABASE_HOST", "SUPABASE_DB_PORT"]
-    missing_vars = [var for var in required_vars if not os.getenv(var)]
-    
-    if missing_vars:
-        raise ValueError(f"USE_REMOTE_DB is True but the following environment variables are missing: {', '.join(missing_vars)}")
+if not database_url:
+    raise ValueError("DATABASE_URL environment variable is required.")
 
+ssl_required = database_url.startswith(("postgres://", "postgresql://"))
+conn_max_age = int(os.getenv("DJANGO_DB_CONN_MAX_AGE", "0"))
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("SUPABASE_DB"),
-        "USER": os.getenv("SUPABASE_USER"),
-        "PASSWORD": os.getenv("SUPABASE_PASSWORD"),
-        "HOST": os.getenv("SUPABASE_HOST"),
-        "PORT": os.getenv("SUPABASE_DB_PORT"),
-        "OPTIONS": {
-            "sslmode": "require",
-        },
-    }
+    "default": dj_database_url.parse(database_url, conn_max_age=conn_max_age, ssl_require=ssl_required),
 }
 
 # PASSWORD VALIDATION
@@ -107,10 +89,20 @@ TIME_ZONE = 'UTC'
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STORAGES = {
+    "default": {
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage" if os.getenv("CLOUDINARY_NAME") else "django.core.files.storage.FileSystemStorage",
+    },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
+
+CLOUDINARY_STORAGE = {
+    "CLOUD_NAME": os.getenv("CLOUDINARY_NAME", ""),
+    "API_KEY": os.getenv("CLOUDINARY_KEY", ""),
+    "API_SECRET": os.getenv("CLOUDINARY_SECRET", ""),
+}
+
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -146,3 +138,8 @@ REST_FRAMEWORK = {
         "vendor.permissions.IsApprovedUser",
     ],
 }
+
+PLATFORM_RAZORPAY_KEY_ID = os.getenv("PLATFORM_RAZORPAY_KEY_ID", "")
+PLATFORM_RAZORPAY_KEY_SECRET = os.getenv("PLATFORM_RAZORPAY_KEY_SECRET", "")
+PLATFORM_RAZORPAY_WEBHOOK_SECRET = os.getenv("PLATFORM_RAZORPAY_WEBHOOK_SECRET", "")
+

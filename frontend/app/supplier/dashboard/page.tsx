@@ -270,6 +270,10 @@ function SupplierDashboardPageContent() {
           router.replace("/supplier/profile")
           return
         }
+        if (!me.has_active_subscription) {
+          router.replace("/supplier/subscription")
+          return
+        }
         setUser(me)
         const [productData, orderData, rfqData] = await Promise.all([getProducts(), getOrders(), getRfqs()])
         setProducts(productData)
@@ -499,7 +503,7 @@ function SupplierDashboardPageContent() {
       }}
     >
       <SupplierDashboardHeader user={user} rfqs={rfqs} products={products} />
-      <SupplierSidebar active="dashboard" username={user.username} status={user.status} onSignOut={signOut} />
+      <SupplierSidebar active="dashboard" username={user.username} status={user.status} hasActiveSubscription={user.has_active_subscription} onSignOut={signOut} />
 
       <main className="px-4 py-8 pb-24 sm:px-6 lg:pl-[calc(18rem+2.5rem)] lg:pr-10 lg:py-10">
         <div className="mx-auto max-w-7xl">

@@ -14,12 +14,13 @@ from vendor.models.vendor_product_service import VendorProductService
 from vendor.serializers.vendor_order_serializer import VendorOrderSerializer, VendorOrderTrackingUpdateSerializer
 from vendor.utils.account_role import get_or_create_account_role
 from vendor.utils.order_events import log_order_event
+from vendor.permissions import HasActiveSubscription
 
 class VendorOrderViewSet(viewsets.ModelViewSet):
 
     queryset = VendorOrder.objects.none()
     serializer_class = VendorOrderSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasActiveSubscription]
 
     @staticmethod
     def _require_role(user, role, message):

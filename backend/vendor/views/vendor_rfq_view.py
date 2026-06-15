@@ -22,17 +22,18 @@ from vendor.serializers.vendor_rfq_serializer import (
 )
 from vendor.utils.account_role import get_or_create_account_role
 from vendor.utils.order_events import log_order_event
+from vendor.permissions import HasActiveSubscription
 
 
 class VendorRfqViewSet(viewsets.ModelViewSet):
     queryset = VendorRfq.objects.none()
     serializer_class = VendorRfqSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasActiveSubscription]
 
     def get_permissions(self):
-        if self.action in ["list", "retrieve"]:
+        if self.action in ["list", "retrieve"] and not self.request.user.is_authenticated:
             return [AllowAny()]
-        return [IsAuthenticated()]
+        return [IsAuthenticated(), HasActiveSubscription()]
 
     def get_queryset(self):
         queryset = (

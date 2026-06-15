@@ -20,6 +20,24 @@ from vendor.utils.admin_auth import (
 
 
 def _build_user_payload(user, account_profile):
+    from django.utils import timezone
+    from vendor.models.subscription import UserSubscription
+
+    active_plan_id = None
+    if getattr(user, "is_admin", False) or user.is_staff:
+        has_sub = True
+    else:
+        now = timezone.now()
+        active_sub = UserSubscription.objects.filter(
+            user=user,
+            status="active",
+            start_date__lte=now,
+            end_date__gte=now
+        ).first()
+        has_sub = active_sub is not None
+        if active_sub and active_sub.plan:
+            active_plan_id = active_sub.plan.id
+
     return {
         "id": user.id,
         "username": user.username,
@@ -27,7 +45,10 @@ def _build_user_payload(user, account_profile):
         "role": account_profile.role,
         "status": account_profile.status,
         "buyer_type": account_profile.buyer_type or None,
+        "has_active_subscription": has_sub,
+        "active_subscription_plan_id": active_plan_id,
     }
+
 
 
 def _build_admin_payload(admin_user):

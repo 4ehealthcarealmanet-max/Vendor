@@ -2,13 +2,14 @@
 
 import Link from "next/link"
 
-type BuyerSection = "dashboard" | "orders" | "rfqs" | "marketplace" | "profile"
+type BuyerSection = "dashboard" | "orders" | "rfqs" | "marketplace" | "profile" | "subscription"
 
 type BuyerSidebarProps = {
   active: BuyerSection
   username?: string
   buyerType?: string | null
   status?: string
+  hasActiveSubscription?: boolean
   onSignOut?: () => void
 }
 
@@ -17,6 +18,7 @@ const navItems: Array<{ key: BuyerSection; href: string; label: string; glyph: s
   { key: "orders", href: "/buyer/orders", label: "Orders", glyph: "OR" },
   { key: "rfqs", href: "/buyer/rfq?view=my", label: "MY RFQs", glyph: "RF" },
   { key: "marketplace", href: "/buyer/products", label: "Marketplace", glyph: "MK" },
+  { key: "subscription", href: "/buyer/subscription", label: "Subscription", glyph: "SB" },
 ]
 
 const getProfileInitials = (value?: string | null) => {
@@ -34,10 +36,21 @@ export default function BuyerSidebar({
   username,
   buyerType,
   status,
+  hasActiveSubscription = true,
   onSignOut,
 }: BuyerSidebarProps) {
   const initials = getProfileInitials(username)
   const isPending = status === "pending"
+
+  const isItemDisabled = (itemKey: BuyerSection) => {
+    if (isPending) {
+      return itemKey !== "subscription"
+    }
+    if (!hasActiveSubscription) {
+      return itemKey !== "subscription"
+    }
+    return false
+  }
 
   return (
     <>
@@ -63,39 +76,42 @@ export default function BuyerSidebar({
           </div>
 
           <div className="space-y-1">
-            {navItems.map((item) => (
-              <Link
-                key={item.key}
-                href={isPending ? "#" : item.href}
-                onClick={(e) => {
-                  if (isPending) e.preventDefault()
-                }}
-                className={`flex items-center gap-4 rounded-xl px-4 py-3.5 text-sm font-bold transition-all duration-300 zoom-touch ${item.key === active
-                    ? "border border-[#dbe8ff] bg-[#f3f7ff] text-[#0f4fb6] shadow-[0_8px_20px_rgba(15,79,182,0.05)]"
-                    : isPending
-                      ? "cursor-not-allowed opacity-40 text-[#64748b]"
-                      : "text-[#64748b] hover:bg-[#f8fafc] hover:text-[#0f172a] hover:translate-x-1"
-                  }`}
-              >
-                <div className="relative">
-                  <SidebarGlyph label={item.glyph} tone={item.key === active ? "blue" : "slate"} />
-                  {isPending && (
-                    <div className="absolute -right-1 -top-1 rounded-full bg-white p-0.5 text-[#64748b] shadow-sm">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-                    </div>
-                  )}
-                </div>
-                {item.label}
-              </Link>
-            ))}
+            {navItems.map((item) => {
+              const disabled = isItemDisabled(item.key)
+              return (
+                <Link
+                  key={item.key}
+                  href={disabled ? "#" : item.href}
+                  onClick={(e) => {
+                    if (disabled) e.preventDefault()
+                  }}
+                  className={`flex items-center gap-4 rounded-xl px-4 py-3.5 text-sm font-bold transition-all duration-300 zoom-touch ${item.key === active
+                      ? "border border-[#dbe8ff] bg-[#f3f7ff] text-[#0f4fb6] shadow-[0_8px_20px_rgba(15,79,182,0.05)]"
+                      : disabled
+                        ? "cursor-not-allowed opacity-40 text-[#64748b]"
+                        : "text-[#64748b] hover:bg-[#f8fafc] hover:text-[#0f172a] hover:translate-x-1"
+                    }`}
+                >
+                  <div className="relative">
+                    <SidebarGlyph label={item.glyph} tone={item.key === active ? "blue" : "slate"} />
+                    {disabled && (
+                      <div className="absolute -right-1 -top-1 rounded-full bg-white p-0.5 text-[#64748b] shadow-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                      </div>
+                    )}
+                  </div>
+                  {item.label}
+                </Link>
+              )
+            })}
           </div>
 
           <Link
-            href={isPending ? "#" : "/buyer/rfq?view=new"}
+            href={(isPending || !hasActiveSubscription) ? "#" : "/buyer/rfq?view=new"}
             onClick={(e) => {
-              if (isPending) e.preventDefault()
+              if (isPending || !hasActiveSubscription) e.preventDefault()
             }}
-            className={`mt-8 inline-flex items-center justify-center gap-2 rounded-[1.2rem] px-5 py-4 text-sm font-black text-white shadow-[0_20px_35px_rgba(17,24,39,0.18)] transition-all duration-300 zoom-touch ${isPending
+            className={`mt-8 inline-flex items-center justify-center gap-2 rounded-[1.2rem] px-5 py-4 text-sm font-black text-white shadow-[0_20px_35px_rgba(17,24,39,0.18)] transition-all duration-300 zoom-touch ${(isPending || !hasActiveSubscription)
                 ? "cursor-not-allowed bg-slate-400 opacity-60"
                 : "bg-[#111827] hover:shadow-[0_22px_40px_rgba(17,24,39,0.28)] hover:scale-[1.02]"
               }`}
@@ -137,20 +153,23 @@ export default function BuyerSidebar({
       </aside>
 
       <nav className="fixed bottom-0 left-0 z-40 flex w-full items-center justify-around border-t border-white/70 bg-white/85 px-4 py-3 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
-        {navItems.map((item) => (
-          <Link
-            key={item.key}
-            href={isPending ? "#" : item.href}
-            onClick={(e) => {
-              if (isPending) e.preventDefault()
-            }}
-            className={`flex flex-col items-center gap-1 px-2 text-[10px] font-black uppercase tracking-[0.18em] ${item.key === active ? "text-[#0f4fb6]" : "text-[#94a3b8]"
-              } ${isPending ? "opacity-40" : ""}`}
-          >
-            <SidebarGlyph label={item.glyph} tone={item.key === active ? "blue" : "slate"} small />
-            {item.label}
-          </Link>
-        ))}
+        {navItems.map((item) => {
+          const disabled = isItemDisabled(item.key)
+          return (
+            <Link
+              key={item.key}
+              href={disabled ? "#" : item.href}
+              onClick={(e) => {
+                if (disabled) e.preventDefault()
+              }}
+              className={`flex flex-col items-center gap-1 px-2 text-[10px] font-black uppercase tracking-[0.18em] ${item.key === active ? "text-[#0f4fb6]" : "text-[#94a3b8]"
+                } ${disabled ? "opacity-40" : ""}`}
+            >
+              <SidebarGlyph label={item.glyph} tone={item.key === active ? "blue" : "slate"} small />
+              {item.label}
+            </Link>
+          )
+        })}
       </nav>
     </>
   )
@@ -258,5 +277,16 @@ function SidebarGlyphIcon({ label, className }: { label: string; className: stri
     )
   }
 
+  if (label === "SB") {
+    return (
+      <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="2" y="5" width="20" height="14" rx="2" />
+        <line x1="2" y1="10" x2="22" y2="10" />
+        <line x1="7" y1="15" x2="11" y2="15" />
+      </svg>
+    )
+  }
+
   return <span className="text-[10px] font-black uppercase">{label}</span>
 }
+

@@ -1,11 +1,18 @@
-import type { CSSProperties } from "react"
 import type { Metadata } from "next"
+import { Manrope, Space_Grotesk } from "next/font/google"
 import "./globals.css"
 
-const fontVariables: CSSProperties = {
-  ["--font-body" as string]: '"Segoe UI", "Helvetica Neue", Arial, sans-serif',
-  ["--font-display" as string]: '"Aptos", "Trebuchet MS", "Segoe UI", sans-serif',
-}
+const manrope = Manrope({
+  subsets: ["latin"],
+  variable: "--font-body",
+  display: "swap",
+})
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+})
 
 export const metadata: Metadata = {
   title: "MedVendor | Premium Healthcare Procurement Marketplace",
@@ -21,7 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="scroll-smooth">
-      <body className="antialiased" style={fontVariables}>
+      <body className={`${manrope.variable} ${spaceGrotesk.variable} antialiased`}>
         {children}
         <NotificationToast />
       </body>

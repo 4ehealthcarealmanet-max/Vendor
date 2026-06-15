@@ -194,7 +194,7 @@ export default function OrderPage() {
   const [orders, setOrders] = useState<VendorOrder[]>([])
   const [userId, setUserId] = useState<number | null>(null)
   const [username, setUsername] = useState<string>("")
-  const [userRole, setUserRole] = useState<"supplier" | "buyer" | "">("")
+  const [userRole, setUserRole] = useState<"supplier" | "buyer" | "admin" | "">("")
   const [buyerType, setBuyerType] = useState<string>("")
   const [feedback, setFeedback] = useState<string>("")
   const [orderFilter, setOrderFilter] = useState<SupplierOrderFilter>("all")
@@ -202,6 +202,7 @@ export default function OrderPage() {
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null)
   const [shortageQuantity, setShortageQuantity] = useState<number>(1)
+  const [hasActiveSub, setHasActiveSub] = useState(true)
 
   useEffect(() => {
     const loadData = async () => {
@@ -215,10 +216,15 @@ export default function OrderPage() {
           router.replace("/buyer/orders")
           return
         }
+        if (!me.has_active_subscription) {
+          router.replace(me.role === "supplier" ? "/supplier/subscription" : "/buyer/subscription")
+          return
+        }
         setUserId(me.id)
         setUsername(me.username)
         setUserRole(me.role)
         setBuyerType(me.buyer_type || "")
+        setHasActiveSub(me.has_active_subscription ?? true)
         const [productList, orderList] = await Promise.all([getProducts(), getOrders()])
         setProducts(productList)
         setOrders(orderList)
@@ -394,12 +400,14 @@ export default function OrderPage() {
           active="orders"
           username={username}
           buyerType={buyerType || null}
+          hasActiveSubscription={hasActiveSub}
           onSignOut={signOut}
         />
       ) : isSupplierRoute ? (
         <SupplierSidebar
           active="orders"
           username={username}
+          hasActiveSubscription={hasActiveSub}
           onSignOut={signOut}
         />
       ) : null}

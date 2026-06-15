@@ -1,12 +1,20 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import AdminTopBar from "@/components/admin/AdminTopBar"
 import { getAdminUsers, getCurrentUser } from "@/services"
 import { AdminUser, AuthUser } from "@/types"
 
 export default function AdminDashboardPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#f7f9fb] flex items-center justify-center"><p className="font-black uppercase tracking-[0.3em] text-[#94a3b8] animate-pulse">Loading command center...</p></div>}>
+      <AdminDashboardContent />
+    </Suspense>
+  )
+}
+
+function AdminDashboardContent() {
   const searchParams = useSearchParams()
   const initialRole = searchParams.get("role") || "all"
 

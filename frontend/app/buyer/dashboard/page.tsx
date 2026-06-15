@@ -241,6 +241,10 @@ export default function BuyerDashboardPage() {
           router.replace("/buyer/profile")
           return
         }
+        if (!me.has_active_subscription) {
+          router.replace("/buyer/subscription")
+          return
+        }
 
         setUser(me)
         const [productData, orderData, rfqData] = await Promise.all([getProducts(), getOrders(), getRfqs()])
