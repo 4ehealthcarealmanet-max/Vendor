@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { getPublicRfqs, getToken } from "@/services"
 import type { VendorRfq } from "@/services"
 import {
@@ -31,6 +31,7 @@ import {
 } from "lucide-react"
 
 const animationStyles = `
+  /* ── existing loops ── */
   @keyframes scrollVerified {
     0%, 20% { transform: translateY(0); opacity: 1; }
     25% { transform: translateY(-24px); opacity: 0; }
@@ -38,42 +39,26 @@ const animationStyles = `
     85% { transform: translateY(24px); opacity: 0; }
     100% { transform: translateY(0); opacity: 1; }
   }
-  .animate-scroll-verified {
-    animation: scrollVerified 3.8s ease-in-out infinite;
-  }
-  
+  .animate-scroll-verified { animation: scrollVerified 3.8s ease-in-out infinite; }
+
   @keyframes floatCard {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-8px); }
   }
-  .animate-float-card {
-    animation: floatCard 8s ease-in-out infinite;
-  }
+  .animate-float-card { animation: floatCard 8s ease-in-out infinite; }
 
   @keyframes stepPulse {
-    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
-    50% { transform: scale(1.08); box-shadow: 0 0 0 12px rgba(37, 99, 235, 0); }
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37,99,235,0.4); }
+    50% { transform: scale(1.08); box-shadow: 0 0 0 12px rgba(37,99,235,0); }
   }
-  .animate-step-pulse {
-    animation: stepPulse 3s ease-in-out infinite;
-  }
+  .animate-step-pulse { animation: stepPulse 3s ease-in-out infinite; }
 
   @keyframes orbitRing {
     0% { transform: scale(1); opacity: 0.6; }
     50% { transform: scale(1.6); opacity: 0; }
     100% { transform: scale(1); opacity: 0; }
   }
-  .animate-orbit-ring {
-    animation: orbitRing 2.2s ease-out infinite;
-  }
-
-  @keyframes fadeSlideUp {
-    0% { opacity: 0; transform: translateY(28px); }
-    100% { opacity: 1; transform: translateY(0); }
-  }
-  .animate-fade-slide-up {
-    animation: fadeSlideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
+  .animate-orbit-ring { animation: orbitRing 2.2s ease-out infinite; }
 
   @keyframes lineGrow {
     0% { transform: scaleY(0); }
@@ -84,31 +69,139 @@ const animationStyles = `
     transform-origin: top;
   }
 
+  /* ── scroll-reveal base states ── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(32px);
+    transition: opacity 0.9s cubic-bezier(0.22,1,0.36,1), transform 0.9s cubic-bezier(0.22,1,0.36,1);
+  }
+  .reveal-left {
+    opacity: 0;
+    transform: translateX(-44px);
+    transition: opacity 0.9s cubic-bezier(0.22,1,0.36,1), transform 0.9s cubic-bezier(0.22,1,0.36,1);
+  }
+  .reveal-right {
+    opacity: 0;
+    transform: translateX(44px);
+    transition: opacity 0.9s cubic-bezier(0.22,1,0.36,1), transform 0.9s cubic-bezier(0.22,1,0.36,1);
+  }
+  .reveal-scale {
+    opacity: 0;
+    transform: scale(0.9);
+    transition: opacity 0.9s cubic-bezier(0.22,1,0.36,1), transform 0.9s cubic-bezier(0.22,1,0.36,1);
+  }
+  .reveal.is-visible,
+  .reveal-left.is-visible,
+  .reveal-right.is-visible,
+  .reveal-scale.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+  /* stagger delays — comfortable reading pace */
+  .reveal-d1 { transition-delay: 0.12s; }
+  .reveal-d2 { transition-delay: 0.24s; }
+  .reveal-d3 { transition-delay: 0.36s; }
+  .reveal-d4 { transition-delay: 0.50s; }
+  .reveal-d5 { transition-delay: 0.64s; }
+
+  /* ── scroll-triggered for lifecycle steps ── */
+  .animate-fade-slide-up {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity 0.85s cubic-bezier(0.22,1,0.36,1), transform 0.85s cubic-bezier(0.22,1,0.36,1);
+  }
+  .animate-fade-slide-up.is-visible { opacity: 1; transform: none; }
+
+  /* ── grid + card ── */
   .bg-premium-grid {
     background-size: 40px 40px;
-    background-image: 
-      linear-gradient(to right, rgba(37, 99, 235, 0.02) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(37, 99, 235, 0.02) 1px, transparent 1px);
+    background-image:
+      linear-gradient(to right, rgba(37,99,235,0.02) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(37,99,235,0.02) 1px, transparent 1px);
   }
-
   .interactive-glass-card {
     background: #FFFFFF;
     border: 1px solid #E2E8F0;
-    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 10px 30px rgba(15,23,42,0.04);
+    transition: all 0.4s cubic-bezier(0.16,1,0.3,1);
   }
   .interactive-glass-card:hover {
-    transform: translateY(-4px);
-    border-color: rgba(37, 99, 235, 0.2);
-    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+    transform: translateY(-6px) scale(1.015);
+    border-color: rgba(37,99,235,0.25);
+    box-shadow: 0 24px 48px rgba(15,23,42,0.10), 0 0 0 1px rgba(37,99,235,0.08);
   }
+
+  /* ── tender card shimmer on hover ── */
+  .tender-card {
+    position: relative;
+    overflow: hidden;
+  }
+  .tender-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent 40%, rgba(37,99,235,0.04) 100%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+  .tender-card:hover::before { opacity: 1; }
+
+  /* ── CTA section pulse glow ── */
+  @keyframes ctaGlow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0); }
+    50% { box-shadow: 0 0 40px 4px rgba(37,99,235,0.12); }
+  }
+  .cta-section { animation: ctaGlow 4s ease-in-out infinite; }
+
+  /* ── benefit list item hover ── */
+  .benefit-item {
+    transition: transform 0.25s ease, color 0.25s ease;
+  }
+  .benefit-item:hover { transform: translateX(6px); }
+
+  /* ── hero badge float ── */
+  @keyframes badgeFloat {
+    0%, 100% { transform: translateY(0) rotate(-1deg); }
+    50% { transform: translateY(-6px) rotate(1deg); }
+  }
+  .badge-float { animation: badgeFloat 5s ease-in-out infinite; }
 `
+
+/** One-shot IntersectionObserver: adds 'is-visible' when element enters viewport */
+function useScrollReveal(rootMargin = "-40px", trigger?: unknown) {
+  const ref = useRef<HTMLElement | null>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const targets = el.querySelectorAll(
+      ".reveal, .reveal-left, .reveal-right, .reveal-scale, .animate-fade-slide-up"
+    )
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible")
+            observer.unobserve(entry.target)
+          }
+        })
+      },
+      { rootMargin, threshold: 0.08 }
+    )
+    targets.forEach((t) => observer.observe(t))
+    return () => observer.disconnect()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trigger])
+  return ref
+}
 
 export default function PublicLandingPage() {
   const [rfqs, setRfqs] = useState<VendorRfq[]>([])
   const [loadingRfqs, setLoadingRfqs] = useState(true)
   const [hasToken, setHasToken] = useState(false)
   const [activeHighlight, setActiveHighlight] = useState(0)
+  const mainRef = useScrollReveal("-40px", loadingRfqs)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -129,7 +222,8 @@ export default function PublicLandingPage() {
       try {
         const data = await getPublicRfqs()
         if (isActive) setRfqs(data)
-      } catch {
+      } catch (err) {
+        console.error("[PublicLandingPage] Failed to load public RFQs:", err)
         if (isActive) setRfqs([])
       } finally {
         if (isActive) setLoadingRfqs(false)
@@ -146,7 +240,7 @@ export default function PublicLandingPage() {
   }, [])
 
   const activeRfqs = useMemo(
-    () => rfqs.filter((rfq) => rfq.status === "open" || rfq.status === "under_review"),
+    () => rfqs.filter((rfq) => rfq.status === "open" || rfq.status === "under_review" || rfq.status === "closed"),
     [rfqs]
   )
 
@@ -186,7 +280,7 @@ export default function PublicLandingPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F8FAFC] text-[#0F172A] selection:bg-[#dae2ff] selection:text-[#001847] relative overflow-hidden">
+    <main ref={mainRef as React.RefObject<HTMLElement>} className="min-h-screen bg-[#F8FAFC] text-[#0F172A] selection:bg-[#dae2ff] selection:text-[#001847] relative overflow-hidden">
       <style>{animationStyles}</style>
 
       <Navbar />
@@ -196,21 +290,21 @@ export default function PublicLandingPage() {
         
         {/* Left Content */}
         <div className="md:col-span-6 lg:col-span-6 space-y-8 text-center md:text-left order-2 md:order-none">
-          <h1 className="max-w-2xl font-[family-name:var(--font-display)] text-4xl sm:text-5xl md:text-6xl font-extrabold leading-[1.02] tracking-[-0.05em] text-[#0F172A]">
+          <h1 className="reveal max-w-2xl font-[family-name:var(--font-display)] text-4xl sm:text-5xl md:text-6xl font-extrabold leading-[1.02] tracking-[-0.05em] text-[#0F172A]">
             The Future of <br />
             <span className="text-[#2563EB]">
               Clinical Sourcing
             </span>
           </h1>
 
-          <p className="max-w-xl mx-auto md:mx-0 text-sm md:text-base leading-relaxed text-[#64748B]">
+          <p className="reveal reveal-d1 max-w-xl mx-auto md:mx-0 text-sm md:text-base leading-relaxed text-[#64748B]">
             MedVendor transforms healthcare procurement into a seamless, high-performance operation.
             Navigate the marketplace with verified suppliers, live RFQs, and secure escrow workflows.
           </p>
 
           {/* Hero Feature Highlights with Icons */}
           {/* Desktop grid (hidden on mobile, shown on sm and above) */}
-          <div className="hidden sm:grid gap-6 sm:grid-cols-2 max-w-xl mx-auto md:mx-0 pt-2">
+          <div className="reveal reveal-d2 hidden sm:grid gap-6 sm:grid-cols-2 max-w-xl mx-auto md:mx-0 pt-2">
             <div className="flex flex-col items-center text-center sm:flex-row sm:items-start sm:text-left gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB]">
                 <Shield className="h-5 w-5" />
@@ -324,7 +418,7 @@ export default function PublicLandingPage() {
             })}
           </div>
 
-          <div className="flex flex-col sm:flex-row justify-center md:justify-start gap-4 pt-2">
+          <div className="reveal reveal-d3 flex flex-col sm:flex-row justify-center md:justify-start gap-4 pt-2">
             <button 
               onClick={() => triggerAuthModal("register", "buyer")}
               className="inline-flex items-center justify-center rounded-2xl bg-[#2563EB] px-6 py-3.5 text-sm font-bold text-white shadow-[0_16px_34px_rgba(37,99,235,0.22)] hover:bg-[#1D4ED8] transition-all duration-300 active:scale-95"
@@ -341,7 +435,7 @@ export default function PublicLandingPage() {
         </div>
 
         {/* Right Visuals */}
-        <div className="relative md:col-span-6 lg:col-span-6 flex justify-center w-full order-1 md:order-none">
+        <div className="reveal-right relative md:col-span-6 lg:col-span-6 flex justify-center w-full order-1 md:order-none">
           <div className="relative w-full max-w-[640px]">
             <div className="relative w-full aspect-[4/3] overflow-hidden rounded-3xl border border-[#E2E8F0] shadow-xl transition-all duration-300 hover:-translate-y-1.5 hover:scale-[1.01] group">
               <Image
@@ -355,7 +449,7 @@ export default function PublicLandingPage() {
             </div>
 
             {/* Floating Verified Badge */}
-            <div className="absolute -top-4 left-4 sm:-top-6 sm:-left-4 w-fit bg-[#FFFFFF] border border-[#E2E8F0] rounded-xl p-2.5 shadow-xl flex items-center gap-2.5 transition-all duration-300 hover:-translate-y-1">
+            <div className="badge-float absolute -top-4 left-4 sm:-top-6 sm:-left-4 w-fit bg-[#FFFFFF] border border-[#E2E8F0] rounded-xl p-2.5 shadow-xl flex items-center gap-2.5">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
                 <BadgeCheck className="h-5 w-5" />
               </div>
@@ -374,9 +468,9 @@ export default function PublicLandingPage() {
         <div className="mx-auto max-w-7xl px-6 md:px-12 space-y-20 md:space-y-36">
           
           {/* Buyer Row */}
-          <div className="grid gap-12 md:grid-cols-12 md:items-center">
+          <div className="grid gap-12 md:grid-cols-12 md:items-center reveal">
             {/* Left Side Image */}
-            <div className="md:col-span-6 flex justify-center w-full order-1 md:order-none">
+            <div className="reveal-left md:col-span-6 flex justify-center w-full order-1 md:order-none">
               <div className="relative w-full max-w-[580px] aspect-[4/3] overflow-hidden rounded-3xl border border-[#E2E8F0] shadow-lg transition-all duration-300 hover:-translate-y-1.5 hover:scale-[1.01] group">
                 <Image
                   src="/images/buyer-human-sourcing-v2.png"
@@ -388,7 +482,7 @@ export default function PublicLandingPage() {
               </div>
             </div>
             {/* Right Side Content */}
-            <div className="md:col-span-6 space-y-6 order-2 md:order-none">
+            <div className="reveal-right reveal-d1 md:col-span-6 space-y-6 order-2 md:order-none">
               <div className="flex items-center gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#DBEAFE] border border-blue-100 text-[#2563EB] shadow-sm">
                   <Hospital className="h-6 w-6" />
@@ -402,7 +496,7 @@ export default function PublicLandingPage() {
               </p>
               <ul className="space-y-3 pt-2">
                 {buyerBenefits.map((benefit) => (
-                  <li key={benefit} className="flex items-center gap-3 text-sm font-semibold text-[#0F172A]">
+                  <li key={benefit} className="benefit-item flex items-center gap-3 text-sm font-semibold text-[#0F172A]">
                     <span className="text-[#14B8A6]">
                       <CheckCircle className="h-5 w-5" />
                     </span>
@@ -424,9 +518,9 @@ export default function PublicLandingPage() {
           </div>
 
           {/* Supplier Row */}
-          <div className="grid gap-12 md:grid-cols-12 md:items-center">
+          <div className="grid gap-12 md:grid-cols-12 md:items-center reveal">
             {/* Left Side Content (Rendered below on mobile, left on desktop) */}
-            <div className="md:col-span-6 space-y-6 order-2 md:order-none">
+            <div className="reveal-left reveal-d1 md:col-span-6 space-y-6 order-2 md:order-none">
               <div className="flex items-center gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-teal-50 border border-teal-150 text-[#14B8A6] shadow-sm">
                   <Package className="h-6 w-6" />
@@ -440,7 +534,7 @@ export default function PublicLandingPage() {
               </p>
               <ul className="space-y-3 pt-2">
                 {supplierBenefits.map((benefit) => (
-                  <li key={benefit} className="flex items-center gap-3 text-sm font-semibold text-[#0F172A]">
+                  <li key={benefit} className="benefit-item flex items-center gap-3 text-sm font-semibold text-[#0F172A]">
                     <span className="text-[#14B8A6]">
                       <CheckCircle className="h-5 w-5" />
                     </span>
@@ -460,7 +554,7 @@ export default function PublicLandingPage() {
               </div>
             </div>
             {/* Right Side Image (Rendered on top on mobile, right on desktop) */}
-            <div className="md:col-span-6 flex justify-center w-full order-1 md:order-none">
+            <div className="reveal-right md:col-span-6 flex justify-center w-full order-1 md:order-none">
               <div className="relative w-full max-w-[580px] aspect-[4/3] overflow-hidden rounded-3xl border border-[#E2E8F0] shadow-lg transition-all duration-300 hover:-translate-y-1.5 hover:scale-[1.01] group">
                 <Image
                   src="/images/supplier-human-logistics-v2.png"
@@ -480,7 +574,7 @@ export default function PublicLandingPage() {
       <section id="tenders" className="w-full bg-[#F8FAFC] py-16 md:py-24">
         <div className="mx-auto max-w-7xl px-6 md:px-12">
           <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between border-b border-[#E2E8F0] pb-8">
-            <div>
+            <div className="reveal">
               <h2 className="font-[family-name:var(--font-display)] text-3xl font-black tracking-[-0.04em] text-[#0F172A]">
                 Live Public <span className="text-[#2563EB]">Tenders</span>
               </h2>
@@ -489,7 +583,7 @@ export default function PublicLandingPage() {
               </p>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="reveal reveal-d1 flex items-center gap-3">
               <span className="rounded-full bg-blue-50 border border-blue-100 px-3 py-1 text-xs font-bold text-[#2563EB]">
                 {loadingRfqs ? "Refreshing..." : "Live Market Feed"}
               </span>
@@ -520,7 +614,7 @@ export default function PublicLandingPage() {
                 {displayedTenders.map((tender) => (
                   <article 
                     key={tender.id} 
-                    className="group relative flex flex-col items-center text-center rounded-3xl border border-[#E2E8F0] bg-[#FFFFFF] p-8 shadow-sm transition-all duration-500 ease-out hover:-translate-y-2 hover:border-[#2563EB]/40 hover:shadow-xl hover:shadow-[#2563EB]/5"
+                    className="tender-card reveal reveal-d1 group relative flex flex-col items-center text-center rounded-3xl border border-[#E2E8F0] bg-[#FFFFFF] p-8 shadow-sm transition-all duration-500 ease-out hover:-translate-y-2 hover:border-[#2563EB]/40 hover:shadow-xl hover:shadow-[#2563EB]/5"
                   >
                     {/* Centered Initials */}
                     <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 border border-blue-100 text-sm font-black text-[#2563EB] transition-transform duration-300 group-hover:scale-110 mb-4">
@@ -586,10 +680,12 @@ export default function PublicLandingPage() {
                       </div>
                       <div className="space-y-1 border-l border-slate-100">
                         <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#94A3B8] flex items-center justify-center gap-1">
-                          <Calendar className="h-3 w-3 text-[#F59E0B]" />
+                          <Calendar className={`h-3 w-3 ${tender.endsIn === "Expired" ? "text-[#94A3B8]" : "text-[#F59E0B]"}`} />
                           Deadline
                         </p>
-                        <p className="text-sm font-black text-[#F59E0B]">{tender.endsIn}</p>
+                        <p className={`text-sm font-black ${tender.endsIn === "Expired" ? "text-[#94A3B8]" : tender.urgent ? "text-red-500" : "text-[#F59E0B]"}`}>
+                          {tender.endsIn}
+                        </p>
                       </div>
                     </div>
 
@@ -613,7 +709,7 @@ export default function PublicLandingPage() {
       <section id="marketplace" className="border-t border-[#E2E8F0] bg-[#F1F5F9] py-16 md:py-24">
         <div className="mx-auto max-w-7xl px-6 md:px-12">
           
-          <div className="mb-12 max-w-2xl">
+          <div className="reveal mb-12 max-w-2xl">
             <h2 className="font-[family-name:var(--font-display)] text-3xl font-black tracking-[-0.04em] text-[#0F172A]">
               Platform <span className="text-[#2563EB]">Capabilities</span>
             </h2>
@@ -625,7 +721,7 @@ export default function PublicLandingPage() {
           <div className="grid gap-6 md:grid-cols-4 md:grid-rows-2">
             
             {/* Grid Box 1 (B2C Marketplace - Double Size) */}
-            <article className="interactive-glass-card group rounded-[2rem] p-6 md:col-span-2 md:row-span-2 flex flex-col justify-between relative overflow-hidden min-h-[22rem] bg-[#FFFFFF]">
+            <article className="reveal reveal-d1 interactive-glass-card group rounded-[2rem] p-6 md:col-span-2 md:row-span-2 flex flex-col justify-between relative overflow-hidden min-h-[22rem] bg-[#FFFFFF]">
               <div className="relative z-10 space-y-4">
                 <div className="space-y-2">
                   <h3 className="font-[family-name:var(--font-display)] text-xl font-bold tracking-[-0.03em] text-[#0F172A] transition-colors duration-300 group-hover:text-[#2563EB]">
@@ -662,7 +758,7 @@ export default function PublicLandingPage() {
             </article>
 
             {/* Grid Box 2 (RFQ Tendering) */}
-            <article className="interactive-glass-card group rounded-[2rem] p-6 md:col-span-2 flex items-center justify-between gap-4 bg-[#FFFFFF]">
+            <article className="reveal reveal-d2 interactive-glass-card group rounded-[2rem] p-6 md:col-span-2 flex items-center justify-between gap-4 bg-[#FFFFFF]">
               <div className="space-y-2">
                 <h3 className="font-[family-name:var(--font-display)] text-lg font-bold tracking-[-0.03em] text-[#0F172A] transition-colors duration-300 group-hover:text-[#2563EB]">
                   RFQ Tendering
@@ -677,7 +773,7 @@ export default function PublicLandingPage() {
             </article>
 
             {/* Grid Box 3 (Compliance Analytics) */}
-            <article className="interactive-glass-card group rounded-[2rem] p-6 flex flex-col justify-between bg-[#FFFFFF]">
+            <article className="reveal reveal-d3 interactive-glass-card group rounded-[2rem] p-6 flex flex-col justify-between bg-[#FFFFFF]">
               <div className="space-y-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-50 text-[#14B8A6] border border-teal-100 transition-all duration-500 group-hover:scale-110 group-hover:bg-[#14B8A6] group-hover:text-white">
                   <LineChart className="h-5 w-5" />
@@ -690,7 +786,7 @@ export default function PublicLandingPage() {
             </article>
 
             {/* Grid Box 4 (Inventory Control) */}
-            <article className="interactive-glass-card group rounded-[2rem] p-6 flex flex-col justify-between bg-[#FFFFFF]">
+            <article className="reveal reveal-d4 interactive-glass-card group rounded-[2rem] p-6 flex flex-col justify-between bg-[#FFFFFF]">
               <div className="space-y-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-[#F59E0B] border border-amber-100 transition-all duration-500 group-hover:scale-110 group-hover:bg-[#F59E0B] group-hover:text-white">
                   <Boxes className="h-5 w-5" />
@@ -720,7 +816,7 @@ export default function PublicLandingPage() {
 
         <div className="relative z-10 mx-auto max-w-7xl px-6 md:px-12">
           
-          <div className="text-center mb-16 space-y-4">
+          <div className="reveal text-center mb-16 space-y-4">
             <h2 className="font-[family-name:var(--font-display)] text-3xl md:text-4xl font-extrabold tracking-[-0.04em] text-[#0F172A]">
               The Procurement <span className="text-[#2563EB]">Lifecycle</span>
             </h2>
@@ -764,8 +860,8 @@ export default function PublicLandingPage() {
                 return (
                   <div
                     key={item.step}
-                    className="group flex flex-col items-center text-center animate-fade-slide-up transition-all duration-500 hover:-translate-y-2"
-                    style={{ animationDelay: `${index * 0.18}s` }}
+                    className="group flex flex-col items-center text-center animate-fade-slide-up hover:-translate-y-2"
+                    style={{ transitionDelay: `${index * 0.18}s` }}
                   >
                     {/* Glowing orbital node */}
                     <div className="relative mb-7 flex items-center justify-center">
@@ -834,9 +930,9 @@ export default function PublicLandingPage() {
         </div>
       </section>
 
-      <section className="w-full bg-[#F8FAFC] border-b border-[#E2E8F0] py-16 md:py-24">
+      <section className="cta-section w-full bg-[#F8FAFC] border-b border-[#E2E8F0] py-16 md:py-24">
         <div className="mx-auto max-w-7xl px-6 md:px-12">
-          <div className="max-w-2xl mx-auto text-center space-y-6">
+          <div className="reveal max-w-2xl mx-auto text-center space-y-6">
             <h2 className="font-[family-name:var(--font-display)] text-3xl md:text-5xl font-extrabold tracking-[-0.04em] leading-tight text-[#0F172A]">
               Ready to Modernize Your <br />
               <span className="text-[#2563EB]">Clinical Supply Chain?</span>
