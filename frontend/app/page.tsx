@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import PublicLandingPage from "@/components/home/PublicLandingPage"
-import { clearToken, getCurrentUser, getToken } from "@/services"
+import { clearToken, getCurrentUser, getToken, isAuthSessionError } from "@/services"
 
 export default function Home() {
   const router = useRouter()
@@ -27,9 +27,12 @@ export default function Home() {
           return
         }
         router.replace(user.role === "buyer" ? "/buyer/dashboard" : "/supplier/dashboard")
-      } catch {
-        clearToken()
-        if (active) setCheckingSession(false)
+      } catch (err) {
+        if (!active) return
+        if (isAuthSessionError(err)) {
+          clearToken()
+        }
+        setCheckingSession(false)
       }
     }
 

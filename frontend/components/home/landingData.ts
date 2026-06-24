@@ -88,7 +88,7 @@ export const getDeadlineLabel = (value: string) => {
   const diffMs = deadline.getTime() - today.getTime()
   const diffDays = Math.ceil(diffMs / 86_400_000)
 
-  if (diffDays < 0) return "Closed"
+  if (diffDays < 0) return "Expired"
   if (diffDays === 0) return "Ends Today"
   if (diffDays === 1) return "1 Day"
   return `${diffDays} Days`

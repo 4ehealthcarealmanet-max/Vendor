@@ -4,6 +4,8 @@ from rest_framework.routers import DefaultRouter
 from vendor.views.vendor_product_service_view import VendorProductServiceViewSet
 from vendor.views.vendor_order_view import VendorOrderViewSet
 from vendor.views.vendor_rfq_view import VendorRfqViewSet
+from vendor.views.notification_view import NotificationViewSet
+from vendor.views.vendor_message_view import VendorMessageViewSet
 from vendor.views.auth_view import (
     admin_user_status_view,
     admin_users_view,
@@ -21,6 +23,8 @@ router = DefaultRouter()
 router.register("products", VendorProductServiceViewSet)
 router.register("orders", VendorOrderViewSet)
 router.register("rfqs", VendorRfqViewSet)
+router.register("notifications", NotificationViewSet, basename="notifications")
+router.register("messages", VendorMessageViewSet, basename="messages")
 
 urlpatterns = [
     path("auth/register/", register_view),

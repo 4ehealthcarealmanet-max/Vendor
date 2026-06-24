@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import SupplierSidebar from "@/components/supplier/SupplierSidebar"
+import SupplierNavbar from "@/components/supplier/SupplierNavbar"
+import SupplierFooter from "@/components/supplier/SupplierFooter"
 import {
   clearToken,
   getCurrentUser,
@@ -206,12 +207,12 @@ export default function AnalyticsPage() {
   const totalRevenue = orders.reduce((sum, order) => sum + toNumber(order.total_amount), 0)
 
   return (
-    <>
+    <div className="min-h-screen bg-[#f6f8fb] flex flex-col">
       {isSupplierRoute ? (
-        <SupplierSidebar active="analytics" username={username} onSignOut={signOut} />
+        <SupplierNavbar active="analytics" username={username} onSignOut={signOut} />
       ) : null}
-      <main className={`px-4 py-8 md:px-6 md:py-12 ${isSupplierRoute ? "pb-24 lg:pl-[calc(18rem+2.5rem)]" : ""}`}>
-        <div className="health-container space-y-5">
+      <main className={`min-h-[75vh] flex-1 w-full py-8 md:py-12 ${isSupplierRoute ? "mx-auto max-w-[1600px] px-4 sm:px-6 md:px-8 pb-12" : ""}`}>
+        <div className={`${isSupplierRoute ? "w-full max-w-full" : "health-container"} space-y-5`}>
           <header className="analytics-card rounded-xl border border-[#dbe4ef] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
             <h1 className="text-2xl font-black tracking-[-0.03em] text-[#0f172a] md:text-3xl">
               Procurement Analytics Dashboard
@@ -378,7 +379,8 @@ export default function AnalyticsPage() {
           }
         `}</style>
       </main>
-    </>
+      {isSupplierRoute && <SupplierFooter />}
+    </div>
   )
 }
 

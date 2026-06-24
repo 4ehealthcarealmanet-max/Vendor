@@ -3,8 +3,36 @@
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Suspense, useDeferredValue, useEffect, useMemo, useState } from "react"
-import SupplierSidebar from "@/components/supplier/SupplierSidebar"
-import SupplierDashboardHeader from "@/components/supplier/SupplierDashboardHeader"
+import SupplierNavbar from "@/components/supplier/SupplierNavbar"
+import SupplierFooter from "@/components/supplier/SupplierFooter"
+import {
+  TrendingUp,
+  ShoppingCart,
+  FileText,
+  Truck,
+  ArrowUpRight,
+  Award,
+  Search,
+  CheckCircle,
+  AlertTriangle,
+  X,
+  Plus,
+  ArrowRight,
+  Briefcase,
+  ChevronRight,
+  Shield,
+  MapPin,
+  Calendar,
+  Percent,
+  Clock,
+  DollarSign,
+  Package,
+  Layers,
+  Inbox,
+  MessageSquare,
+  Settings,
+  CreditCard
+} from "lucide-react"
 import {
   acceptPo,
   clearToken,
@@ -31,26 +59,6 @@ const emptyQuoteForm: VendorQuotationInput = {
   notes: "",
 }
 
-function Icon({
-  type,
-  className,
-}: {
-  type: "search" | "bell" | "history" | "download" | "trend" | "award" | "bid" | "truck" | "invoice" | "rfq" | "alert" | "catalog"
-  className: string
-}) {
-  if (type === "search") return <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-  if (type === "bell") return <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M15 17H5l2-2v-4a5 5 0 1 1 10 0v4l2 2h-4" /><path d="M10 21a2 2 0 0 0 4 0" /></svg>
-  if (type === "history") return <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 3v5h5" /><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" /><path d="M12 7v5l4 2" /></svg>
-  if (type === "download") return <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></svg>
-  if (type === "trend") return <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 3v18h18" /><path d="m7 14 3-3 3 2 5-6" /></svg>
-  if (type === "award") return <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="8" r="5" /><path d="m8.21 13.89-1.42 6.11L12 17l5.21 3-1.42-6.12" /></svg>
-  if (type === "bid") return <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M7 17h10l4-4V3H3v10l4 4Z" /><path d="M8 8h8" /><path d="M8 12h5" /></svg>
-  if (type === "truck") return <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M10 17h4" /><path d="M3 7h13v10H3z" /><path d="M16 10h3l2 3v4h-5z" /><circle cx="7.5" cy="17.5" r="1.5" /><circle cx="17.5" cy="17.5" r="1.5" /></svg>
-  if (type === "invoice") return <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="6" width="18" height="12" rx="2" /><path d="M3 10h18" /><path d="M8 14h.01" /><path d="M12 14h4" /></svg>
-  if (type === "rfq") return <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16l4-2 4 2 4-2 4 2V8z" /><path d="M9 8h6" /><path d="M9 12h6" /></svg>
-  if (type === "alert") return <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>
-  return <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 6v12" /><path d="M6 12h12" /><rect x="4" y="4" width="16" height="16" rx="3" /></svg>
-}
 
 const toNumber = (value: string | number | null | undefined) => {
   const parsed = Number(value ?? 0)
@@ -82,6 +90,25 @@ const longDate = (value?: string | null) => {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return value
   return parsed.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+}
+
+const getRemainingTimeText = (deadlineStr: string) => {
+  if (!deadlineStr) return ""
+  const deadline = new Date(deadlineStr)
+  const diffTime = deadline.getTime() - Date.now()
+  if (diffTime <= 0) return "Ended"
+  
+  const diffHours = Math.floor(diffTime / (1000 * 60 * 60))
+  if (diffHours < 24) {
+    if (diffHours <= 0) {
+      const diffMins = Math.max(0, Math.floor(diffTime / (1000 * 60)))
+      return `${diffMins}m left`
+    }
+    return `${diffHours}h left`
+  }
+  
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  return `${diffDays}d left`
 }
 
 
@@ -137,6 +164,25 @@ const orderStatusLabel = (order?: VendorOrder | null) => {
   if (order.status === "po_accepted") return "PO Accepted"
   if (order.status === "po_released") return "PO Released"
   return readableStatus(order.status)
+}
+
+const getOrderStatusColor = (status: string) => {
+  switch (status) {
+    case "completed":
+    case "goods_received":
+      return "bg-emerald-50 text-emerald-700 border border-emerald-100/50"
+    case "shipped":
+    case "delivered":
+      return "bg-blue-50 text-blue-700 border border-blue-100/50"
+    case "processing":
+    case "po_accepted":
+    case "ready_to_dispatch":
+      return "bg-indigo-50 text-indigo-700 border border-indigo-100/50"
+    case "cancelled":
+      return "bg-rose-50 text-rose-700 border border-rose-100/50"
+    default:
+      return "bg-slate-50 text-slate-700 border border-slate-100/50"
+  }
 }
 
 const orderStatusDetail = (order?: VendorOrder | null) => {
@@ -233,6 +279,12 @@ function SupplierDashboardPageContent() {
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null)
   const [orderActionMessage, setOrderActionMessage] = useState("")
   const deferredSearch = useDeferredValue(searchText)
+
+  const getFirstName = (name: string | null | undefined) => {
+    if (!name) return "Shivam"
+    const firstPart = name.split(/[\s\-\.]+/)[0]
+    return firstPart.charAt(0).toUpperCase() + firstPart.slice(1)
+  }
 
   // Read URL search params
   useEffect(() => {
@@ -356,8 +408,14 @@ function SupplierDashboardPageContent() {
   const opportunities = useMemo<Opportunity[]>(
     () =>
       visibleRfqs
-        .filter((rfq) => (rfq.status === "open" || rfq.status === "under_review") && !respondedIds.has(rfq.id))
+        .filter((rfq) => {
+          if (rfq.status !== "open") return false
+          const deadline = new Date(rfq.quote_deadline)
+          if (deadline.getTime() < Date.now()) return false
+          return !respondedIds.has(rfq.id)
+        })
         .map((rfq) => ({ rfq, matches: opportunityMatches(rfq, supplierProducts) }))
+        .filter((item) => item.matches.length > 0)
         .sort((left, right) => new Date(left.rfq.quote_deadline).getTime() - new Date(right.rfq.quote_deadline).getTime()),
     [respondedIds, supplierProducts, visibleRfqs]
   )
@@ -490,101 +548,385 @@ function SupplierDashboardPageContent() {
   }
 
 
-  if (loading) return <main className="min-h-screen bg-[#f7f9fb] px-6 py-10 text-[#191c1e]"><div className="mx-auto max-w-7xl rounded-[2rem] border border-white/70 bg-white/80 p-8 text-sm font-semibold text-[#617084] shadow-[0_25px_60px_rgba(15,23,42,0.08)]">Loading supplier command center...</div></main>
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f7f9fb] text-[#191c1e] flex flex-col">
+        <SupplierNavbar active="dashboard" />
+        <main className="mx-auto max-w-[1600px] w-full px-4 sm:px-6 py-6 md:py-8 pb-10 md:px-8 lg:py-10 flex-1">
+          <div className="animate-pulse space-y-6">
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 sm:p-8">
+              <div className="h-4 w-24 bg-slate-100 rounded-full mb-4" />
+              <div className="h-7 w-64 bg-slate-100 rounded-lg mb-3" />
+              <div className="h-3 w-80 bg-slate-100 rounded mb-2" />
+              <div className="h-3 w-60 bg-slate-100 rounded" />
+            </div>
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="rounded-2xl border border-slate-100 bg-white p-5">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="h-2.5 w-20 bg-slate-100 rounded-full mb-3" />
+                      <div className="h-8 w-14 bg-slate-100 rounded-lg" />
+                    </div>
+                    <div className="h-11 w-11 bg-slate-100 rounded-xl" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </main>
+        <SupplierFooter />
+      </div>
+    )
+  }
 
   if (!user) return <main className="min-h-screen bg-[#f7f9fb] px-6 py-10 text-[#191c1e]"><div className="mx-auto max-w-3xl rounded-[2rem] border border-[#ffd7d7] bg-white p-8 shadow-[0_25px_60px_rgba(15,23,42,0.08)]"><h1 className="font-[family-name:var(--font-display)] text-3xl font-black">Supplier session unavailable</h1><p className="mt-4 text-sm leading-7 text-[#7a8698]">{error || "Your dashboard could not be opened."}</p><Link href="/login?next=%2Fsupplier%2Fdashboard" className="mt-6 inline-flex rounded-2xl bg-[#0f4fb6] px-5 py-3 text-sm font-bold text-white">Return to Login</Link></div></main>
 
   return (
     <div
-      className="supplier-dashboard-root min-h-screen bg-[#f7f9fb] text-[#191c1e]"
+      className="min-h-screen bg-[#f8fafc] text-[#0f172a] flex flex-col"
       style={{
         backgroundImage:
-          "radial-gradient(at 0% 0%, rgba(0,86,210,0.04) 0px, transparent 45%), radial-gradient(at 100% 0%, rgba(213,227,252,0.08) 0px, transparent 45%), radial-gradient(at 100% 100%, rgba(178,197,255,0.08) 0px, transparent 45%), radial-gradient(at 0% 100%, rgba(242,244,246,0.08) 0px, transparent 45%)",
+          "radial-gradient(at 0% 0%, rgba(79,70,229,0.03) 0px, transparent 45%), radial-gradient(at 100% 0%, rgba(59,130,246,0.04) 0px, transparent 45%), radial-gradient(at 100% 100%, rgba(99,102,241,0.03) 0px, transparent 45%)",
       }}
     >
-      <SupplierDashboardHeader user={user} rfqs={rfqs} products={products} />
-      <SupplierSidebar active="dashboard" username={user.username} status={user.status} hasActiveSubscription={user.has_active_subscription} onSignOut={signOut} />
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @keyframes stagePulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(79, 70, 229, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(79, 70, 229, 0); }
+          }
+          .stage-active-pulse {
+            animation: stagePulse 2s infinite;
+          }
+        `
+      }} />
 
-      <main className="px-4 py-8 pb-24 sm:px-6 lg:pl-[calc(18rem+2.5rem)] lg:pr-10 lg:py-10">
-        <div className="mx-auto max-w-7xl">
-          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <article className="rounded-[1.15rem] border border-[#e5e9f0] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-              <div className="flex items-center gap-4">
-                <span className="rounded-full bg-[#eef4ff] p-3 text-[#0f4fb6]"><Icon type="invoice" className="h-6 w-6" /></span>
-                <div>
-                  <p className="text-sm font-bold text-[#475569]">Total Orders</p>
-                  <p className="mt-1 text-3xl font-black text-[#0f172a]">{supplierOrders.length}</p>
-                </div>
+      <SupplierNavbar
+        active="dashboard"
+        username={user.username}
+        status={user.status}
+        onSignOut={signOut}
+        userEmail={user.email}
+        userRole={user.role}
+        searchText={searchText}
+        setSearchText={setSearchText}
+        pendingActions={pendingShipments.length}
+      />
+
+      <main className="flex-1 mx-auto max-w-[1600px] w-full px-4 sm:px-6 py-6 md:py-8 pb-10 md:px-8 lg:py-10">
+        <div className="mx-auto max-w-7xl space-y-6">
+
+          {/* Welcome Banner */}
+          <div className="relative overflow-hidden rounded-2xl border border-indigo-100/40 bg-gradient-to-br from-indigo-50/30 via-white to-blue-50/20 p-6 md:p-8 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="absolute -left-12 -top-12 h-40 w-40 rounded-full bg-indigo-55/10 blur-2xl pointer-events-none" />
+            <div className="absolute -right-12 -bottom-12 h-40 w-40 rounded-full bg-blue-55/10 blur-2xl pointer-events-none" />
+            <div className="relative max-w-2xl">
+              <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+                Hello, <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent font-black">{getFirstName(user.username)}</span>! 👋
+              </h1>
+              <p className="mt-2 text-sm text-slate-500 font-medium">
+                Welcome to your command center. You have <span className="text-indigo-650 font-bold">{pendingShipments.length} pending shipment updates</span> and <span className="text-indigo-650 font-bold">{shownOpportunities.length} matching RFQs</span>.
+              </p>
+            </div>
+            <div className="relative shrink-0 flex items-center justify-center">
+              <img
+                src="/images/supplier_banner.png"
+                alt="Supply Chain Overview"
+                className="h-28 md:h-32 object-contain rounded-xl border border-slate-100/50 shadow-sm"
+              />
+            </div>
+          </div>
+          
+          {/* Stats Cards Section */}
+          <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <Link
+              href="/supplier/orders"
+              className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm flex items-center justify-between min-h-[90px] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-indigo-300"
+            >
+              <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-indigo-55/10 blur-xl pointer-events-none group-hover:scale-110 transition-transform duration-300" />
+              <div>
+                <p className="text-xs font-bold text-slate-450 uppercase tracking-wider group-hover:text-indigo-600 transition-colors">Total Orders</p>
+                <p className="mt-1 text-2xl font-extrabold text-slate-900 tracking-tight group-hover:scale-105 origin-left transition-transform">{supplierOrders.length}</p>
               </div>
-            </article>
-            <article className="rounded-[1.15rem] border border-[#e5e9f0] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-              <div className="flex items-center gap-4">
-                <span className="rounded-full bg-[#eef4ff] p-3 text-[#0f4fb6]"><Icon type="search" className="h-6 w-6" /></span>
-                <div>
-                  <p className="text-sm font-bold text-[#475569]">Active RFQs</p>
-                  <p className="mt-1 text-3xl font-black text-[#0f172a]">{shownOpportunities.length}</p>
-                </div>
+              <span className="rounded-xl bg-indigo-50 p-2.5 text-indigo-600 border border-indigo-100/50 shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:bg-indigo-100/70 group-hover:text-indigo-750">
+                <ShoppingCart className="h-5 w-5" />
+              </span>
+            </Link>
+
+            <Link
+              href="/supplier/rfq"
+              className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm flex items-center justify-between min-h-[90px] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-blue-300"
+            >
+              <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-blue-55/10 blur-xl pointer-events-none group-hover:scale-110 transition-transform duration-300" />
+              <div>
+                <p className="text-xs font-bold text-slate-450 uppercase tracking-wider group-hover:text-blue-600 transition-colors">Active RFQs</p>
+                <p className="mt-1 text-2xl font-extrabold text-slate-900 tracking-tight group-hover:scale-105 origin-left transition-transform">{shownOpportunities.length}</p>
               </div>
-            </article>
-            <article className="rounded-[1.15rem] border border-[#e5e9f0] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-              <div className="flex items-center gap-4">
-                <span className="rounded-full bg-[#eef4ff] p-3 text-[#0f4fb6]"><Icon type="truck" className="h-6 w-6" /></span>
-                <div>
-                  <p className="text-sm font-bold text-[#475569]">Pending Shipments</p>
-                  <p className="mt-1 text-3xl font-black text-[#0f172a]">{pendingShipments.length}</p>
-                </div>
+              <span className="rounded-xl bg-blue-50 p-2.5 text-blue-600 border border-blue-100/50 shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:bg-blue-100/70 group-hover:text-blue-750">
+                <FileText className="h-5 w-5" />
+              </span>
+            </Link>
+
+            <Link
+              href="/supplier/orders"
+              className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm flex items-center justify-between min-h-[90px] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-amber-300"
+            >
+              <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-amber-55/10 blur-xl pointer-events-none group-hover:scale-110 transition-transform duration-300" />
+              <div>
+                <p className="text-xs font-bold text-slate-450 uppercase tracking-wider group-hover:text-amber-600 transition-colors">Pending Shipments</p>
+                <p className="mt-1 text-2xl font-extrabold text-slate-900 tracking-tight group-hover:scale-105 origin-left transition-transform">{pendingShipments.length}</p>
               </div>
-            </article>
-            <article className="rounded-[1.15rem] border border-[#e5e9f0] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-              <div className="flex items-center gap-4">
-                <span className="rounded-full bg-[#eef4ff] p-3 text-[#0f4fb6]"><Icon type="trend" className="h-6 w-6" /></span>
-                <div>
-                  <p className="text-sm font-bold text-[#475569]">Revenue</p>
-                  <p className="mt-1 text-3xl font-black text-[#0f172a]">{compactMoney(totalRevenue)}</p>
-                </div>
+              <span className="rounded-xl bg-amber-50 p-2.5 text-amber-600 border border-amber-100/50 shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:bg-amber-100/70 group-hover:text-amber-750">
+                <Truck className="h-5 w-5" />
+              </span>
+            </Link>
+
+            <Link
+              href="/supplier/analytics"
+              className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm flex items-center justify-between min-h-[90px] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-emerald-300"
+            >
+              <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-emerald-55/10 blur-xl pointer-events-none group-hover:scale-110 transition-transform duration-300" />
+              <div>
+                <p className="text-xs font-bold text-slate-450 uppercase tracking-wider group-hover:text-emerald-600 transition-colors">Total Revenue</p>
+                <p className="mt-1 text-2xl font-extrabold text-slate-900 tracking-tight group-hover:scale-105 origin-left transition-transform">{compactMoney(totalRevenue)}</p>
               </div>
-            </article>
+              <span className="rounded-xl bg-emerald-50 p-2.5 text-emerald-600 border border-emerald-100/50 shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:bg-emerald-100/70 group-hover:text-emerald-750">
+                <TrendingUp className="h-5 w-5" />
+              </span>
+            </Link>
           </section>
 
-          <section className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)]">
-              <article className="overflow-hidden rounded-[1.15rem] border border-[#e5e9f0] bg-white shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-                <div className="px-5 py-5">
-                  <h2 className="text-xl font-black text-[#0f172a]">Recent RFQs for You</h2>
+          {/* Quick Actions Grid Section */}
+          <div>
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Quick Actions</h2>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              <Link
+                href="/supplier/products/new"
+                className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-indigo-300 flex items-center justify-between min-h-[90px]"
+              >
+                <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-indigo-55/10 blur-xl pointer-events-none group-hover:scale-110 transition-transform duration-300" />
+                <div>
+                  <h3 className="font-extrabold text-slate-900 group-hover:text-indigo-750 transition text-sm">Add Product</h3>
                 </div>
-                <div className="overflow-x-auto px-5 pb-5">
-                  <table className="min-w-full overflow-hidden rounded-xl text-left">
-                    <thead className="bg-[#f6f8fb]">
+                <span className="rounded-xl bg-indigo-50 p-2.5 text-indigo-600 border border-indigo-100/50 transition-all duration-300 group-hover:scale-110 group-hover:bg-indigo-100/70 group-hover:text-indigo-750 shrink-0">
+                  <Plus className="h-5 w-5" />
+                </span>
+              </Link>
+
+              <Link
+                href="/supplier/messages"
+                className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-blue-300 flex items-center justify-between min-h-[90px]"
+              >
+                <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-blue-55/10 blur-xl pointer-events-none group-hover:scale-110 transition-transform duration-300" />
+                <div>
+                  <h3 className="font-extrabold text-slate-900 group-hover:text-blue-750 transition text-sm">Message Center</h3>
+                </div>
+                <span className="rounded-xl bg-blue-50 p-2.5 text-blue-600 border border-blue-100/50 transition-all duration-300 group-hover:scale-110 group-hover:bg-blue-100/70 group-hover:text-blue-750 shrink-0">
+                  <MessageSquare className="h-5 w-5" />
+                </span>
+              </Link>
+
+              <Link
+                href="/supplier/orders"
+                className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-amber-300 flex items-center justify-between min-h-[90px]"
+              >
+                <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-amber-55/10 blur-xl pointer-events-none group-hover:scale-110 transition-transform duration-300" />
+                <div>
+                  <h3 className="font-extrabold text-slate-900 group-hover:text-amber-750 transition text-sm">Track Orders</h3>
+                </div>
+                <span className="rounded-xl bg-amber-50 p-2.5 text-amber-600 border border-amber-100/50 transition-all duration-300 group-hover:scale-110 group-hover:bg-amber-100/70 group-hover:text-amber-750 shrink-0">
+                  <ShoppingCart className="h-5 w-5" />
+                </span>
+              </Link>
+
+              <Link
+                href="/supplier/settings"
+                className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md hover:border-emerald-300 flex items-center justify-between min-h-[90px]"
+              >
+                <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-emerald-55/10 blur-xl pointer-events-none group-hover:scale-110 transition-transform duration-300" />
+                <div>
+                  <h3 className="font-extrabold text-slate-900 group-hover:text-emerald-750 transition text-sm">Account Settings</h3>
+                </div>
+                <span className="rounded-xl bg-emerald-50 p-2.5 text-emerald-600 border border-emerald-100/50 transition-all duration-300 group-hover:scale-110 group-hover:bg-emerald-100/70 group-hover:text-emerald-750 shrink-0">
+                  <Settings className="h-5 w-5" />
+                </span>
+              </Link>
+            </div>
+          </div>
+
+          {/* Core Content Grid */}
+          <div className="space-y-6">
+              
+              {/* Recent Orders Card */}
+              <article className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+                <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">Recent Orders</h2>
+                    <p className="text-xs text-slate-500">Track active purchase orders, fulfillment status, and customer payments</p>
+                  </div>
+                  {supplierOrders.length > 0 && (
+                    <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-blue-750">
+                      {supplierOrders.length} Total
+                    </span>
+                  )}
+                </div>
+
+                {/* Desktop View Table */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="min-w-full text-left border-collapse">
+                    <thead className="bg-slate-50 border-b border-slate-100">
                       <tr>
-                        <th className="px-4 py-3 text-xs font-black text-[#94a3b8]">Facility Name</th>
-                        <th className="px-4 py-3 text-xs font-black text-[#94a3b8]">Requirements</th>
-                        <th className="px-4 py-3 text-xs font-black text-[#94a3b8]">Due Date</th>
-                        <th className="px-4 py-3 text-xs font-black text-[#94a3b8]">Status</th>
-                        <th className="px-4 py-3 text-right text-xs font-black text-[#94a3b8]">Action</th>
+                        <th className="px-6 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Order ID</th>
+                        <th className="px-6 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Buyer (Hospital)</th>
+                        <th className="px-6 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Order Date</th>
+                        <th className="px-6 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Total Amount</th>
+                        <th className="px-6 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3.5 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#eef2f2] text-sm">
+                    <tbody className="divide-y divide-slate-100 text-sm">
+                      {supplierOrders.slice(0, 5).map((order) => (
+                        <tr key={order.id} className="transition hover:bg-slate-50/50">
+                          <td className="px-6 py-4 font-bold text-slate-900">
+                            HL-ORD-{String(order.id).padStart(4, "0")}
+                          </td>
+                          <td className="px-6 py-4 font-semibold text-slate-800">
+                            {order.buyer_username || `Buyer #${order.buyer}`}
+                          </td>
+                          <td className="px-6 py-4 text-slate-600">
+                            {shortDate(order.created_at)}
+                          </td>
+                          <td className="px-6 py-4 font-bold text-slate-900">
+                            {money(toNumber(order.total_amount))}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${getOrderStatusColor(order.status)}`}>
+                              {orderStatusLabel(order)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <Link
+                              href="/supplier/orders"
+                              className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-bold text-white transition hover:bg-slate-800 shadow-sm"
+                            >
+                              Manage
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                      {supplierOrders.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-12 text-center text-slate-450">
+                            <div className="flex flex-col items-center justify-center space-y-2 py-4">
+                              <Inbox className="h-8 w-8 text-slate-300" />
+                              <p className="text-sm font-semibold">No recent orders found.</p>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile View Cards */}
+                <div className="block sm:hidden p-4 space-y-3">
+                  {supplierOrders.slice(0, 5).map((order) => (
+                    <div
+                      key={order.id}
+                      className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition-all hover:bg-white hover:shadow-sm"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                          HL-ORD-{String(order.id).padStart(4, "0")}
+                        </span>
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${getOrderStatusColor(order.status)}`}>
+                          {orderStatusLabel(order)}
+                        </span>
+                      </div>
+                      <h4 className="mt-2 text-sm font-bold text-slate-900">{order.buyer_username || `Buyer #${order.buyer}`}</h4>
+                      <div className="mt-3 flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-900">{money(toNumber(order.total_amount))}</span>
+                        <Link
+                          href="/supplier/orders"
+                          className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-[10px] font-bold text-white transition hover:bg-slate-800"
+                        >
+                          Manage
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                  {supplierOrders.length === 0 ? (
+                    <div className="text-center py-6 text-slate-400">
+                      <p className="text-xs font-semibold">No recent orders found.</p>
+                    </div>
+                  ) : null}
+                </div>
+              </article>
+
+              {/* Opportunities/Recent RFQs Card */}
+              <article className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+                <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">Recent RFQs for You</h2>
+                    <p className="text-xs text-slate-500">Respond to incoming procurement requests matched with your category</p>
+                  </div>
+                  {shownOpportunities.length > 0 && (
+                    <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-750">
+                      {shownOpportunities.length} Inquiries
+                    </span>
+                  )}
+                </div>
+                
+                {/* Desktop View Table */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="min-w-full text-left border-collapse">
+                    <thead className="bg-slate-50 border-b border-slate-100">
+                      <tr>
+                        <th className="px-6 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Facility Name</th>
+                        <th className="px-6 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Requirements</th>
+                        <th className="px-6 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Due Date</th>
+                        <th className="px-6 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3.5 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-sm">
                       {shownOpportunities.slice(0, 5).map((item) => (
                         <tr
                           key={item.rfq.id}
                           id={`opportunity-${item.rfq.id}`}
-                          className={`transition hover:bg-[#fbfcff] ${focusId === item.rfq.id ? "bg-[#eef4ff] ring-2 ring-[#0f4fb6]" : ""}`}
+                          className={`transition hover:bg-slate-50/50 ${focusId === item.rfq.id ? "bg-indigo-55/30 ring-1 ring-indigo-500" : ""}`}
                         >
-                          <td className="px-4 py-3 font-bold text-[#0f172a]">{item.rfq.buyer_company || item.rfq.buyer_name}</td>
-                          <td className="px-4 py-3 text-[#0f172a]">
-                            <p className="font-semibold">{item.rfq.title}</p>
-                            <p className="mt-1 text-xs text-[#64748b]">
+                          <td className="px-6 py-4 font-semibold text-slate-900">{item.rfq.buyer_company || item.rfq.buyer_name}</td>
+                          <td className="px-6 py-4">
+                            <p className="font-bold text-slate-800">{item.rfq.title}</p>
+                            <p className="mt-0.5 text-xs text-slate-400 max-w-[280px] truncate">
                               {item.matches.length > 0 ? item.matches.map((listing) => listing.name).join(", ") : "No direct catalog match yet"}
                             </p>
                           </td>
-                          <td className="px-4 py-3 font-semibold text-[#0f172a]">{shortDate(item.rfq.quote_deadline)}</td>
-                          <td className="px-4 py-3">
-                            <span className="rounded-full bg-[#dbe8ff] px-3 py-1 text-xs font-black text-[#0f4fb6]">Live</span>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-0.5">
+                              <div className="flex items-center gap-1.5 text-slate-600">
+                                <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                                <span className="font-semibold">{shortDate(item.rfq.quote_deadline)}</span>
+                              </div>
+                              <span className="text-[10px] font-bold text-rose-600 pl-5">
+                                {getRemainingTimeText(item.rfq.quote_deadline)}
+                              </span>
+                            </div>
                           </td>
-                          <td className="px-4 py-3 text-right">
+                          <td className="px-6 py-4">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-extrabold text-emerald-700 border border-emerald-100">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              Eligible
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
                             <button
                               type="button"
-                              onClick={() => openQuoteModal(item.rfq.id)}
-                              className="rounded-lg bg-[#0f4fb6] px-4 py-2 text-xs font-black text-[#ffffff] transition hover:bg-[#0d4299]"
+                              onClick={() => router.push(`/supplier/rfq?rfqId=${item.rfq.id}`)}
+                              className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-bold text-white transition hover:bg-slate-800 shadow-sm"
                             >
                               Submit Quote
                             </button>
@@ -593,282 +935,241 @@ function SupplierDashboardPageContent() {
                       ))}
                       {shownOpportunities.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="px-4 py-10 text-center text-sm text-[#64748b]">No live RFQs available right now.</td>
+                          <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
+                            <div className="flex flex-col items-center justify-center space-y-2 py-4">
+                              <Inbox className="h-8 w-8 text-slate-300" />
+                              <p className="text-sm font-semibold">No live RFQs available right now.</p>
+                            </div>
+                          </td>
                         </tr>
                       ) : null}
                     </tbody>
                   </table>
                 </div>
-              </article>
 
-              <article className="rounded-[1.15rem] border border-[#e5e9f0] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-                <h2 className="text-xl font-black text-[#0f172a]">Current Order Status</h2>
-                <div className="mt-5 rounded-xl bg-[#f6f8fb] px-4 py-3">
-                  <p className="text-xs font-black text-[#475569]">Order #{currentOrder ? `ORD-${currentOrder.id}` : "None"}</p>
-                  {currentOrder ? (
-                    <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#94a3b8]">
-                      Delivery: {readableStatus(currentOrder.delivery_status)} | Payment: {readableStatus(currentOrder.payment_status)}
-                    </p>
+                {/* Mobile View Cards */}
+                <div className="block sm:hidden p-4 space-y-3">
+                  {shownOpportunities.slice(0, 5).map((item) => (
+                    <div
+                      key={item.rfq.id}
+                      id={`opportunity-mobile-${item.rfq.id}`}
+                      className={`rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition-all hover:bg-white hover:shadow-sm ${focusId === item.rfq.id ? "ring-2 ring-slate-900 bg-slate-100/50" : ""}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider truncate max-w-[160px]">
+                          {item.rfq.buyer_company || item.rfq.buyer_name}
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-extrabold text-emerald-700 border border-emerald-100">
+                          <span className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse" />
+                          Eligible
+                        </span>
+                      </div>
+                      <h4 className="mt-2 text-sm font-bold text-slate-900">{item.rfq.title}</h4>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {item.matches.length > 0
+                           ? `Matches: ${item.matches.map((l) => l.name).join(", ")}`
+                           : "No direct catalog match yet"}
+                      </p>
+                      <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+                        <div className="flex flex-col gap-0.5 text-slate-500">
+                          <div className="flex items-center gap-1.5 text-xs">
+                            <Calendar className="h-3.5 w-3.5" />
+                            <span>Due {shortDate(item.rfq.quote_deadline)}</span>
+                          </div>
+                          <span className="text-[10px] font-bold text-rose-600 pl-5">
+                            {getRemainingTimeText(item.rfq.quote_deadline)}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/supplier/rfq?rfqId=${item.rfq.id}`)}
+                          className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-slate-800 transition"
+                        >
+                          Submit Quote
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {shownOpportunities.length === 0 ? (
+                    <div className="py-10 text-center text-slate-400 text-sm flex flex-col items-center justify-center space-y-2">
+                      <Inbox className="h-8 w-8 text-slate-350" />
+                      <p className="font-semibold">No live RFQs available right now.</p>
+                    </div>
                   ) : null}
                 </div>
-                <div className="mt-7">
-                  <div className="relative px-1 pt-14">
-                    <div
-                      className="order-truck absolute top-0 z-20 flex items-center justify-center rounded-xl border border-[#c9d9ff] bg-[#dbe8ff] px-2 py-1 text-[#0f4fb6] shadow-[0_12px_28px_rgba(15,79,182,0.22)] transition-[left,transform] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
-                      style={{
-                        left: `${currentOrderStage * 33.333}%`,
-                        transform:
-                          currentOrderStage === 0
-                            ? "translateX(0)"
-                            : currentOrderStage === 3
-                              ? "translateX(-100%)"
-                              : "translateX(-50%)",
-                      }}
-                      aria-label={`Current stage: ${orderStatusLabel(currentOrder)}`}
-                    >
-                      <Icon type="truck" className="h-7 w-7" />
-                    </div>
-                    <div className="relative flex items-start justify-between">
-                      <div className="order-road-track absolute left-4 right-4 top-4 h-2 rounded-full" />
-                      <div className="order-road-progress absolute left-4 top-4 h-2 rounded-full transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ width: `${currentOrderStage * 33}%` }} />
-                      {["Order Placed", "Processing", "Shipped", "Delivered"].map((label, index) => (
-                        <div key={label} className="relative z-10 flex w-16 flex-col items-center text-center">
-                          <span className={`order-stage-dot flex h-8 w-8 items-center justify-center rounded-full border-4 border-white ${index <= currentOrderStage ? "is-active bg-[#0f4fb6] text-white" : "bg-[#e5e9f0] text-[#94a3b8]"}`}>
-                            {index === currentOrderStage ? (
-                              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                <path d="m6 12 4 4 8-8" />
-                              </svg>
-                            ) : null}
-                          </span>
-                          <span className="mt-2 text-xs font-semibold leading-4 text-[#0f172a]">{label}</span>
-                          {index === currentOrderStage ? (
-                            <span className="mt-1 text-xs font-bold leading-4 text-[#0f4fb6]">{orderStatusLabel(currentOrder)}</span>
-                          ) : null}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="mt-6 rounded-xl border border-[#e5e9f0] bg-[#fbfcff] p-4 text-center">
-                    <p className="font-black text-[#0f4fb6]">{orderStatusLabel(currentOrder)}</p>
-                    <p className="mt-1 text-sm leading-6 text-[#64748b]">{orderStatusDetail(currentOrder)}</p>
-                    {currentOrder ? <p className="mt-2 text-xs font-semibold text-[#64748b]">Updated {shortDate(orderActivityDate(currentOrder))}</p> : null}
-                    {currentOrderAction ? (
-                      <button
-                        type="button"
-                        onClick={handleCurrentOrderAction}
-                        disabled={updatingOrderId === currentOrder?.id}
-                        className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-[#0f4fb6] px-4 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,79,182,0.2)] transition hover:bg-[#0d4299] disabled:cursor-not-allowed disabled:opacity-65"
-                      >
-                        {updatingOrderId === currentOrder?.id ? "Updating..." : currentOrderAction.label}
-                      </button>
-                    ) : currentOrder ? (
-                      <Link
-                        href="/supplier/orders"
-                        className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-[#c9d9ff] bg-white px-4 py-3 text-sm font-black text-[#0f4fb6] transition hover:bg-[#eef4ff]"
-                      >
-                        View Order Details
-                      </Link>
-                    ) : null}
-                    {orderActionMessage ? (
-                      <p className="mt-3 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-[#64748b]">{orderActionMessage}</p>
-                    ) : null}
-                  </div>
-                </div>
               </article>
-
-          </section>
-
-          <section className="mt-5">
-              <article id="bid-tracker" className="rounded-[1.15rem] border border-[#e5e9f0] bg-white p-6 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-                <div className="mb-5 flex items-center gap-3">
-                  <div className="rounded-xl bg-[#eef4ff] p-2 text-[#0f4fb6]"><Icon type="bid" className="h-4 w-4" /></div>
-                  <div>
-                    <h2 className="font-[family-name:var(--font-display)] text-lg font-black text-[#0f172a]">Active Bid Tracker</h2>
-                    <p className="text-xs font-medium text-[#94a3b8]">Monitor submitted quotations, buyer review stage, and award readiness.</p>
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  {shownBids.slice(0, 3).map((item) => {
-                    const state = bidStatus(item.rfq, item.quote)
-                    return (
-                      <div key={`${item.rfq.id}-${item.quote.id}`} className={`flex flex-col gap-4 rounded-xl border-l-4 bg-[#fbfcff] p-4 md:flex-row md:items-center md:justify-between ${state.border}`}>
-                        <div className="flex items-center gap-4">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-sm font-black text-[#0f4fb6] shadow-sm">Q-{String(item.quote.id).padStart(2, "0")}</div>
-                          <div>
-                            <p className="text-sm font-bold text-[#0f172a]">{rfqId(item.rfq.id)} | {item.rfq.title}</p>
-                            <p className="text-xs text-[#94a3b8]">Buyer: {item.rfq.buyer_company || item.rfq.buyer_name}</p>
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-5 md:gap-8">
-                          <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#94a3b8]">Bid Amount</p>
-                            <p className="font-bold text-[#0f172a]">{money(item.quote.unit_price)}</p>
-                          </div>
-                          <span className={`inline-flex rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${state.chip}`}>{state.label}</span>
-                          <Link href="/supplier/rfq" className="text-sm font-bold text-[#0f4fb6] hover:underline">View Details</Link>
-                        </div>
-                      </div>
-                    )
-                  })}
-                  {shownBids.length === 0 ? <div className="rounded-[1.25rem] border border-dashed border-[#dbe4ef] bg-[#f8fafc] px-5 py-8 text-sm text-[#64748b]">No active bids matched your current search. Open the RFQ desk to respond to new opportunities.</div> : null}
-                </div>
-              </article>
-          </section>
+          </div>
         </div>
       </main>
+
+      <SupplierFooter />
+
+      {/* Quote Submission Modal */}
       {activeQuoteRfq ? (
         <div
-          className="fixed inset-0 z-50 overflow-y-auto bg-[rgba(8,24,56,0.58)] px-4 py-4 backdrop-blur-sm sm:px-6 sm:py-6"
+          className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 px-4 py-4 backdrop-blur-sm sm:px-6 sm:py-6"
           onClick={closeQuoteModal}
         >
           <div className="flex min-h-full items-center justify-center">
             <div
-              className="quote-modal-shell grid h-[min(92vh,920px)] w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/20 bg-white shadow-[0_30px_90px_rgba(15,23,42,0.28)] lg:grid-cols-[1.08fr_0.92fr]"
+              className="quote-modal-shell grid w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/20 bg-white shadow-2xl lg:grid-cols-[1.1fr_0.9fr]"
               onClick={(event) => event.stopPropagation()}
             >
-            <div className="min-h-0 overflow-y-auto bg-white p-6 pb-10 sm:p-8 sm:pb-12">
-              <div className="flex items-start justify-between gap-4">
+              {/* Left Column (Details) */}
+              <div className="min-h-0 overflow-y-auto bg-white p-6 pb-10 sm:p-8 sm:pb-12 flex flex-col justify-between">
                 <div>
-                  <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#0f4fb6]">Selected RFQ</p>
-                  <h3 className="mt-3 text-2xl font-black tracking-[-0.03em] text-[#0f172a]">{activeQuoteRfq.rfq.title}</h3>
-                  <p className="mt-2 text-sm leading-7 text-[#64748b]">{activeQuoteRfq.rfq.description || "No additional RFQ description was provided."}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={closeQuoteModal}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#dbe4ef] text-[#475569] transition hover:bg-[#f8fafc]"
-                  aria-label="Close quote popup"
-                >
-                  <span className="text-lg leading-none">×</span>
-                </button>
-              </div>
-
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                <QuoteInfoCard label="Buyer" value={activeQuoteRfq.rfq.buyer_company || activeQuoteRfq.rfq.buyer_name} />
-                <QuoteInfoCard label="RFQ ID" value={rfqId(activeQuoteRfq.rfq.id)} />
-                <QuoteInfoCard label="Quantity" value={`${activeQuoteRfq.rfq.quantity}`} />
-                <QuoteInfoCard label="Type" value={activeQuoteRfq.rfq.product_type === "service" ? "Service" : "Product"} />
-                <QuoteInfoCard label="Due Date" value={longDate(activeQuoteRfq.rfq.quote_deadline)} />
-                <QuoteInfoCard label="Delivery" value={longDate(activeQuoteRfq.rfq.expected_delivery_date)} />
-                <QuoteInfoCard label="Location" value={activeQuoteRfq.rfq.delivery_location} />
-                <QuoteInfoCard label="Budget" value={activeQuoteRfq.rfq.target_budget > 0 ? money(activeQuoteRfq.rfq.target_budget) : "Not specified"} />
-              </div>
-
-              <div className="mt-6 rounded-[1.4rem] border border-[#e6edf7] bg-[#f8fbff] p-5">
-                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#7b8798]">Catalog Match</p>
-                <div className="mt-3 space-y-3">
-                  {activeQuoteRfq.matches.length > 0 ? activeQuoteRfq.matches.map((listing) => (
-                    <div key={listing.id} className="rounded-[1rem] border border-[#dbe8ff] bg-white px-4 py-3">
-                      <p className="font-bold text-[#0f172a]">{listing.name}</p>
-                      <p className="mt-1 text-xs text-[#64748b]">
-                        INR {Number(listing.price).toLocaleString("en-IN")} | Stock {listing.stock}
-                      </p>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Selected RFQ Details</p>
+                      <h3 className="mt-2.5 text-2xl font-extrabold tracking-tight text-slate-900">{activeQuoteRfq.rfq.title}</h3>
+                      <p className="mt-2 text-sm leading-relaxed text-slate-500">{activeQuoteRfq.rfq.description || "No additional RFQ description was provided."}</p>
                     </div>
-                  )) : (
-                    <p className="text-sm text-[#64748b]">No direct catalog match yet, but you can still quote using any active listing of the same type.</p>
-                  )}
+                    <button
+                      type="button"
+                      onClick={closeQuoteModal}
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:text-slate-700 transition hover:bg-slate-50"
+                      aria-label="Close quote popup"
+                    >
+                      <span className="text-xl leading-none">&times;</span>
+                    </button>
+                  </div>
+
+                  <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                    <QuoteInfoCard label="Buyer" value={activeQuoteRfq.rfq.buyer_company || activeQuoteRfq.rfq.buyer_name} icon={Briefcase} />
+                    <QuoteInfoCard label="RFQ ID" value={rfqId(activeQuoteRfq.rfq.id)} icon={Layers} />
+                    <QuoteInfoCard label="Quantity" value={`${activeQuoteRfq.rfq.quantity}`} icon={Percent} />
+                    <QuoteInfoCard label="Type" value={activeQuoteRfq.rfq.product_type === "service" ? "Service" : "Product"} icon={Package} />
+                    <QuoteInfoCard label="Due Date" value={longDate(activeQuoteRfq.rfq.quote_deadline)} icon={Calendar} />
+                    <QuoteInfoCard label="Delivery" value={longDate(activeQuoteRfq.rfq.expected_delivery_date)} icon={Calendar} />
+                    <QuoteInfoCard label="Location" value={activeQuoteRfq.rfq.delivery_location} icon={MapPin} />
+                    <QuoteInfoCard label="Budget" value={activeQuoteRfq.rfq.target_budget > 0 ? money(activeQuoteRfq.rfq.target_budget) : "Not specified"} icon={DollarSign} />
+                  </div>
+                </div>
+
+                <div className="mt-6 rounded-2xl border border-slate-100 bg-slate-50 p-5">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Catalog Match Results</p>
+                  <div className="mt-3 space-y-2">
+                    {activeQuoteRfq.matches.length > 0 ? activeQuoteRfq.matches.map((listing) => (
+                      <div key={listing.id} className="rounded-xl border border-slate-200/60 bg-white px-4 py-3 shadow-sm flex items-center justify-between">
+                        <div>
+                          <p className="font-bold text-slate-800 text-sm">{listing.name}</p>
+                          <p className="mt-0.5 text-xs text-slate-400">
+                            Stock: {listing.stock} units available
+                          </p>
+                        </div>
+                        <span className="text-sm font-extrabold text-slate-900">
+                          {money(Number(listing.price))}
+                        </span>
+                      </div>
+                    )) : (
+                      <p className="text-xs text-slate-500 leading-normal">
+                        No direct catalog matches found for this item type, but you can still select and quote using any of your active listings.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column (Form) */}
+              <div className="flex min-h-0 flex-col bg-slate-50 border-l border-slate-200 text-slate-800 relative">
+                
+                <div className="min-h-0 flex-1 overflow-y-auto p-6 pb-24 sm:p-8 sm:pb-28 relative z-10">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Quotation Form</p>
+                    <h3 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900">Bid This Tender</h3>
+                    <p className="mt-2 text-xs text-slate-500 leading-relaxed">
+                      Adjust your pricing, lead time and custom terms. All submitted quotations are legally binding.
+                    </p>
+                  </div>
+
+                  <div className="mt-6 space-y-4">
+                    <label className="grid gap-1.5 text-xs">
+                      <span className="font-bold text-slate-600">Select Offering Listing</span>
+                      <select
+                        value={quoteForm.product_id}
+                        onChange={(event) => {
+                          const selectedId = Number(event.target.value)
+                          const selectedListing = quoteListingOptions.find((item) => item.id === selectedId)
+                          setQuoteForm((prev) => ({
+                            ...prev,
+                            product_id: selectedId,
+                            unit_price: selectedListing ? Number(selectedListing.price) : prev.unit_price,
+                          }))
+                        }}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-slate-450 transition placeholder:text-slate-400"
+                      >
+                        <option value={0} className="text-[#0f172a]">Choose active listing</option>
+                        {quoteListingOptions.map((listing) => (
+                          <option key={listing.id} value={listing.id} className="text-[#0f172a]">
+                            {listing.name} | {money(Number(listing.price))} | Stock {listing.stock}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <div className="grid gap-3 grid-cols-3">
+                      <label className="grid gap-1.5 text-xs col-span-3 sm:col-span-1">
+                        <span className="font-bold text-slate-600">Unit Price (INR)</span>
+                        <input
+                          type="number"
+                          value={quoteForm.unit_price}
+                          onChange={(event) => setQuoteForm((prev) => ({ ...prev, unit_price: Number(event.target.value) }))}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-slate-450 transition placeholder:text-slate-400"
+                          placeholder="0.00"
+                        />
+                      </label>
+                      <label className="grid gap-1.5 text-xs col-span-3 sm:col-span-1">
+                        <span className="font-bold text-slate-600">Lead Time (Days)</span>
+                        <input
+                          type="number"
+                          value={quoteForm.lead_time_days}
+                          onChange={(event) => setQuoteForm((prev) => ({ ...prev, lead_time_days: Number(event.target.value) }))}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-slate-450 transition placeholder:text-slate-400"
+                          placeholder="7"
+                        />
+                      </label>
+                      <label className="grid gap-1.5 text-xs col-span-3 sm:col-span-1">
+                        <span className="font-bold text-slate-600">Validity (Days)</span>
+                        <input
+                          type="number"
+                          value={quoteForm.validity_days}
+                          onChange={(event) => setQuoteForm((prev) => ({ ...prev, validity_days: Number(event.target.value) }))}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-slate-450 transition placeholder:text-slate-400"
+                          placeholder="15"
+                        />
+                      </label>
+                    </div>
+
+                    <label className="grid gap-1.5 text-xs">
+                      <span className="font-bold text-slate-600">Special Terms & Remarks</span>
+                      <textarea
+                        value={quoteForm.notes}
+                        onChange={(event) => setQuoteForm((prev) => ({ ...prev, notes: event.target.value }))}
+                        className="h-28 resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-slate-450 transition placeholder:text-slate-400"
+                        placeholder="Specify warranty, batch limits, shipping exceptions..."
+                      />
+                    </label>
+
+                    {quoteMessage && (
+                      <p className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-xs font-bold text-red-700">
+                        {quoteMessage}
+                      </p>
+                    )}
+
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={handleSubmitQuote}
+                        disabled={submittingQuote}
+                        className="flex w-full items-center justify-center rounded-xl bg-slate-900 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {submittingQuote ? "Submitting Quotation..." : "Submit Quotation"}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-
-            <div className="flex min-h-0 flex-col bg-[linear-gradient(180deg,#0f4fb6_0%,#0b3d8a_100%)] text-white">
-              <div className="min-h-0 flex-1 overflow-y-auto p-6 pb-28 sm:p-8 sm:pb-32">
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-white/72">Submit Quote</p>
-                <h3 className="mt-3 text-3xl font-black tracking-[-0.04em]">Quote This RFQ</h3>
-                <p className="mt-3 text-sm leading-7 text-white/80">
-                  Review the request on the left and submit your commercial response here.
-                </p>
-              </div>
-
-              <div className="mt-6 space-y-4">
-                <label className="grid gap-2 text-sm">
-                  <span className="font-bold text-white">Your Listing</span>
-                  <select
-                    value={quoteForm.product_id}
-                    onChange={(event) => {
-                      const selectedId = Number(event.target.value)
-                      const selectedListing = quoteListingOptions.find((item) => item.id === selectedId)
-                      setQuoteForm((prev) => ({
-                        ...prev,
-                        product_id: selectedId,
-                        unit_price: selectedListing ? Number(selectedListing.price) : prev.unit_price,
-                      }))
-                    }}
-                    className="rounded-[1rem] border border-white/20 bg-white/10 px-4 py-3 text-sm text-white outline-none backdrop-blur placeholder:text-white/50"
-                  >
-                    <option value={0} className="text-[#0f172a]">Choose active listing</option>
-                    {quoteListingOptions.map((listing) => (
-                      <option key={listing.id} value={listing.id} className="text-[#0f172a]">
-                        {listing.name} | INR {Number(listing.price).toLocaleString("en-IN")} | Stock {listing.stock}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <label className="grid gap-2 text-sm">
-                    <span className="font-bold text-white">Unit Price</span>
-                    <input
-                      type="number"
-                      value={quoteForm.unit_price}
-                      onChange={(event) => setQuoteForm((prev) => ({ ...prev, unit_price: Number(event.target.value) }))}
-                      className="rounded-[1rem] border border-white/20 bg-white/10 px-4 py-3 text-sm text-white outline-none backdrop-blur placeholder:text-white/50"
-                      placeholder="0.00"
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm">
-                    <span className="font-bold text-white">Lead Time (Days)</span>
-                    <input
-                      type="number"
-                      value={quoteForm.lead_time_days}
-                      onChange={(event) => setQuoteForm((prev) => ({ ...prev, lead_time_days: Number(event.target.value) }))}
-                      className="rounded-[1rem] border border-white/20 bg-white/10 px-4 py-3 text-sm text-white outline-none backdrop-blur placeholder:text-white/50"
-                      placeholder="7"
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm">
-                    <span className="font-bold text-white">Validity (Days)</span>
-                    <input
-                      type="number"
-                      value={quoteForm.validity_days}
-                      onChange={(event) => setQuoteForm((prev) => ({ ...prev, validity_days: Number(event.target.value) }))}
-                      className="rounded-[1rem] border border-white/20 bg-white/10 px-4 py-3 text-sm text-white outline-none backdrop-blur placeholder:text-white/50"
-                      placeholder="15"
-                    />
-                  </label>
-                </div>
-
-                <label className="grid gap-2 text-sm">
-                  <span className="font-bold text-white">Terms & Remarks</span>
-                  <textarea
-                    value={quoteForm.notes}
-                    onChange={(event) => setQuoteForm((prev) => ({ ...prev, notes: event.target.value }))}
-                    className="h-32 resize-none rounded-[1.2rem] border border-white/20 bg-white/10 px-4 py-3 text-sm text-white outline-none backdrop-blur placeholder:text-white/50"
-                    placeholder="Enter special terms or product details..."
-                  />
-                </label>
-
-                {quoteMessage ? (
-                  <p className="rounded-xl bg-[#ba1a1a]/10 px-4 py-3 text-xs font-bold text-[#ffb4ab]">
-                    {quoteMessage}
-                  </p>
-                ) : null}
-
-                <div className="pt-4">
-                  <button
-                    type="button"
-                    onClick={handleSubmitQuote}
-                    disabled={submittingQuote}
-                    className="flex w-full items-center justify-center rounded-[1.2rem] bg-white px-6 py-4 text-sm font-black text-[#0f4fb6] shadow-[0_20px_40px_rgba(0,0,0,0.15)] transition hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {submittingQuote ? "Submitting Quote..." : "Submit Quotation"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-          </div>
           </div>
         </div>
       ) : null}
@@ -876,11 +1177,18 @@ function SupplierDashboardPageContent() {
   )
 }
 
-function QuoteInfoCard({ label, value }: { label: string; value: string }) {
+function QuoteInfoCard({ label, value, icon: IconComponent }: { label: string; value: string; icon?: React.ComponentType<any> }) {
   return (
-    <div className="rounded-xl border border-[#edf1f7] bg-[#fbfcff] px-4 py-3">
-      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#94a3b8]">{label}</p>
-      <p className="mt-1 text-sm font-bold text-[#0f172a]">{value}</p>
+    <div className="rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3 flex items-center gap-3">
+      {IconComponent && (
+        <div className="rounded-lg bg-white p-2 border border-slate-100 text-slate-500 shadow-sm shrink-0">
+          <IconComponent className="h-4 w-4" />
+        </div>
+      )}
+      <div className="min-w-0">
+        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+        <p className="mt-0.5 text-sm font-bold text-slate-800 truncate">{value}</p>
+      </div>
     </div>
   )
 }

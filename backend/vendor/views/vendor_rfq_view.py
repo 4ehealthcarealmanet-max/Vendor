@@ -11,7 +11,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from vendor.models import VendorOrder, VendorProductService, VendorQuotation, VendorRfq
+from vendor.models import VendorOrder, VendorProductService, VendorQuotation, VendorRfq, Notification
 from vendor.serializers.vendor_rfq_serializer import (
     VendorAwardQuotationSerializer,
     VendorQuotationCreateSerializer,
@@ -72,7 +72,20 @@ class VendorRfqViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         # Both buyers and suppliers can create RFQs (suppliers for subcontracting).
-        serializer.save()
+        rfq = serializer.save()
+        
+        # Notify all suppliers about the new RFQ
+        from django.contrib.auth.models import User
+        suppliers = User.objects.filter(account_profile__role="supplier")
+        for supplier in suppliers:
+            Notification.create_notification(
+                user=supplier,
+                n_type="info",
+                title="New Procurement Request",
+                message=f"RFQ #{rfq.id} for \"{rfq.title}\" has been published.",
+                details=f"Qty: {rfq.quantity} units | Budget: ₹{rfq.target_budget} | Delivery: {rfq.delivery_location}",
+                url=f"/supplier/rfq?rfqId={rfq.id}"
+            )
 
     def perform_update(self, serializer):
         rfq = self.get_object()
@@ -144,6 +157,16 @@ class VendorRfqViewSet(viewsets.ModelViewSet):
         if rfq.status == "open":
             rfq.status = "under_review"
             rfq.save(update_fields=["status"])
+
+        # Notify the buyer that a new bid/quotation has been received
+        Notification.create_notification(
+            user=rfq.buyer,
+            n_type="success",
+            title="New Bid Received",
+            message=f"Supplier {quotation.supplier_company or quotation.supplier_name} submitted a quote for RFQ #{rfq.id}.",
+            details=f"Bid: ₹{quotation.unit_price}/unit | Lead Time: {quotation.lead_time_days} days | Note: {quotation.notes or 'None'}",
+            url=f"/buyer/rfq?highlight={rfq.id}"
+        )
 
         return Response(VendorQuotationSerializer(quotation).data, status=status.HTTP_201_CREATED)
 
@@ -273,6 +296,29 @@ class VendorRfqViewSet(viewsets.ModelViewSet):
             user=request.user,
         )
 
+        # Notify the winning supplier
+        if vendor_user:
+            Notification.create_notification(
+                user=vendor_user,
+                n_type="success",
+                title="Quotation Updated (Awarded)",
+                message=f"Your quote for RFQ #{rfq.id} was awarded.",
+                details=f"Order HL-ORD-{str(awarded_order.id).zfill(4)} has been generated. Unit Price: ₹{quotation.unit_price}",
+                url=f"/supplier/rfq?rfqId={rfq.id}"
+            )
+
+        # Notify other suppliers who submitted quotations for this RFQ
+        for other_quote in rfq.quotations.exclude(id=quotation.id):
+            if other_quote.supplier_vendor and other_quote.supplier_vendor.user:
+                Notification.create_notification(
+                    user=other_quote.supplier_vendor.user,
+                    n_type="info",
+                    title="Quotation Updated (Closed)",
+                    message=f"Your quote for RFQ #{rfq.id} was not selected. RFQ has been awarded to another supplier.",
+                    details=f"RFQ title: {rfq.title}",
+                    url=f"/supplier/rfq?rfqId={rfq.id}"
+                )
+
         return Response(self.get_serializer(rfq).data)
 
     @action(detail=True, methods=["post"], url_path="reject-quotation")
@@ -296,6 +342,18 @@ class VendorRfqViewSet(viewsets.ModelViewSet):
         quotation.rejection_reason = serializer.validated_data.get("reason", "")
         quotation.rejected_at = timezone.now()
         quotation.save(update_fields=["status", "rejection_reason", "rejected_at"])
+
+        # Notify the supplier of the rejection
+        if quotation.supplier_vendor and quotation.supplier_vendor.user:
+            Notification.create_notification(
+                user=quotation.supplier_vendor.user,
+                n_type="error",
+                title="Quotation Updated (Rejected)",
+                message=f"Your quote for RFQ #{rfq.id} was rejected.",
+                details=f"Reason: {quotation.rejection_reason}",
+                url=f"/supplier/rfq?rfqId={rfq.id}"
+            )
+
         return Response(VendorQuotationSerializer(quotation).data)
 
     @action(detail=True, methods=["post"], url_path="close")
@@ -309,6 +367,19 @@ class VendorRfqViewSet(viewsets.ModelViewSet):
 
         rfq.status = "closed"
         rfq.save(update_fields=["status"])
+
+        # Notify all suppliers who submitted a quotation for this RFQ
+        for quote in rfq.quotations.all():
+            if quote.supplier_vendor and quote.supplier_vendor.user:
+                Notification.create_notification(
+                    user=quote.supplier_vendor.user,
+                    n_type="info",
+                    title="RFQ Status Updated",
+                    message=f"RFQ #{rfq.id} (\"{rfq.title}\") is now closed.",
+                    details="The buyer has closed this procurement request.",
+                    url=f"/supplier/rfq?rfqId={rfq.id}"
+                )
+
         return Response(self.get_serializer(rfq).data)
 
     @action(detail=True, methods=["post"], url_path="reopen")
@@ -337,4 +408,17 @@ class VendorRfqViewSet(viewsets.ModelViewSet):
 
         rfq.status = "under_review" if rfq.quotations.exists() else "open"
         rfq.save(update_fields=updated_fields)
+
+        # Notify all suppliers who submitted a quotation for this RFQ
+        for quote in rfq.quotations.all():
+            if quote.supplier_vendor and quote.supplier_vendor.user:
+                Notification.create_notification(
+                    user=quote.supplier_vendor.user,
+                    n_type="info",
+                    title="RFQ Status Updated",
+                    message=f"RFQ #{rfq.id} (\"{rfq.title}\") has been reopened.",
+                    details=f"New deadline: {rfq.quote_deadline}",
+                    url=f"/supplier/rfq?rfqId={rfq.id}"
+                )
+
         return Response(self.get_serializer(rfq).data)

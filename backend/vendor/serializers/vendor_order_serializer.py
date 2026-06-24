@@ -26,6 +26,8 @@ class VendorOrderSerializer(serializers.ModelSerializer):
     buyer_type = serializers.SerializerMethodField()
     events = serializers.SerializerMethodField()
     vendor_user_id = serializers.ReadOnlyField(source="vendor.user_id")
+    vendor_name = serializers.SerializerMethodField()
+    buyer_username = serializers.ReadOnlyField(source="buyer.username")
 
     class Meta:
         model = VendorOrder
@@ -58,6 +60,12 @@ class VendorOrderSerializer(serializers.ModelSerializer):
     def get_buyer_type(self, obj):
         account_profile = get_or_create_account_profile(obj.buyer)
         return account_profile.buyer_type or None
+
+    def get_vendor_name(self, obj):
+        profile = obj.vendor
+        if profile and profile.company_name:
+            return profile.company_name
+        return profile.user.username if profile and profile.user else f"Vendor #{obj.vendor_id}"
 
     def get_events(self, obj):
         return VendorOrderEventSerializer(obj.events.all(), many=True).data

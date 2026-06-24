@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { clearToken } from "@/services"
+import { forceLogout } from "@/services"
 
 export default function AdminSidebar() {
   const pathname = usePathname()
@@ -11,8 +11,7 @@ export default function AdminSidebar() {
   const currentRole = searchParams.get("role")
 
   const handleLogout = () => {
-    clearToken()
-    router.push("/login")
+    forceLogout()
   }
 
   const menuItems = [

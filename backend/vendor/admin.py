@@ -4,6 +4,7 @@ from .models import (
     BuyerProfile,
     VendorProfile,
     VendorProductService,
+    VendorProductServiceImage,
     VendorRfq,
     VendorRfqInvitation,
     VendorQuotation,
@@ -39,12 +40,18 @@ class VendorProfileAdmin(admin.ModelAdmin):
     ordering = ("-id",)
 
 
+class VendorProductServiceImageInline(admin.TabularInline):
+    model = VendorProductServiceImage
+    extra = 1
+
+
 @admin.register(VendorProductService)
 class VendorProductServiceAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "vendor", "product_type", "price", "stock", "is_active", "created_at")
     list_filter = ("product_type", "is_active")
     search_fields = ("name", "description", "vendor__company_name")
     ordering = ("-id",)
+    inlines = [VendorProductServiceImageInline]
 
 
 @admin.register(VendorRfq)

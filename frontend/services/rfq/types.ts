@@ -2,6 +2,7 @@ export interface VendorQuotation {
   id: number
   rfq_id: number
   supplier_vendor_id: number | null
+  supplier_user_id?: number | null
   supplier_name: string
   supplier_company?: string
   product_id: number
@@ -47,6 +48,7 @@ export interface VendorRfq {
   tender_type: "open" | "limited" | "reverse"
   status: "open" | "under_review" | "awarded" | "closed"
   buyer_name: string
+  buyer_user_id?: number | null
   buyer_company?: string
   buyer_type?: "hospital" | "pharmacy" | "ngo" | "clinic" | null
   created_at: string

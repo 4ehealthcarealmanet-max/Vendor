@@ -31,6 +31,8 @@ export interface VendorOrder {
   buyer_type?: "hospital" | "pharmacy" | "ngo" | "clinic" | null
   vendor: number
   vendor_user_id: number
+  vendor_name?: string
+  buyer_username?: string
   status:
     | "po_released"
     | "po_accepted"

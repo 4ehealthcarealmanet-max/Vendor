@@ -2,8 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import BuyerSidebar from "@/components/buyer/BuyerSidebar"
-import SupplierSidebar from "@/components/supplier/SupplierSidebar"
+import Link from "next/link"
+import BuyerNavbar from "@/components/buyer/BuyerNavbar"
+import BuyerFooter from "@/components/buyer/BuyerFooter"
+import SupplierNavbar from "@/components/supplier/SupplierNavbar"
+import SupplierFooter from "@/components/supplier/SupplierFooter"
 import {
   acceptPo,
   clearToken,
@@ -13,9 +16,7 @@ import {
   getOrders,
   getProducts,
   isAuthSessionError,
-  makeDummyPayment,
   markOrderReceived,
-  markPaymentOverdue,
   logoutUser,
   reorderFromOrder,
   updateOrderTracking,
@@ -110,8 +111,6 @@ const orderProductSummary = (order: VendorOrder, products: VendorProductService[
 const canMarkReceived = (order: VendorOrder) =>
   order.delivery_status === "delivered" && order.status !== "goods_received" && order.status !== "completed"
 
-const canMakePayment = (order: VendorOrder) => order.payment_status !== "paid"
-
 const canSubcontract = (order: VendorOrder, products: VendorProductService[]) => {
   if (["completed", "cancelled", "shipped", "delivered", "goods_received", "ready_to_dispatch", "partially_subcontracted"].includes(order.status)) return false
   return order.items.some((item) => {
@@ -120,9 +119,6 @@ const canSubcontract = (order: VendorOrder, products: VendorProductService[]) =>
     return product && product.stock < item.quantity
   })
 }
-
-const canFlagPaymentOverdue = (order: VendorOrder) =>
-  order.payment_status !== "paid" && ["delivered", "goods_received", "completed"].includes(order.status)
 
 const printOrderPdf = (order: VendorOrder, products: VendorProductService[]) => {
   const doc = window.open("", "_blank", "width=900,height=700")
@@ -172,7 +168,6 @@ const printOrderPdf = (order: VendorOrder, products: VendorProductService[]) => 
           <div class="box"><div class="label">Buyer Type</div><div class="value">${order.buyer_type || "-"}</div></div>
           <div class="box"><div class="label">Order Date</div><div class="value">${shortDate(order.created_at)}</div></div>
           <div class="box"><div class="label">Delivery Status</div><div class="value">${readable(order.delivery_status)}</div></div>
-          <div class="box"><div class="label">Payment Status</div><div class="value">${readable(order.payment_status)}</div></div>
           <div class="box"><div class="label">Tracking Note</div><div class="value">${order.tracking_note || "No tracking note"}</div></div>
         </div>
         <table>
@@ -203,10 +198,12 @@ export default function OrderPage() {
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null)
   const [shortageQuantity, setShortageQuantity] = useState<number>(1)
   const [hasActiveSub, setHasActiveSub] = useState(true)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const loadData = async () => {
       try {
+        setLoading(true)
         const me = await getCurrentUser()
         if (pathname?.startsWith("/buyer") && me.role === "supplier") {
           router.replace("/supplier/orders")
@@ -237,6 +234,8 @@ export default function OrderPage() {
         }
 
         setFeedback("Could not load orders right now. Check the backend API and try again.")
+      } finally {
+        setLoading(false)
       }
     }
     loadData()
@@ -258,25 +257,28 @@ export default function OrderPage() {
     if (userRole === "supplier") return orders.filter((order) => order.vendor_user_id === userId)
     return orders
   }, [orders, userId, userRole])
-  const selectedOrder = useMemo(() => orders.find((order) => order.id === selectedOrderId) ?? null, [orders, selectedOrderId])
+  const selectedOrder = useMemo(() => userOrders.find((order) => order.id === selectedOrderId) ?? null, [userOrders, selectedOrderId])
   const orderTabs: Array<{ key: SupplierOrderFilter; label: string; count: number }> = useMemo(
     () => [
-      { key: "all", label: "All Orders", count: orders.length },
-      { key: "pending", label: "Pending", count: orders.filter((order) => orderBucket(order) === "pending").length },
-      { key: "in_progress", label: "In Progress", count: orders.filter((order) => orderBucket(order) === "in_progress").length },
-      { key: "shipped", label: "Shipped", count: orders.filter((order) => orderBucket(order) === "shipped").length },
-      { key: "completed", label: "Completed", count: orders.filter((order) => orderBucket(order) === "completed").length },
+      { key: "all", label: "All Orders", count: userOrders.length },
+      { key: "pending", label: "Pending", count: userOrders.filter((order) => orderBucket(order) === "pending").length },
+      { key: "in_progress", label: "In Progress", count: userOrders.filter((order) => orderBucket(order) === "in_progress").length },
+      { key: "shipped", label: "Shipped", count: userOrders.filter((order) => orderBucket(order) === "shipped").length },
+      { key: "completed", label: "Completed", count: userOrders.filter((order) => orderBucket(order) === "completed").length },
     ],
-    [orders]
+    [userOrders]
   )
   const filteredOrders = useMemo(() => {
     const query = orderSearch.trim().toLowerCase()
-    return orders.filter((order) => {
+    return userOrders.filter((order) => {
       const matchesFilter = orderFilter === "all" || orderBucket(order) === orderFilter
       const searchable = [
         `HL-ORD-${order.id}`,
         `ORD-${order.id}`,
         `Buyer #${order.buyer}`,
+        order.buyer_username || "",
+        order.vendor_name || "",
+        `Vendor #${order.vendor}`,
         order.buyer_type || "",
         order.status,
         order.delivery_status,
@@ -288,7 +290,7 @@ export default function OrderPage() {
         .toLowerCase()
       return matchesFilter && (!query || searchable.includes(query))
     })
-  }, [orderFilter, orderSearch, orders, products])
+  }, [orderFilter, orderSearch, userOrders, products])
   const moveOrderForward = async (order: VendorOrder) => {
     try {
       setUpdatingOrderId(order.id)
@@ -338,15 +340,6 @@ export default function OrderPage() {
     )
   }
 
-  const handleDummyPayment = async (order: VendorOrder) => {
-    await runOrderMutation(
-      order,
-      () => makeDummyPayment(order.id),
-      (updated) => `Dummy payment recorded for order HL-ORD-${updated.id}.`,
-      "Could not record dummy payment."
-    )
-  }
-
   const handleReorder = async (order: VendorOrder) => {
     try {
       setUpdatingOrderId(order.id)
@@ -384,19 +377,44 @@ export default function OrderPage() {
     }
   }
 
-  const handleMarkPaymentOverdue = async (order: VendorOrder) => {
-    await runOrderMutation(
-      order,
-      () => markPaymentOverdue(order.id),
-      (updated) => `Payment marked overdue for order HL-ORD-${updated.id}.`,
-      "Could not mark payment overdue."
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f6f8fb] text-[#0f172a] flex flex-col">
+        {isBuyerRoute ? (
+          <BuyerNavbar
+            active="orders"
+            username={username}
+            buyerType={buyerType || null}
+            hasActiveSubscription={hasActiveSub}
+            onSignOut={signOut}
+          />
+        ) : isSupplierRoute ? (
+          <SupplierNavbar
+            active="orders"
+            username={username}
+            onSignOut={signOut}
+          />
+        ) : null}
+        <main className={`w-full py-8 md:py-12 ${isSupplierRoute || isBuyerRoute ? "mx-auto max-w-[1600px] px-6 md:px-8 pb-24" : ""} flex-1 flex flex-col justify-center items-center min-h-[75vh]`}>
+          <div className="flex flex-col items-center justify-center space-y-4">
+            <div className="relative flex items-center justify-center">
+              <div className="h-12 w-12 rounded-full border-4 border-blue-100 border-t-blue-600 animate-spin" />
+              <div className="absolute h-3 w-3 rounded-full bg-blue-600 animate-ping" />
+            </div>
+            <span className="text-sm font-bold text-slate-500 tracking-tight">
+              Loading purchase orders...
+            </span>
+          </div>
+        </main>
+        {isBuyerRoute ? <BuyerFooter /> : isSupplierRoute ? <SupplierFooter /> : null}
+      </div>
     )
   }
 
   return (
-    <>
+    <div className="min-h-screen bg-[#f6f8fb] flex flex-col">
       {isBuyerRoute ? (
-        <BuyerSidebar
+        <BuyerNavbar
           active="orders"
           username={username}
           buyerType={buyerType || null}
@@ -404,121 +422,196 @@ export default function OrderPage() {
           onSignOut={signOut}
         />
       ) : isSupplierRoute ? (
-        <SupplierSidebar
+        <SupplierNavbar
           active="orders"
           username={username}
-          hasActiveSubscription={hasActiveSub}
           onSignOut={signOut}
         />
       ) : null}
-      <main className={`px-4 py-8 md:px-6 md:py-12 ${(isBuyerRoute || isSupplierRoute) ? "pb-24 lg:pl-[calc(18rem+2.5rem)]" : ""}`}>
-        <div className="health-container space-y-6">
+      <main className={`min-h-[75vh] flex-1 w-full py-8 md:py-12 ${isSupplierRoute || isBuyerRoute ? "mx-auto max-w-[1600px] px-4 sm:px-6 md:px-8 pb-12" : ""}`}>
+        <div className={`${isBuyerRoute || isSupplierRoute ? "w-full max-w-full" : "health-container"} space-y-6`}>
           {isSupplierRoute ? (
             <>
-              <header>
-                <h1 className="text-3xl font-black tracking-[-0.04em] text-[#0f172a]">Supplier Order Management List</h1>
+              <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-black tracking-[-0.04em] text-slate-800">
+                    Supplier <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Order Workspace</span>
+                  </h1>
+                  <p className="text-xs sm:text-sm font-semibold text-slate-450 mt-1">
+                    Manage incoming purchase orders, update shipping tracking, and review transaction history.
+                  </p>
+                </div>
+                <Link href="/supplier/dashboard" className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-750 transition self-start sm:self-center">
+                  ← Back to Dashboard
+                </Link>
               </header>
 
+              {/* Statistics & Overview Banner */}
+              <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-6">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-[0_8px_30px_rgb(0,0,0,0.03)] md:hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition duration-300">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 sm:p-3 rounded-xl bg-blue-50 text-blue-600 shrink-0">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[9px] sm:text-[10px] font-extrabold text-slate-400 uppercase tracking-wider truncate">Total Volume</p>
+                      <h3 className="text-sm sm:text-base lg:text-lg font-black text-slate-800 mt-0.5 truncate">
+                        {money(userOrders.reduce((sum, o) => sum + toNumber(o.total_amount), 0))}
+                      </h3>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-[0_8px_30px_rgb(0,0,0,0.03)] md:hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition duration-300">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 sm:p-3 rounded-xl bg-amber-50 text-amber-600 shrink-0">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[9px] sm:text-[10px] font-extrabold text-slate-400 uppercase tracking-wider truncate">Active Ops</p>
+                      <h3 className="text-sm sm:text-base lg:text-lg font-black text-slate-800 mt-0.5 truncate">
+                        {userOrders.filter(o => ["in_progress", "shipped"].includes(orderBucket(o))).length} Orders
+                      </h3>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-[0_8px_30px_rgb(0,0,0,0.03)] md:hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition duration-300">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 sm:p-3 rounded-xl bg-violet-50 text-violet-650 shrink-0">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[9px] sm:text-[10px] font-extrabold text-slate-400 uppercase tracking-wider truncate">New POs</p>
+                      <h3 className="text-sm sm:text-base lg:text-lg font-black text-slate-800 mt-0.5 truncate">
+                        {userOrders.filter(o => o.status === "po_released").length} Pending
+                      </h3>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-[0_8px_30px_rgb(0,0,0,0.03)] md:hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition duration-300">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 sm:p-3 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[9px] sm:text-[10px] font-extrabold text-slate-400 uppercase tracking-wider truncate">Fulfilled</p>
+                      <h3 className="text-sm sm:text-base lg:text-lg font-black text-slate-800 mt-0.5 truncate">
+                        {userOrders.filter(o => orderBucket(o) === "completed").length} Done
+                      </h3>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {feedback ? (
-                <p className="rounded-xl border border-[#dbe8ff] bg-[#f8fbff] px-4 py-3 text-sm font-semibold text-[#355860]">{feedback}</p>
+                <p className="rounded-xl border border-[#dbe8ff] bg-[#f8fbff] px-4 py-3 text-sm font-semibold text-[#355860] mb-6">{feedback}</p>
               ) : null}
 
-              <section className="supplier-orders-panel rounded-xl border border-[#dbe4ef] bg-white p-3 shadow-[0_10px_28px_rgba(15,23,42,0.05)]">
-                <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                  <div className="flex flex-wrap gap-2">
+              <section className="supplier-orders-panel rounded-xl border border-[#dbe4ef] bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.05)]">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div className="flex flex-wrap gap-1.5">
                     {orderTabs.map((tab) => (
                       <button
                         key={tab.key}
                         type="button"
                         onClick={() => setOrderFilter(tab.key)}
-                        className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${orderFilter === tab.key
-                          ? "bg-[#dbe8ff] text-[#0f4fb6]"
-                          : "text-[#0f172a] hover:bg-[#f6f8fb]"
+                        className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold transition border ${orderFilter === tab.key
+                          ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                          : "bg-transparent text-slate-500 border-transparent md:hover:bg-slate-50"
                           }`}
                       >
-                        {tab.label} <span className="text-xs text-[#64748b]">{tab.count}</span>
+                        {tab.label} <span className="opacity-70 text-[10px] ml-0.5">{tab.count}</span>
                       </button>
                     ))}
                   </div>
-                  <label className="flex min-w-0 items-center gap-3 rounded-full border border-[#dbe4ef] bg-white px-4 py-2.5 text-sm text-[#94a3b8] xl:min-w-[360px]">
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+
+                  <label className="flex min-w-0 items-center gap-3 rounded-xl border border-[#dbe4ef] bg-white px-4 py-2.5 text-sm text-[#94a3b8] md:min-w-[320px] lg:min-w-[360px]">
+                    <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                       <circle cx="11" cy="11" r="7" />
                       <path d="m20 20-3.5-3.5" />
                     </svg>
                     <input
                       value={orderSearch}
                       onChange={(event) => setOrderSearch(event.target.value)}
-                      placeholder="Search by Order ID or Hospital Name..."
+                      placeholder="Search orders, buyers, or products..."
                       className="w-full border-0 bg-transparent text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8]"
                     />
                   </label>
                 </div>
 
-                <div className="mt-3 overflow-x-auto rounded-xl border border-[#e5e9f0]">
-                  <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+                {/* Desktop View Table: Hidden on Mobile */}
+                <div className="mt-4 hidden md:block overflow-x-auto rounded-xl border border-[#e5e9f0]">
+                  <table className="w-full min-w-[960px] border-collapse text-left text-sm">
                     <thead className="bg-[#f8fafc] text-[#0f172a]">
                       <tr>
                         <th className="px-5 py-4 font-bold">Order ID</th>
                         <th className="px-5 py-4 font-bold">Buyer Name (Hospital)</th>
-                        <th className="px-5 py-4 font-bold">Order Date</th>
-                        <th className="px-5 py-4 font-bold">Total Amount</th>
-                        <th className="px-5 py-4 font-bold">Status</th>
+                        <th className="px-5 py-4 font-bold">Ordered Product Summary</th>
+                        <th className="px-5 py-4 font-bold">Amount</th>
+                        <th className="px-5 py-4 font-bold">Order Status</th>
                         <th className="px-5 py-4 text-right font-bold">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#eef2f6]">
-                      {filteredOrders.map((order) => {
-                        return (
-                          <tr key={order.id} className="supplier-order-row transition hover:bg-[#fbfcff]">
-                            <td className="px-5 py-4 font-bold text-[#0f172a]">HL-ORD-{String(order.id).padStart(4, "0")}</td>
-                            <td className="px-5 py-4 font-semibold text-[#0f172a]">Buyer #{order.buyer}</td>
-                            <td className="px-5 py-4 text-[#475569]">{shortDate(order.created_at)}</td>
-                            <td className="px-5 py-4 text-[#0f172a]">{money(order.total_amount)}</td>
-                            <td className="px-5 py-4">
-                              <span className={`rounded-full px-4 py-1.5 text-sm font-semibold capitalize ${statusChipClass(order)}`}>
-                                {orderStatusLabel(order)}
-                              </span>
-                            </td>
-                            <td className="px-5 py-4">
-                              <div className="flex justify-end gap-2">
-                                {nextActionLabel(order) && order.buyer !== userId ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => moveOrderForward(order)}
-                                    disabled={updatingOrderId === order.id}
-                                    className="flex items-center gap-2 rounded-lg bg-[#0f4fb6] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#1d72ff] disabled:opacity-60"
-                                  >
-                                    {updatingOrderId === order.id ? "..." : nextActionLabel(order)}
-                                  </button>
-                                ) : null}
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedOrderId(order.id)}
-                                  className="rounded-lg border border-[#dbe4ef] bg-white p-2 text-[#64748b] transition hover:border-[#0f4fb6] hover:text-[#0f4fb6]"
-                                  aria-label={`View order ${order.id}`}
-                                >
-                                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-                                    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
-                                    <circle cx="12" cy="12" r="3" />
-                                  </svg>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => printOrderPdf(order, products)}
-                                  className="rounded-lg border border-[#dbe4ef] bg-white p-2 text-[#64748b] transition hover:border-[#0f4fb6] hover:text-[#0f4fb6]"
-                                  aria-label={`Download order ${order.id} PDF`}
-                                >
-                                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-                                    <path d="M12 3v12" />
-                                    <path d="m7 10 5 5 5-5" />
-                                    <path d="M5 21h14" />
-                                  </svg>
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        )
-                      })}
+                      {filteredOrders.map((order) => (
+                        <tr key={order.id} className="supplier-order-row transition hover:bg-[#fbfcff]">
+                          <td className="px-5 py-4 font-bold text-[#0f172a]">HL-ORD-{String(order.id).padStart(4, "0")}</td>
+                          <td className="px-5 py-4 font-semibold text-[#0f172a]">{order.buyer_username || `Buyer #${order.buyer}`}</td>
+                          <td className="px-5 py-4 text-xs text-slate-500 max-w-[200px] truncate" title={orderProductSummary(order, products)}>
+                            {orderProductSummary(order, products)}
+                          </td>
+                          <td className="px-5 py-4 font-extrabold text-[#0f172a]">{money(order.total_amount)}</td>
+                          <td className="px-5 py-4">
+                            <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${statusChipClass(order)}`}>
+                              {orderStatusLabel(order)}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex justify-end gap-2">
+                              <Link
+                                href={`/supplier/messages?partner_id=${order.buyer}`}
+                                className="flex items-center gap-1 border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-750 rounded-lg cursor-pointer transition shadow-sm"
+                                aria-label="Message Buyer"
+                                title="Message Buyer"
+                              >
+                                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                                </svg>
+                                Chat
+                              </Link>
+                              <Link
+                                href={`/supplier/orders/${order.id}`}
+                                className="flex items-center gap-1 border border-blue-200 bg-white hover:bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-650 rounded-lg cursor-pointer transition shadow-sm"
+                              >
+                                View Details
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={() => printOrderPdf(order, products)}
+                                className="rounded-lg border border-[#dbe4ef] bg-white p-2 text-[#64748b] transition hover:border-[#0f4fb6] hover:text-[#0f4fb6]"
+                                aria-label={`Download PDF`}
+                                title="Download PDF"
+                              >
+                                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+                                  <path d="M12 3v12" />
+                                  <path d="m7 10 5 5 5-5" />
+                                  <path d="M5 21h14" />
+                                </svg>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
                       {filteredOrders.length === 0 ? (
                         <tr>
                           <td colSpan={6} className="px-5 py-12 text-center text-[#64748b]">No orders matched this filter or search.</td>
@@ -527,92 +620,468 @@ export default function OrderPage() {
                     </tbody>
                   </table>
                 </div>
-              </section>
 
+                {/* Mobile View Card List: Block on Mobile, Hidden on Desktop */}
+                <div className="mt-4 block md:hidden space-y-4">
+                  {filteredOrders.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center text-sm font-semibold text-slate-400">
+                      No orders matched this filter or search.
+                    </div>
+                  ) : (
+                    filteredOrders.map((order) => (
+                      <div
+                        key={order.id}
+                        className="rounded-2xl border border-slate-150 bg-white p-4 shadow-[0_4px_16px_rgba(15,23,42,0.02)] md:hover:shadow-[0_8px_24px_rgba(15,23,42,0.05)] transition duration-300 space-y-4"
+                      >
+                        {/* Header Row */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 bg-blue-50/80 px-2 py-0.5 rounded-md">
+                              HL-ORD-{String(order.id).padStart(4, "0")}
+                            </span>
+                            <h4 className="text-sm font-bold text-slate-800 mt-1.5 truncate max-w-[160px]">
+                              {order.buyer_username || `Buyer #${order.buyer}`}
+                            </h4>
+                          </div>
+                          <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold capitalize shrink-0 ${statusChipClass(order)}`}>
+                            {orderStatusLabel(order)}
+                          </span>
+                        </div>
+
+                        {/* Product Summary */}
+                        <p className="text-xs text-slate-500 line-clamp-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100" title={orderProductSummary(order, products)}>
+                          {orderProductSummary(order, products)}
+                        </p>
+
+                        {/* Financial and Status Info */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                          <div>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Total Amount</span>
+                            <span className="text-sm font-extrabold text-slate-800">{money(order.total_amount)}</span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Order Date</span>
+                            <span className="text-xs font-semibold text-slate-650">{shortDate(order.created_at)}</span>
+                          </div>
+                        </div>
+
+                        {/* Dynamic Quick Actions */}
+                        <div className="grid grid-cols-[1fr_1fr_auto] gap-2 pt-1">
+                          <Link
+                            href={`/supplier/orders/${order.id}`}
+                            className="flex items-center justify-center gap-1.5 rounded-xl bg-blue-650 md:hover:bg-blue-750 py-2.5 text-xs font-bold text-white shadow-sm transition active:scale-95 text-center"
+                          >
+                            View Details
+                          </Link>
+                          <Link
+                            href={`/supplier/messages?partner_id=${order.buyer}`}
+                            className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white md:hover:bg-slate-50 py-2.5 text-xs font-bold text-slate-750 transition active:scale-95"
+                          >
+                            Chat
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => printOrderPdf(order, products)}
+                            className="rounded-xl border border-slate-200 bg-white md:hover:bg-slate-50 p-2.5 text-slate-500 md:hover:text-blue-600 transition"
+                            aria-label="Download PDF"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+                              <path d="M12 3v12" />
+                              <path d="m7 10 5 5 5-5" />
+                              <path d="M5 21h14" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </section>
             </>
           ) : (
             <>
-              <section className="soft-panel rounded-[20px] p-5">
-                <h2 className="text-xl font-bold">My Orders</h2>
-                {userOrders.length === 0 ? (
-                  <p className="mt-3 rounded-lg border border-[#d8ecee] bg-[#fbfeff] px-3 py-4 text-sm text-[#4d6972]">
-                    No orders returned from API yet.
+              <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-black tracking-[-0.04em] text-slate-800">
+                    Procurement <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Order Workspace</span>
+                  </h1>
+                  <p className="text-xs sm:text-sm font-semibold text-slate-450 mt-1">
+                    Monitor purchase orders, verify supplier delivery timelines, and manage transaction settlements.
                   </p>
-                ) : (
-                  <div className="mt-4 overflow-x-auto">
-                    <table className="w-full min-w-[860px] text-sm">
-                      <thead>
-                        <tr className="border-b border-[#d9e9eb] text-left text-[#4a6872]">
-                          <th className="px-2 py-2">Order</th>
-                          <th className="px-2 py-2">Vendor</th>
-                          <th className="px-2 py-2">Buyer</th>
-                          <th className="px-2 py-2">Amount</th>
-                          <th className="px-2 py-2">Order Status</th>
-                          <th className="px-2 py-2">Delivery</th>
-                          <th className="px-2 py-2">Payment</th>
-                          <th className="px-2 py-2 text-right">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {userOrders.map((order) => (
-                          <tr key={order.id} className="border-b border-[#edf5f6]">
-                            <td className="px-2 py-2 font-semibold">#{order.id}</td>
-                            <td className="px-2 py-2">{order.vendor}</td>
-                            <td className="px-2 py-2">{order.buyer}</td>
-                            <td className="px-2 py-2">INR {Number(order.total_amount).toLocaleString()}</td>
-                            <td className="px-2 py-2">
-                              <span className="rounded-full bg-[#e7f8f7] px-2 py-1 text-xs font-semibold text-[#0a6d72] capitalize">
-                                {orderStatusLabel(order)}
-                              </span>
-                            </td>
-                            <td className="px-2 py-2">
-                              <span className="rounded-full bg-[#eef4ff] px-2 py-1 text-xs font-semibold text-[#1d4ed8] capitalize">
-                                {readable(order.delivery_status)}
-                              </span>
-                            </td>
-                            <td className="px-2 py-2">
-                              <span className="rounded-full bg-[#fff4e8] px-2 py-1 text-xs font-semibold text-[#b45309] capitalize">
-                                {readable(order.payment_status)}
-                              </span>
-                            </td>
-                            <td className="px-2 py-2 text-right">
+                </div>
+                <Link href="/buyer/dashboard" className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-750 transition self-start sm:self-center">
+                  ← Back to Dashboard
+                </Link>
+              </header>
+
+              {/* Statistics & Overview Banner */}
+              <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-6">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-[0_8px_30px_rgb(0,0,0,0.03)] md:hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition duration-300">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 sm:p-3 rounded-xl bg-blue-50 text-blue-600 shrink-0">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[9px] sm:text-[10px] font-extrabold text-slate-400 uppercase tracking-wider truncate">Total Volume</p>
+                      <h3 className="text-sm sm:text-base lg:text-lg font-black text-slate-800 mt-0.5 truncate">
+                        {money(userOrders.reduce((sum, o) => sum + toNumber(o.total_amount), 0))}
+                      </h3>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-[0_8px_30px_rgb(0,0,0,0.03)] md:hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition duration-300">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 sm:p-3 rounded-xl bg-amber-50 text-amber-600 shrink-0">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[9px] sm:text-[10px] font-extrabold text-slate-400 uppercase tracking-wider truncate">Active Ops</p>
+                      <h3 className="text-sm sm:text-base lg:text-lg font-black text-slate-800 mt-0.5 truncate">
+                        {userOrders.filter(o => ["in_progress", "shipped"].includes(orderBucket(o))).length} Orders
+                      </h3>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-[0_8px_30px_rgb(0,0,0,0.03)] md:hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition duration-300">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 sm:p-3 rounded-xl bg-violet-50 text-violet-650 shrink-0">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[9px] sm:text-[10px] font-extrabold text-slate-400 uppercase tracking-wider truncate">New POs</p>
+                      <h3 className="text-sm sm:text-base lg:text-lg font-black text-slate-800 mt-0.5 truncate">
+                        {userOrders.filter(o => o.status === "po_released").length} Pending
+                      </h3>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-[0_8px_30px_rgb(0,0,0,0.03)] md:hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition duration-300">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 sm:p-3 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[9px] sm:text-[10px] font-extrabold text-slate-400 uppercase tracking-wider truncate">Fulfilled</p>
+                      <h3 className="text-sm sm:text-base lg:text-lg font-black text-slate-800 mt-0.5 truncate">
+                        {userOrders.filter(o => orderBucket(o) === "completed").length} Done
+                      </h3>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {feedback ? (
+                <p className="rounded-xl border border-[#dbe8ff] bg-[#f8fbff] px-4 py-3 text-sm font-semibold text-[#355860] mb-6">{feedback}</p>
+              ) : null}
+
+              <section className="supplier-orders-panel rounded-xl border border-[#dbe4ef] bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.05)]">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  {/* Wrapped capsule filter tabs on mobile, horizontal row on desktop */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {orderTabs.map((tab) => (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => setOrderFilter(tab.key)}
+                        className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold transition border ${orderFilter === tab.key
+                          ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                          : "bg-transparent text-slate-500 border-transparent md:hover:bg-slate-50"
+                          }`}
+                      >
+                        {tab.label} <span className="opacity-70 text-[10px] ml-0.5">{tab.count}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <label className="flex min-w-0 items-center gap-3 rounded-xl border border-[#dbe4ef] bg-white px-4 py-2.5 text-sm text-[#94a3b8] md:min-w-[320px] lg:min-w-[360px]">
+                    <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                      <circle cx="11" cy="11" r="7" />
+                      <path d="m20 20-3.5-3.5" />
+                    </svg>
+                    <input
+                      value={orderSearch}
+                      onChange={(event) => setOrderSearch(event.target.value)}
+                      placeholder="Search orders, vendors, or products..."
+                      className="w-full border-0 bg-transparent text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8]"
+                    />
+                  </label>
+                </div>
+
+                {/* Desktop View Table: Hidden on Mobile */}
+                <div className="mt-4 hidden md:block overflow-x-auto rounded-xl border border-[#e5e9f0]">
+                  <table className="w-full min-w-[960px] border-collapse text-left text-sm">
+                    <thead className="bg-[#f8fafc] text-[#0f172a]">
+                      <tr>
+                        <th className="px-5 py-4 font-bold">Order ID</th>
+                        <th className="px-5 py-4 font-bold">Vendor Name</th>
+                        <th className="px-5 py-4 font-bold">Ordered Product Summary</th>
+                        <th className="px-5 py-4 font-bold">Amount</th>
+                        <th className="px-5 py-4 font-bold">Order Status</th>
+                        <th className="px-5 py-4 text-right font-bold">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#eef2f6]">
+                      {filteredOrders.map((order) => (
+                        <tr key={order.id} className="supplier-order-row transition hover:bg-[#fbfcff]">
+                          <td className="px-5 py-4 font-bold text-[#0f172a]">HL-ORD-{String(order.id).padStart(4, "0")}</td>
+                          <td className="px-5 py-4 font-semibold text-[#0f172a]">{order.vendor_name || `Vendor #${order.vendor}`}</td>
+                          <td className="px-5 py-4 text-xs text-slate-500 max-w-[200px] truncate" title={orderProductSummary(order, products)}>
+                            {orderProductSummary(order, products)}
+                          </td>
+                          <td className="px-5 py-4 font-extrabold text-[#0f172a]">{money(order.total_amount)}</td>
+                          <td className="px-5 py-4">
+                            <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${statusChipClass(order)}`}>
+                              {orderStatusLabel(order)}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex justify-end gap-2">
+                              <Link
+                                href={`/buyer/messages?partner_id=${order.vendor_user_id}`}
+                                className="flex items-center gap-1 border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-750 rounded-lg cursor-pointer transition shadow-sm"
+                                aria-label="Message Supplier"
+                                title="Message Supplier"
+                              >
+                                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                                </svg>
+                                Chat
+                              </Link>
+                              <Link
+                                href={`/buyer/orders/${order.id}`}
+                                className="flex items-center gap-1 border border-blue-200 bg-white hover:bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-650 rounded-lg cursor-pointer transition shadow-sm"
+                              >
+                                View Details
+                              </Link>
                               <button
                                 type="button"
-                                onClick={() => setSelectedOrderId(order.id)}
-                                className="rounded-lg border border-[#dbe4ef] bg-white px-3 py-2 text-xs font-semibold text-[#0f4fb6]"
+                                onClick={() => printOrderPdf(order, products)}
+                                className="rounded-lg border border-[#dbe4ef] bg-white p-2 text-[#64748b] transition hover:border-[#0f4fb6] hover:text-[#0f4fb6]"
+                                aria-label={`Download PDF`}
+                                title="Download PDF"
                               >
-                                View Lifecycle
+                                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+                                  <path d="M12 3v12" />
+                                  <path d="m7 10 5 5 5-5" />
+                                  <path d="M5 21h14" />
+                                </svg>
                               </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredOrders.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="px-5 py-12 text-center text-[#64748b]">No procurement orders found matching current criteria.</td>
+                        </tr>
+                      ) : null}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile View Card List: Block on Mobile, Hidden on Desktop */}
+                <div className="mt-4 block md:hidden space-y-4">
+                  {filteredOrders.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center text-sm font-semibold text-slate-400">
+                      No procurement orders found matching criteria.
+                    </div>
+                  ) : (
+                    filteredOrders.map((order) => (
+                      <div
+                        key={order.id}
+                        className="rounded-2xl border border-slate-150 bg-white p-4 shadow-[0_4px_16px_rgba(15,23,42,0.02)] md:hover:shadow-[0_8px_24px_rgba(15,23,42,0.05)] transition duration-300 space-y-4"
+                      >
+                        {/* Header Row */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 bg-blue-50/80 px-2 py-0.5 rounded-md">
+                              HL-ORD-{String(order.id).padStart(4, "0")}
+                            </span>
+                            <h4 className="text-sm font-bold text-slate-800 mt-1.5 truncate max-w-[160px]">
+                              {order.vendor_name || `Vendor #${order.vendor}`}
+                            </h4>
+                          </div>
+                          <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold capitalize shrink-0 ${statusChipClass(order)}`}>
+                            {orderStatusLabel(order)}
+                          </span>
+                        </div>
+
+                        {/* Product Summary */}
+                        <p className="text-xs text-slate-500 line-clamp-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100" title={orderProductSummary(order, products)}>
+                          {orderProductSummary(order, products)}
+                        </p>
+
+                        {/* Financial and Status Info */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                          <div>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Total Amount</span>
+                            <span className="text-sm font-extrabold text-slate-800">{money(order.total_amount)}</span>
+                          </div>
+                        </div>
+
+                        {/* Dynamic Quick Actions */}
+                        <div className="grid grid-cols-[1fr_1fr_auto] gap-2 pt-1">
+                          <Link
+                            href={`/buyer/orders/${order.id}`}
+                            className="flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 md:hover:bg-blue-700 py-2.5 text-xs font-bold text-white shadow-sm transition active:scale-95 text-center"
+                          >
+                            View Details
+                          </Link>
+                          <Link
+                            href={`/buyer/messages?partner_id=${order.vendor_user_id}`}
+                            className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white md:hover:bg-slate-50 py-2.5 text-xs font-bold text-slate-700 transition active:scale-95"
+                          >
+                            Chat
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => printOrderPdf(order, products)}
+                            className="rounded-xl border border-slate-200 bg-white md:hover:bg-slate-50 p-2.5 text-slate-500 md:hover:text-blue-600 transition"
+                            aria-label="Download PDF"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+                              <path d="M12 3v12" />
+                              <path d="m7 10 5 5 5-5" />
+                              <path d="M5 21h14" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </section>
             </>
           )}
         </div>
         {selectedOrder ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.48)] px-4">
-            <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-[#dbe4ef] bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[rgba(15,23,42,0.48)] px-0 sm:px-4">
+            <div className="max-h-[92vh] w-full sm:max-w-4xl overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-[#dbe4ef] bg-white p-4 sm:p-6 shadow-[0_24px_80px_rgba(15,23,42,0.22)] animate-slide-up sm:animate-fade-in">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.16em] text-[#0f4fb6]">Order Lifecycle</p>
-                  <h2 className="mt-1 text-2xl font-black text-[#0f172a]">HL-ORD-{String(selectedOrder.id).padStart(4, "0")}</h2>
+                  <h2 className="mt-1 text-xl sm:text-2xl font-black text-[#0f172a]">HL-ORD-{String(selectedOrder.id).padStart(4, "0")}</h2>
                 </div>
-                <button type="button" onClick={() => setSelectedOrderId(null)} className="rounded-lg border border-[#dbe4ef] px-3 py-2 text-sm font-bold text-[#64748b]">Close</button>
+                <button type="button" onClick={() => setSelectedOrderId(null)} className="rounded-xl border border-[#dbe4ef] bg-white hover:bg-slate-50 px-4 py-2 text-xs font-bold text-[#64748b] transition active:scale-95 cursor-pointer">
+                  Close
+                </button>
               </div>
 
-              <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                <InfoBox label="Buyer" value={`Buyer #${selectedOrder.buyer}`} />
+              {/* Live Order Status Stepper */}
+              <div className="mt-5 border border-slate-100 bg-[#fafcff] rounded-2xl p-4 sm:p-5 shadow-sm">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+                  <h3 className="text-sm font-black uppercase tracking-[0.15em] text-[#0f4fb6] flex items-center gap-2">
+                    <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" />
+                    </svg>
+                    Live Tracking Stepper
+                  </h3>
+                  <span className="text-[10px] font-bold text-slate-400">Real-time status updates</span>
+                </div>
+
+                {/* Stepper container: Row on Desktop, Column on Mobile */}
+                <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-6 sm:gap-0 pt-2">
+                  {/* Progress Line Background - Desktop Only */}
+                  <div className="absolute hidden sm:block left-[12.5%] right-[12.5%] top-[20px] h-1 bg-slate-200 -translate-y-1/2 z-0" />
+
+                  {/* Active Progress Line - Desktop Only */}
+                  <div
+                    className="absolute hidden sm:block left-[12.5%] top-[20px] h-1 bg-gradient-to-r from-blue-500 to-indigo-600 -translate-y-1/2 transition-all duration-500 z-[2]"
+                    style={{
+                      width:
+                        selectedOrder.status === "completed" || selectedOrder.status === "goods_received" ? "75%" :
+                          selectedOrder.status === "shipped" || selectedOrder.status === "delivered" ? "50%" :
+                            ["po_accepted", "processing", "ready_to_dispatch", "partially_subcontracted"].includes(selectedOrder.status) ? "25%" : "0%"
+                    }}
+                  />
+
+                  {/* Steps */}
+                  {[
+                    {
+                      label: "PO Released",
+                      desc: "Order Initiated",
+                      active: true,
+                      icon: (
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      )
+                    },
+                    {
+                      label: "Processing",
+                      desc: "In Production",
+                      active: ["po_accepted", "processing", "ready_to_dispatch", "partially_subcontracted", "shipped", "delivered", "goods_received", "completed"].includes(selectedOrder.status),
+                      icon: (
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        </svg>
+                      )
+                    },
+                    {
+                      label: "Shipped",
+                      desc: "In Transit",
+                      active: ["shipped", "delivered", "goods_received", "completed"].includes(selectedOrder.status),
+                      icon: (
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h2m-2-1a2 2 0 11-4 0" />
+                        </svg>
+                      )
+                    },
+                    {
+                      label: "Delivered",
+                      desc: "Completed",
+                      active: ["goods_received", "completed"].includes(selectedOrder.status),
+                      icon: (
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )
+                    }
+                  ].map((step, idx) => (
+                    <div key={idx} className="relative z-10 flex flex-row sm:flex-col items-center gap-3.5 sm:gap-0 sm:flex-1">
+                      {/* Vertical line indicator for mobile */}
+                      {idx > 0 && (
+                        <div className={`absolute sm:hidden left-[19px] -top-6 w-0.5 h-6 ${step.active ? "bg-blue-600" : "bg-slate-200"}`} />
+                      )}
+
+                      <div className={`h-10 w-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 shrink-0 ${step.active
+                        ? "bg-blue-600 border-blue-600 text-white shadow-[0_0_14px_rgba(37,99,235,0.3)]"
+                        : "bg-slate-100 border-slate-350 text-slate-400"
+                        }`}>
+                        {step.icon}
+                      </div>
+
+                      <div className="flex flex-col sm:items-center text-left sm:text-center sm:mt-2 pl-2 sm:pl-0">
+                        <span className="text-xs font-bold text-slate-800">{step.label}</span>
+                        <span className="text-[9px] font-medium text-slate-400 mt-0.5">{step.desc}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 grid-cols-2 xl:grid-cols-4">
+                {userRole === "buyer" ? (
+                  <InfoBox label="Vendor" value={selectedOrder.vendor_name || `Vendor #${selectedOrder.vendor}`} />
+                ) : (
+                  <InfoBox label="Buyer" value={selectedOrder.buyer_username || `Buyer #${selectedOrder.buyer}`} />
+                )}
                 <InfoBox label="Buyer Type" value={selectedOrder.buyer_type || "Institution"} />
                 <InfoBox label="Order Date" value={shortDate(selectedOrder.created_at)} />
                 <InfoBox label="Amount" value={money(selectedOrder.total_amount)} />
                 <InfoBox label="Order Status" value={orderStatusLabel(selectedOrder)} />
-                <InfoBox label="Delivery Status" value={readable(selectedOrder.delivery_status)} />
-                <InfoBox label="Payment Status" value={readable(selectedOrder.payment_status)} />
                 <InfoBox label="Items" value={orderProductSummary(selectedOrder, products)} />
               </div>
 
@@ -681,17 +1150,6 @@ export default function OrderPage() {
                       </button>
                     ) : null}
 
-                    {selectedOrder.buyer === userId && canMakePayment(selectedOrder) ? (
-                      <button
-                        type="button"
-                        onClick={() => handleDummyPayment(selectedOrder)}
-                        disabled={updatingOrderId === selectedOrder.id}
-                        className="rounded-xl border border-[#e0dafc] bg-[#f7f3ff] px-4 py-3 text-sm font-black text-[#5b3cc4] disabled:opacity-60"
-                      >
-                        {updatingOrderId === selectedOrder.id ? "Updating..." : "Make Dummy Payment"}
-                      </button>
-                    ) : null}
-
                     {selectedOrder.buyer === userId ? (
                       <button
                         type="button"
@@ -700,17 +1158,6 @@ export default function OrderPage() {
                         className="rounded-xl border border-[#dbe4ef] bg-white px-4 py-3 text-sm font-black text-[#0f4fb6] disabled:opacity-60"
                       >
                         {updatingOrderId === selectedOrder.id ? "Updating..." : "Reorder"}
-                      </button>
-                    ) : null}
-
-                    {isSupplierRoute && canFlagPaymentOverdue(selectedOrder) ? (
-                      <button
-                        type="button"
-                        onClick={() => handleMarkPaymentOverdue(selectedOrder)}
-                        disabled={updatingOrderId === selectedOrder.id}
-                        className="rounded-xl border border-[#f7c9c9] bg-[#fff6f6] px-4 py-3 text-sm font-black text-[#b42318] disabled:opacity-60"
-                      >
-                        {updatingOrderId === selectedOrder.id ? "Updating..." : "Payment Not Received"}
                       </button>
                     ) : null}
                   </div>
@@ -809,7 +1256,8 @@ export default function OrderPage() {
         }
       `}</style>
       </main>
-    </>
+      {isBuyerRoute ? <BuyerFooter /> : isSupplierRoute ? <SupplierFooter /> : null}
+    </div>
   )
 }
 

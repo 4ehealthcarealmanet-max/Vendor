@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react"
-import { clearToken, getCurrentUser, getToken, loginUser, registerUser, setToken } from "@/services"
+import { clearToken, getCurrentUser, getToken, loginUser, registerUser, setToken, isAuthSessionError } from "@/services"
 
 type AuthMode = "login" | "register"
 
@@ -163,9 +163,12 @@ export default function AuthScreen({
         const user = await getCurrentUser()
         if (!active) return
         redirectToDashboard(user)
-      } catch {
-        clearToken()
-        if (active) setCheckingSession(false)
+      } catch (err) {
+        if (!active) return
+        if (isAuthSessionError(err)) {
+          clearToken()
+        }
+        setCheckingSession(false)
       }
     }
 
@@ -199,7 +202,7 @@ export default function AuthScreen({
           role,
           ...(role === "buyer" ? { buyer_type: buyerType } : {}),
         })
-        
+
         if (response.token) {
           setToken(response.token)
           redirectToDashboard(response.user)
@@ -244,22 +247,20 @@ export default function AuthScreen({
             <button
               type="button"
               onClick={() => setMode("login")}
-              className={`rounded-lg px-4 py-2.5 text-center text-sm font-bold transition ${
-                mode === "login"
+              className={`rounded-lg px-4 py-2.5 text-center text-sm font-bold transition ${mode === "login"
                   ? "bg-[#0f4fb6] text-white shadow-[0_8px_22px_rgba(15,79,182,0.24)]"
                   : "text-[#7a8497] hover:text-[#0f4fb6]"
-              }`}
+                }`}
             >
               Login
             </button>
             <button
               type="button"
               onClick={() => setMode("register")}
-              className={`rounded-lg px-4 py-2.5 text-center text-sm font-bold transition ${
-                mode === "register"
+              className={`rounded-lg px-4 py-2.5 text-center text-sm font-bold transition ${mode === "register"
                   ? "bg-[#0f4fb6] text-white shadow-[0_8px_22px_rgba(15,79,182,0.24)]"
                   : "text-[#7a8497] hover:text-[#0f4fb6]"
-              }`}
+                }`}
             >
               Register
             </button>
@@ -268,21 +269,19 @@ export default function AuthScreen({
           <>
             <Link
               href={buildAuthHref("login")}
-              className={`rounded-lg px-4 py-2.5 text-center text-sm font-bold transition ${
-                mode === "login"
+              className={`rounded-lg px-4 py-2.5 text-center text-sm font-bold transition ${mode === "login"
                   ? "bg-[#0f4fb6] text-white shadow-[0_8px_22px_rgba(15,79,182,0.24)]"
                   : "text-[#7a8497] hover:text-[#0f4fb6]"
-              }`}
+                }`}
             >
               Login
             </Link>
             <Link
               href={buildAuthHref("register")}
-              className={`rounded-lg px-4 py-2.5 text-center text-sm font-bold transition ${
-                mode === "register"
+              className={`rounded-lg px-4 py-2.5 text-center text-sm font-bold transition ${mode === "register"
                   ? "bg-[#0f4fb6] text-white shadow-[0_8px_22px_rgba(15,79,182,0.24)]"
                   : "text-[#7a8497] hover:text-[#0f4fb6]"
-              }`}
+                }`}
             >
               Register
             </Link>
@@ -305,18 +304,16 @@ export default function AuthScreen({
                   key={item}
                   type="button"
                   onClick={() => setRole(item)}
-                  className={`rounded-2xl border p-4 text-left transition ${
-                    selected
+                  className={`rounded-2xl border p-4 text-left transition ${selected
                       ? "border-[#0f4fb6] bg-[#f5f8ff] shadow-[0_10px_24px_rgba(15,79,182,0.08)]"
                       : "border-[#dce3ec] bg-white hover:border-[#b8c8e2]"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <span className={selected ? "text-[#0f4fb6]" : "text-[#6b7687]"}>{card.icon}</span>
                     <span
-                      className={`mt-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full border ${
-                        selected ? "border-[#0f4fb6]" : "border-[#c4ccd8]"
-                      }`}
+                      className={`mt-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full border ${selected ? "border-[#0f4fb6]" : "border-[#c4ccd8]"
+                        }`}
                     >
                       {selected ? <span className="h-2 w-2 rounded-full bg-[#0f4fb6]" /> : null}
                     </span>
@@ -402,11 +399,10 @@ export default function AuthScreen({
 
         {message ? (
           <p
-            className={`rounded-2xl border px-4 py-3 text-sm ${
-              messageTone === "success"
+            className={`rounded-2xl border px-4 py-3 text-sm ${messageTone === "success"
                 ? "border-[#cfe9d8] bg-[#f4fff7] text-[#166534]"
                 : "border-[#f1d0d0] bg-[#fff7f7] text-[#a02828]"
-            }`}
+              }`}
           >
             {message}
           </p>
@@ -448,7 +444,7 @@ export default function AuthScreen({
             </button>
           )}
         </div>
-        
+
         <div>
           {cardContent}
         </div>

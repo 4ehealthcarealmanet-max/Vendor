@@ -18,6 +18,7 @@ class VendorRfqVendorSerializer(serializers.ModelSerializer):
 class VendorQuotationSerializer(serializers.ModelSerializer):
     rfq_id = serializers.IntegerField(source="rfq.id", read_only=True)
     supplier_vendor_id = serializers.IntegerField(source="supplier_vendor.id", read_only=True)
+    supplier_user_id = serializers.ReadOnlyField(source="supplier_vendor.user.id")
     product_id = serializers.IntegerField(source="product.id", read_only=True)
     product_name = serializers.CharField(source="product.name", read_only=True)
 
@@ -27,6 +28,7 @@ class VendorQuotationSerializer(serializers.ModelSerializer):
             "id",
             "rfq_id",
             "supplier_vendor_id",
+            "supplier_user_id",
             "supplier_name",
             "supplier_company",
             "product_id",
@@ -44,6 +46,7 @@ class VendorQuotationSerializer(serializers.ModelSerializer):
 
 class VendorRfqSerializer(serializers.ModelSerializer):
     buyer_name = serializers.CharField(source="buyer.username", read_only=True)
+    buyer_user_id = serializers.ReadOnlyField(source="buyer.id")
     invited_vendors = VendorRfqVendorSerializer(source="invitations", many=True, read_only=True)
     quotations = VendorQuotationSerializer(many=True, read_only=True)
     tender_document = serializers.FileField(write_only=True, required=False, allow_null=True)
@@ -83,6 +86,7 @@ class VendorRfqSerializer(serializers.ModelSerializer):
             "tender_type",
             "status",
             "buyer_name",
+            "buyer_user_id",
             "buyer_company",
             "buyer_type",
             "created_at",

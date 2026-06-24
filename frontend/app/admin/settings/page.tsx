@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import AdminTopBar from "@/components/admin/AdminTopBar"
-import { getCurrentUser, resetPassword } from "@/services"
+import { getCurrentUser, resetPassword, forceLogout, isAuthSessionError } from "@/services"
 import { AuthUser } from "@/types"
 
 export default function AdminSettingsPage() {
@@ -29,6 +29,10 @@ export default function AdminSettingsPage() {
         setAdminUser(me)
       } catch (err) {
         console.error(err)
+        if (isAuthSessionError(err)) {
+          forceLogout()
+          return
+        }
         router.push("/login")
       } finally {
         setLoading(false)
