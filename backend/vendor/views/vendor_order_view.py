@@ -154,20 +154,6 @@ class VendorOrderViewSet(viewsets.ModelViewSet):
             order.status = "completed"
         order.save(update_fields=["status", "delivery_status", "goods_received_at"])
 
-        # Increase stock for buyer if they are also a vendor (subcontracting fulfillment)
-        try:
-            buyer_profile = VendorProfile.objects.get(user=request.user)
-            for item in order.items.all():
-                matching_product = VendorProductService.objects.filter(
-                    vendor=buyer_profile,
-                    name=item.product.name
-                ).first()
-                if matching_product:
-                    matching_product.stock += item.quantity
-                    matching_product.save(update_fields=["stock"])
-        except VendorProfile.DoesNotExist:
-            pass
-
         log_order_event(
             order,
             message="Buyer confirmed the goods were received.",
