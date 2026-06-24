@@ -17,21 +17,11 @@ export default function DashboardHeader({ user, rfqs = [], products = [] }: Dash
   const [searchTerm, setSearchTerm] = useState("")
   const [searchResults, setSearchResults] = useState<(VendorRfq | VendorProductService)[]>([])
   const [showSearch, setShowSearch] = useState(false)
-  const [notificationCount, setNotificationCount] = useState(0)
-  const [showNotifications, setShowNotifications] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
   const [showAccountMenu, setShowAccountMenu] = useState(false)
   const [searching, setSearching] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
-  const notificationRef = useRef<HTMLDivElement>(null)
   const accountRef = useRef<HTMLDivElement>(null)
-
-  // Fetch notification count
-  useEffect(() => {
-    if (rfqs.length > 0) {
-      const newRfqs = rfqs.filter((r) => r.status === "open").length
-      setNotificationCount(newRfqs)
-    }
-  }, [rfqs])
 
   // Search handler with debounce
   useEffect(() => {
@@ -43,7 +33,6 @@ export default function DashboardHeader({ user, rfqs = [], products = [] }: Dash
     const timer = setTimeout(async () => {
       setSearching(true)
       try {
-        // Use already-loaded data from props
         const rfqMatches = rfqs.filter((r) =>
           r.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
           r.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -71,12 +60,31 @@ export default function DashboardHeader({ user, rfqs = [], products = [] }: Dash
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) setShowSearch(false)
-      if (notificationRef.current && !notificationRef.current.contains(e.target as Node)) setShowNotifications(false)
       if (accountRef.current && !accountRef.current.contains(e.target as Node)) setShowAccountMenu(false)
     }
 
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  // Sync unreadCount from global notifications
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("app_notifications")
+      if (saved) {
+        try {
+          const list = JSON.parse(saved)
+          setUnreadCount(list.filter((n: any) => !n.isRead).length)
+        } catch {}
+      }
+    }
+
+    const handleUpdate = (event: any) => {
+      setUnreadCount(event.detail?.unreadCount ?? 0)
+    }
+
+    window.addEventListener("app:notifications-updated", handleUpdate)
+    return () => window.removeEventListener("app:notifications-updated", handleUpdate)
   }, [])
 
   const handleLogout = async () => {
@@ -169,39 +177,24 @@ export default function DashboardHeader({ user, rfqs = [], products = [] }: Dash
         {/* Right Actions */}
         <div className="flex items-center gap-3 md:gap-4">
           {/* Notifications */}
-          <div ref={notificationRef} className="relative">
+          {/* Notifications */}
+          <div className="relative">
             <button
               type="button"
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#dfe7f1] bg-white text-[#6b7280] transition hover:bg-[#f8fafc] hover:text-[#0f4fb6]"
+              onClick={() => window.dispatchEvent(new CustomEvent("app:toggle-notifications"))}
+              className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#dfe7f1] bg-white text-[#6b7280] transition hover:bg-[#f8fafc] hover:text-[#0f4fb6] cursor-pointer"
               aria-label="Notifications"
             >
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                 <path d="M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
-              {notificationCount > 0 ? (
-                <span className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[11px] font-bold text-white shadow-lg">
-                  {notificationCount > 99 ? "99+" : notificationCount}
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[11px] font-black text-white shadow-lg">
+                  {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
-              ) : null}
+              )}
             </button>
-
-            {showNotifications ? (
-              <div className="absolute top-full right-0 mt-3 w-80 rounded-2xl border border-[#e5e9f0] bg-white p-5 shadow-[0_12px_40px_rgba(15,23,42,0.12)]">
-                <p className="font-semibold text-[#1f2937] text-sm flex items-center gap-2">
-                  <span className="inline-flex h-2 w-2 rounded-full bg-[#0f4fb6]" />
-                  New Opportunities
-                </p>
-                <div className="mt-4 space-y-2">
-                  {notificationCount > 0 ? (
-                    <p className="text-sm text-[#6b7280]">{notificationCount} open RFQs available for you to bid on</p>
-                  ) : (
-                    <p className="text-sm text-[#9ca3af]">No new notifications</p>
-                  )}
-                </div>
-              </div>
-            ) : null}
           </div>
 
           {/* Account Manager */}

@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import AdminTopBar from "@/components/admin/AdminTopBar"
-import { getAdminUsers, getCurrentUser } from "@/services"
+import { getAdminUsers, getCurrentUser, forceLogout, isAuthSessionError } from "@/services"
 import { AdminUser, AuthUser } from "@/types"
 
 export default function AdminDashboardPage() {
@@ -58,6 +58,10 @@ function AdminDashboardContent() {
         sessionStorage.setItem("admin_users_list", JSON.stringify(usersData))
       } catch (err) {
         console.error(err)
+        if (isAuthSessionError(err)) {
+          forceLogout()
+          return
+        }
       } finally {
         setLoading(false)
       }
@@ -85,7 +89,7 @@ function AdminDashboardContent() {
     const pending = relevantUsers.filter(u => u.status === "pending").length
     const approved = relevantUsers.filter(u => u.status === "approved").length
     const roleLabel = roleFilter === "buyer" ? "Buyers" : roleFilter === "supplier" ? "Suppliers" : "Participants"
-    
+
     return {
       total: relevantUsers.length,
       active: approved,
@@ -191,17 +195,17 @@ function MetricCard({ label, value, delta, status, tone }: { label: string; valu
   return (
     <article className={`group relative rounded-[2.25rem] border-2 bg-white p-5 transition-all duration-500 hover:scale-[1.02] hover:-translate-y-1.5 hover:shadow-2xl cursor-default overflow-hidden ${tones[tone as keyof typeof tones]}`}>
       <div className={`absolute top-0 left-0 right-0 h-[3px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${tone === 'blue' ? 'bg-blue-500 shadow-[0_2px_10px_rgba(59,130,246,0.5)]' :
-          tone === 'indigo' ? 'bg-indigo-500 shadow-[0_2px_10px_rgba(99,102,241,0.5)]' :
-            tone === 'violet' ? 'bg-violet-500 shadow-[0_2px_10px_rgba(139,92,246,0.5)]' :
-              'bg-amber-500 shadow-[0_2px_10px_rgba(245,158,11,0.5)]'
+        tone === 'indigo' ? 'bg-indigo-500 shadow-[0_2px_10px_rgba(99,102,241,0.5)]' :
+          tone === 'violet' ? 'bg-violet-500 shadow-[0_2px_10px_rgba(139,92,246,0.5)]' :
+            'bg-amber-500 shadow-[0_2px_10px_rgba(245,158,11,0.5)]'
         }`} />
 
       <div className="flex items-start justify-between relative z-10">
         <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-white shadow-sm border border-[#f1f5f9] transition-all duration-500 group-hover:scale-110 relative overflow-hidden">
           <div className={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-500 ${tone === 'blue' ? 'bg-blue-500' :
-              tone === 'indigo' ? 'bg-indigo-500' :
-                tone === 'violet' ? 'bg-violet-500' :
-                  'bg-amber-500'
+            tone === 'indigo' ? 'bg-indigo-500' :
+              tone === 'violet' ? 'bg-violet-500' :
+                'bg-amber-500'
             }`} />
           <div className="transition-all duration-500 group-hover:scale-125 relative z-10 scale-90">
             {label.toLowerCase().includes("total") && <svg className="text-blue-600" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>}
@@ -238,14 +242,15 @@ function MetricCard({ label, value, delta, status, tone }: { label: string; valu
 
 function VettingRequestCard({ user, onClick }: { user: AdminUser; onClick: () => void }) {
   const isSupplier = user.role === 'supplier'
-  const getTimeAgo = (date: string) => {
-    const diff = Date.now() - new Date(date).getTime()
-    if (diff < 60000) return "Just now"
-    const hours = Math.floor(diff / 3600000)
-    if (hours < 1) return `${Math.floor(diff / 60000)}m ago`
-    if (hours < 24) return `${hours}h ago`
-    return `${Math.floor(hours / 24)}d ago`
-  }
+  const [isJustNow, setIsJustNow] = useState(false)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const diff = Date.now() - new Date(user.created_at).getTime()
+      setIsJustNow(diff < 60000)
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [user.created_at])
 
   return (
     <div
@@ -276,20 +281,20 @@ function VettingRequestCard({ user, onClick }: { user: AdminUser; onClick: () =>
                   {user.verification_info?.company_name || 'Organization N/A'}
                 </span>
                 <span className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-[9px] font-black uppercase tracking-[0.15em] shadow-sm ${user.status === 'approved'
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                    : user.status === 'rejected'
-                      ? 'bg-rose-50 text-rose-600 border border-rose-200'
-                      : 'bg-amber-50 text-amber-600 border border-amber-200'
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  : user.status === 'rejected'
+                    ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                    : 'bg-amber-50 text-amber-600 border border-amber-200'
                   }`}>
                   <span className={`h-1.5 w-1.5 rounded-full ${user.status === 'approved' ? 'bg-emerald-500' :
-                      user.status === 'rejected' ? 'bg-rose-500' : 'bg-amber-500 animate-pulse'
+                    user.status === 'rejected' ? 'bg-rose-500' : 'bg-amber-500 animate-pulse'
                     }`} />
                   {user.status === 'approved' ? 'Approved' : user.status === 'rejected' ? 'Rejected' : 'Pending'}
                 </span>
               </div>
             </div>
             <div className="text-right">
-              {getTimeAgo(user.created_at) === "Just now" && (
+              {isJustNow && (
                 <div className="flex flex-col items-end">
                   <div className="flex items-center gap-1.5">
                     <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />

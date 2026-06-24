@@ -2,7 +2,8 @@
 
 import { FormEvent, useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import SupplierSidebar from "@/components/supplier/SupplierSidebar"
+import SupplierNavbar from "@/components/supplier/SupplierNavbar"
+import SupplierFooter from "@/components/supplier/SupplierFooter"
 import {
   clearToken,
   getApiErrorMessage,
@@ -96,9 +97,13 @@ export default function SupplierSettingsPage() {
   }
 
   return (
-    <>
-      <SupplierSidebar active="settings" username={username} hasActiveSubscription={hasActiveSub} onSignOut={signOut} />
-      <main className="px-4 py-8 pb-24 md:px-6 md:py-12 lg:pl-[calc(18rem+2.5rem)]">
+    <div className="min-h-screen bg-[#f6f8fb] text-[#0f172a] flex flex-col">
+      <SupplierNavbar
+        active="settings"
+        username={username}
+        onSignOut={signOut}
+      />
+      <main className="flex-1 mx-auto max-w-[1600px] w-full px-4 sm:px-6 py-6 md:py-8 pb-10 md:px-8 lg:py-10">
         <div className="mx-auto w-full max-w-xl space-y-5">
           <header className="settings-card rounded-xl border border-[#dbe4ef] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-[#0f4fb6]">Account Settings</p>
@@ -196,6 +201,7 @@ export default function SupplierSettingsPage() {
           }
         `}</style>
       </main>
-    </>
+      <SupplierFooter />
+    </div>
   )
 }

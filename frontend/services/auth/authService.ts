@@ -19,6 +19,14 @@ export const clearToken = () => {
   window.localStorage.removeItem(TOKEN_KEY)
 }
 
+export const forceLogout = () => {
+  clearToken()
+  if (typeof window !== "undefined") {
+    sessionStorage.clear()
+    window.location.replace("/login")
+  }
+}
+
 export const isAuthSessionError = (error: unknown) => {
   if (axios.isAxiosError(error)) {
     const status = error.response?.status ?? 0

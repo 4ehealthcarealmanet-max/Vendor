@@ -2,9 +2,41 @@
 
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { Suspense, type ChangeEvent, useEffect, useMemo, useState } from "react"
-import BuyerSidebar from "@/components/buyer/BuyerSidebar"
-import SupplierSidebar from "@/components/supplier/SupplierSidebar"
+import { Suspense, type ChangeEvent, useEffect, useMemo, useRef, useState } from "react"
+import BuyerNavbar from "@/components/buyer/BuyerNavbar"
+import BuyerFooter from "@/components/buyer/BuyerFooter"
+import SupplierNavbar from "@/components/supplier/SupplierNavbar"
+import SupplierFooter from "@/components/supplier/SupplierFooter"
+import RfqDetailPage from "./RfqDetailPage"
+import {
+  FileText,
+  CheckCircle,
+  Calendar,
+  MapPin,
+  Building2,
+  Tag,
+  ChevronDown,
+  ChevronUp,
+  RefreshCw,
+  FileSpreadsheet,
+  Plus,
+  Search,
+  ArrowUpDown,
+  UserCheck,
+  Inbox,
+  Eye,
+  Download,
+  AlertCircle,
+  Trash2,
+  Edit,
+  Clock,
+  Briefcase,
+  Users,
+  Filter,
+  Package,
+  Info,
+  ArrowLeft
+} from "lucide-react"
 import {
   awardQuotation,
   clearToken,
@@ -83,6 +115,25 @@ const formatDisplayDateTime = (value?: string | null) => {
   })
 }
 
+const getRemainingTimeText = (deadlineStr: string) => {
+  if (!deadlineStr) return ""
+  const deadline = new Date(deadlineStr)
+  const diffTime = deadline.getTime() - Date.now()
+  if (diffTime <= 0) return "Ended"
+  
+  const diffHours = Math.floor(diffTime / (1000 * 60 * 60))
+  if (diffHours < 24) {
+    if (diffHours <= 0) {
+      const diffMins = Math.max(0, Math.floor(diffTime / (1000 * 60)))
+      return `${diffMins}m left`
+    }
+    return `${diffHours}h left`
+  }
+  
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  return `${diffDays}d left`
+}
+
 const formatBuyerType = (value: VendorRfq["buyer_type"]) => {
   if (!value) return "Institution"
   return value.charAt(0).toUpperCase() + value.slice(1)
@@ -114,7 +165,38 @@ const getDeadlineLabel = (value: string, status: VendorRfq["status"]) => {
   return `Closes in ${diffDays} days`
 }
 
+const getLowestBid = (quotations: any[]) => {
+  if (!quotations || quotations.length === 0) return null
+  return quotations.reduce((min, q) => q.unit_price < min.unit_price ? q : min, quotations[0])
+}
 
+function CountdownTimer({ deadline }: { deadline: string }) {
+  const [timeLeft, setTimeLeft] = useState("")
+
+  useEffect(() => {
+    const calculate = () => {
+      const diff = new Date(deadline).getTime() - Date.now()
+      if (diff <= 0) {
+        setTimeLeft("Ended")
+        return
+      }
+
+      const hrs = Math.floor(diff / (1000 * 60 * 60))
+      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+      const secs = Math.floor((diff % (1000 * 60)) / 1000)
+
+      setTimeLeft(`${hrs}h ${mins}m ${secs}s`)
+    }
+
+    calculate()
+    const timer = setInterval(calculate, 1000)
+    return () => clearInterval(timer)
+  }, [deadline])
+
+  return (
+    <span className="font-mono text-slate-700 font-bold">{timeLeft}</span>
+  )
+}
 
 export default function RfqPage() {
   return (
@@ -137,9 +219,10 @@ function RfqPageContent() {
   const [message, setMessage] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [activeQuoteRfqId, setActiveQuoteRfqId] = useState<number | null>(null)
+  const [selectedRfqId, setSelectedRfqId] = useState<number | null>(null)
   const [recentlyPublishedRfqId, setRecentlyPublishedRfqId] = useState<number | null>(null)
   const [expandedRfqIds, setExpandedRfqIds] = useState<number[]>([])
-  const [requestFilter, setRequestFilter] = useState<"all" | "my_rfqs" | VendorRfq["status"]>("all")
+  const [requestFilter, setRequestFilter] = useState<"all" | "my_rfqs" | "eligible" | VendorRfq["status"]>("all")
   const [hasActiveSub, setHasActiveSub] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [tenderTypeFilter, setTenderTypeFilter] = useState<"all" | VendorRfq["tender_type"]>("all")
@@ -160,6 +243,8 @@ function RfqPageContent() {
     quotationId: null,
     reason: '',
   })
+
+  const lastPrefilledRfqIdRef = useRef<number | null>(null)
 
   const [deleteModal, setDeleteModal] = useState<{
     open: boolean
@@ -263,47 +348,37 @@ function RfqPageContent() {
       } catch {
         // Keep silent during background refresh.
       }
-    }, 20000)
+    }, 2000)
 
     return () => window.clearInterval(interval)
   }, [userRole])
 
-  // Handle highlight parameter from search
+  // Handle highlight/rfqId/id parameters to open detailed view page
   useEffect(() => {
-    const highlightId = searchParams.get("highlight")
-    if (highlightId && rfqs.length > 0) {
-      const id = Number(highlightId)
+    const targetIdParam = searchParams.get("rfqId") || searchParams.get("id") || searchParams.get("highlight")
+    if (targetIdParam && rfqs.length > 0) {
+      const id = Number(targetIdParam)
       if (!isNaN(id) && rfqs.some((r) => r.id === id)) {
-        setExpandedRfqIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
-        // Scroll to the item
-        setTimeout(() => {
-          const element = document.getElementById(`rfq-${id}`)
-          if (element) {
-            element.scrollIntoView({ behavior: "smooth", block: "center" })
-          }
-        }, 100)
+        setSelectedRfqId(id)
+        if (searchParams.get("rfqId")) {
+          setActiveQuoteRfqId(id)
+        }
       }
     }
   }, [searchParams, rfqs])
 
-  // Handle rfqId parameter from dashboard search - auto-open quote form
+  // Prefill RFQ creation form from query parameters
   useEffect(() => {
-    const rfqIdParam = searchParams.get("rfqId")
-    if (rfqIdParam && rfqs.length > 0) {
-      const id = Number(rfqIdParam)
-      if (!isNaN(id) && rfqs.some((r) => r.id === id)) {
-        setActiveQuoteRfqId(id)
-        setExpandedRfqIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
-        // Scroll to the item
-        setTimeout(() => {
-          const element = document.getElementById(`rfq-${id}`)
-          if (element) {
-            element.scrollIntoView({ behavior: "smooth", block: "center" })
-          }
-        }, 100)
-      }
+    const prefillTitle = searchParams.get("prefillTitle")
+    const prefillType = searchParams.get("prefillType")
+    if (prefillTitle || prefillType) {
+      setRfqForm((prev) => ({
+        ...prev,
+        title: prefillTitle || prev.title,
+        product_type: (prefillType === "service" ? "service" : "product") as "product" | "service",
+      }))
     }
-  }, [searchParams, rfqs])
+  }, [searchParams])
 
   const signOut = async () => {
     try {
@@ -335,6 +410,58 @@ function RfqPageContent() {
     if (supplierCompanyName && quote.supplier_company?.trim().toLowerCase() === supplierCompanyName.trim().toLowerCase()) return true
     return false
   }
+
+  useEffect(() => {
+    if (selectedRfqId !== null) {
+      if (selectedRfqId !== lastPrefilledRfqIdRef.current) {
+        const selectedRfq = rfqs.find((r) => r.id === selectedRfqId)
+        if (selectedRfq && userRole === "supplier") {
+          lastPrefilledRfqIdRef.current = selectedRfqId
+          const supplierQuote = selectedRfq.quotations.find((quote) => {
+            const quoteVendorId = quote.supplier_vendor_id
+            if (supplierVendorProfile && quoteVendorId && quoteVendorId === supplierVendorProfile) return true
+            if (quote.supplier_name?.trim().toLowerCase() === username.trim().toLowerCase()) return true
+            if (supplierCompanyName && quote.supplier_company?.trim().toLowerCase() === supplierCompanyName.trim().toLowerCase()) return true
+            return false
+          })
+
+          if (supplierQuote) {
+            // Initialize edit mode automatically
+            setEditingQuotationContext({ rfqId: selectedRfq.id, quotationId: supplierQuote.id })
+            setEditingQuoteForm({
+              product_id: supplierQuote.product_id,
+              unit_price: supplierQuote.unit_price,
+              lead_time_days: supplierQuote.lead_time_days,
+              validity_days: supplierQuote.validity_days,
+              notes: supplierQuote.notes || "",
+            })
+            setActiveQuoteRfqId(null) // Close create form since we are editing
+          } else {
+            // Initialize create mode automatically
+            setActiveQuoteRfqId(selectedRfq.id)
+            setEditingQuotationContext(null)
+            // Find if there is a matching supplier listing to pre-populate product_id
+            const matchingListings = supplierListings.filter((item) => item.product_type === selectedRfq.product_type)
+            const fallbackListing = matchingListings[0] || supplierListings[0]
+            setQuoteForm({
+              product_id: fallbackListing?.id || 0,
+              unit_price: selectedRfq.target_budget || 0,
+              lead_time_days: 7,
+              validity_days: 30,
+              notes: "",
+            })
+          }
+        }
+      }
+    } else {
+      // Clear forms when closing detail page
+      if (lastPrefilledRfqIdRef.current !== null) {
+        lastPrefilledRfqIdRef.current = null
+        setActiveQuoteRfqId(null)
+        setEditingQuotationContext(null)
+      }
+    }
+  }, [selectedRfqId, userRole, rfqs, username, supplierVendorProfile, supplierCompanyName, supplierListings])
 
   const supplierInviteKeys = useMemo(() => {
     const normalizedUsername = username.trim().toLowerCase()
@@ -553,6 +680,7 @@ function RfqPageContent() {
       setSubmitting(true)
       setMessage("")
       await submitQuotation(rfq.id, quoteForm)
+      lastPrefilledRfqIdRef.current = null
       await refreshRfqs()
       setQuoteForm(emptyQuoteForm)
       setActiveQuoteRfqId(null)
@@ -600,6 +728,7 @@ function RfqPageContent() {
       setSubmitting(true)
       setMessage("")
       await editQuotation(rfq.id, editingQuotationContext.quotationId, editingQuoteForm)
+      lastPrefilledRfqIdRef.current = null
       await refreshRfqs()
       cancelEditingQuotation()
       setMessage(`Quotation for RFQ #${rfq.id} updated successfully.`)
@@ -756,7 +885,9 @@ function RfqPageContent() {
             ? true
             : requestFilter === "my_rfqs"
               ? item.buyer_name === username
-              : item.status === requestFilter
+              : requestFilter === "eligible"
+                ? item.status === "open" && supplierListings.some((listing) => listing.product_type === item.product_type)
+                : item.status === requestFilter
         const matchesTenderType = tenderTypeFilter === "all" || item.tender_type === tenderTypeFilter
         const normalizedQuery = searchQuery.trim().toLowerCase()
         const matchesQuery =
@@ -792,10 +923,23 @@ function RfqPageContent() {
   const isSupplierRoute = pathname?.startsWith("/supplier") || userRole === "supplier"
   const supplierRfqAuthNext = encodeURIComponent("/supplier/rfq")
 
-  const filterTabs: Array<{ key: "all" | "my_rfqs" | VendorRfq["status"]; label: string; count: number }> = [
+  const findSupplierQuote = (rfq: VendorRfq) => {
+    return rfq.quotations.find((quote) => {
+      const quoteVendorId = quote.supplier_vendor_id
+      if (supplierVendorProfile && quoteVendorId && quoteVendorId === supplierVendorProfile) return true
+      if (quote.supplier_name?.trim().toLowerCase() === username.trim().toLowerCase()) return true
+      if (supplierCompanyName && quote.supplier_company?.trim().toLowerCase() === supplierCompanyName.trim().toLowerCase()) return true
+      return false
+    })
+  }
+
+  const filterTabs: Array<{ key: "all" | "my_rfqs" | "eligible" | VendorRfq["status"]; label: string; count: number }> = [
     { key: "all", label: userRole === "buyer" ? "All RFQs" : "All Requests", count: baseRecords.length },
     ...(userRole === "supplier"
-      ? [{ key: "my_rfqs" as const, label: "My Subcontracting", count: baseRecords.filter((item) => item.buyer_name === username).length }]
+      ? [
+          { key: "my_rfqs" as const, label: "My Subcontracting", count: baseRecords.filter((item) => item.buyer_name === username).length },
+          { key: "eligible" as const, label: "Eligible to Bid", count: baseRecords.filter((item) => item.status === "open" && supplierListings.some((listing) => listing.product_type === item.product_type)).length }
+        ]
       : []),
     { key: "open", label: "Open", count: baseRecords.filter((item) => item.status === "open").length },
     { key: "under_review", label: "Under Review", count: baseRecords.filter((item) => item.status === "under_review").length },
@@ -804,9 +948,9 @@ function RfqPageContent() {
   ]
 
   return (
-    <>
+    <div className="min-h-screen bg-[#f7f9fb] flex flex-col">
       {isBuyerRoute ? (
-        <BuyerSidebar
+        <BuyerNavbar
           active="rfqs"
           username={username}
           buyerType={buyerType}
@@ -814,972 +958,717 @@ function RfqPageContent() {
           onSignOut={signOut}
         />
       ) : isSupplierRoute ? (
-        <SupplierSidebar
+        <SupplierNavbar
           active="rfqs"
           username={username}
-          hasActiveSubscription={hasActiveSub}
           onSignOut={signOut}
         />
       ) : null}
-      <main className={`rfq-experience-page py-8 md:py-12 ${(isBuyerRoute || isSupplierRoute) ? "pb-24 lg:pl-[calc(18rem+2.5rem)]" : ""}`}>
-        <div className="health-container space-y-6">
-          <section>
-            {showCreateForm ? (
-              <article className="soft-panel rounded-[20px] p-5">
-                <h2 className="text-2xl font-extrabold">{editingRfqId ? `Edit RFQ #${editingRfqId}` : "Publish New RFQ"}</h2>
-                <p className="mt-1 text-sm text-[var(--text-muted)]">
-                  Publish a hospital procurement request with technical scope, required quantity, quote deadline, and delivery expectation.
-                  {editingRfqId
-                    ? "Update scope, vendors, document note, or replace/remove the tender PDF."
-                    : "Create a procurement notice with scope, quantity, budget ceiling, quote deadline, and delivery commitment."}
-                </p>
-
-                <div className="mt-5 grid gap-4 md:grid-cols-2">
-                  <label className="grid gap-1 text-sm md:col-span-2">
-                    <span className="font-semibold text-[#2f5560]">Requirement Title</span>
-                    <input
-                      value={rfqForm.title}
-                      onChange={(event) => setRfqForm((prev) => ({ ...prev, title: event.target.value }))}
-                      placeholder="Patient monitor procurement"
-                      className="rounded-xl border border-[#cde2e5] bg-white px-4 py-3 outline-none transition focus:border-[var(--brand)]"
-                    />
-                  </label>
-
-                  <label className="grid gap-1 text-sm md:col-span-2">
-                    <span className="font-semibold text-[#2f5560]">Specification / Scope</span>
-                    <textarea
-                      value={rfqForm.description}
-                      onChange={(event) => setRfqForm((prev) => ({ ...prev, description: event.target.value }))}
-                      rows={4}
-                      placeholder="Specs, compliance, warranty, support, packaging."
-                      className="rounded-xl border border-[#cde2e5] bg-white px-4 py-3 outline-none transition focus:border-[var(--brand)]"
-                    />
-                  </label>
-
-                  <label className="grid gap-1 text-sm md:col-span-2">
-                    <span className="font-semibold text-[#2f5560]">Tender PDF</span>
-                    <input
-                      type="file"
-                      accept="application/pdf,.pdf"
-                      onChange={handleTenderDocumentChange}
-                      className="rounded-xl border border-[#cde2e5] bg-white px-4 py-3 text-sm outline-none transition file:mr-3 file:rounded-lg file:border-0 file:bg-[#e8f7f6] file:px-3 file:py-2 file:font-semibold file:text-[#0f766e]"
-                    />
-                    <span className="text-xs text-[#607881]">
-                      Optional. Upload buyer specifications or tender terms as a PDF up to 10 MB.
-                    </span>
-                    {editingRfq?.tender_document_url && !rfqForm.remove_tender_document && !rfqForm.tender_document ? (
-                      <div className="rounded-xl border border-[#d8e8f6] bg-[#f8fbff] px-4 py-3 text-sm text-[#355860]">
-                        <p className="font-semibold">Current PDF: {editingRfq.tender_document_name || "Tender document"}</p>
-                        <p className="mt-1 text-xs text-[#607881]">
-                          Uploaded: {formatDisplayDateTime(editingRfq.tender_document_uploaded_at)}
-                        </p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <a
-                            href={editingRfq.tender_document_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="rounded-lg border border-[#cfe2e4] bg-white px-3 py-2 text-xs font-semibold text-[#155e57]"
-                          >
-                            Open PDF
-                          </a>
-                          <a
-                            href={editingRfq.tender_document_url}
-                            download={editingRfq.tender_document_name || `rfq-${editingRfq.id}.pdf`}
-                            className="rounded-lg border border-[#cfe2e4] bg-white px-3 py-2 text-xs font-semibold text-[#155e57]"
-                          >
-                            Download PDF
-                          </a>
-                          <button
-                            type="button"
-                            onClick={removeExistingTenderDocument}
-                            className="rounded-lg border border-[#f1d7d7] bg-white px-3 py-2 text-xs font-semibold text-[#934848]"
-                          >
-                            Remove PDF
-                          </button>
-                        </div>
-                      </div>
-                    ) : null}
-                    {rfqForm.remove_tender_document ? (
-                      <div className="rounded-xl border border-[#f1d7d7] bg-[#fff7f7] px-4 py-3 text-sm text-[#934848]">
-                        Current tender PDF will be removed when you save this RFQ.
-                      </div>
-                    ) : null}
-                    {rfqForm.tender_document ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-semibold text-[#155e57]">
-                          Selected: {rfqForm.tender_document.name}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={clearSelectedTenderDocument}
-                          className="rounded-lg border border-[#d3e4e7] bg-white px-3 py-1 text-xs font-semibold text-[#3a616b]"
-                        >
-                          Clear Selected PDF
-                        </button>
-                      </div>
-                    ) : null}
-                  </label>
-
-                  <label className="grid gap-1 text-sm md:col-span-2">
-                    <span className="font-semibold text-[#2f5560]">Tender Document Note</span>
-                    <textarea
-                      rows={2}
-                      value={rfqForm.tender_document_note}
-                      onChange={(event) => setRfqForm((prev) => ({ ...prev, tender_document_note: event.target.value }))}
-                      placeholder="BOQ attached, compliance checklist, installation terms, etc."
-                      className="rounded-xl border border-[#cde2e5] bg-white px-4 py-3 outline-none transition focus:border-[var(--brand)]"
-                    />
-                  </label>
-
-                  <label className="grid gap-1 text-sm">
-                    <span className="font-semibold text-[#2f5560]">Type</span>
-                    <select
-                      value={rfqForm.product_type}
-                      onChange={(event) =>
-                        setRfqForm((prev) => ({
-                          ...prev,
-                          product_type: event.target.value as "product" | "service",
-                        }))
-                      }
-                      className="rounded-xl border border-[#cde2e5] bg-white px-4 py-3 outline-none transition focus:border-[var(--brand)]"
-                    >
-                      <option value="product">Product</option>
-                      <option value="service">Service</option>
-                    </select>
-                  </label>
-
-                  <label className="grid gap-1 text-sm">
-                    <span className="font-semibold text-[#2f5560]">Tender Type</span>
-                    <select
-                      value={rfqForm.tender_type}
-                      onChange={(event) =>
-                        setRfqForm((prev) => ({
-                          ...prev,
-                          tender_type: event.target.value as "open" | "limited" | "reverse",
-                          invited_vendors:
-                            event.target.value === "limited" ? prev.invited_vendors : [],
-                        }))
-                      }
-                      className="rounded-xl border border-[#cde2e5] bg-white px-4 py-3 outline-none transition focus:border-[var(--brand)]"
-                    >
-                      <option value="open">Open Tender</option>
-                      <option value="limited">Limited Tender</option>
-                      <option value="reverse">Reverse Auction</option>
-                    </select>
-                  </label>
-
-                  <label className="grid gap-1 text-sm">
-                    <span className="font-semibold text-[#2f5560]">Quantity</span>
-                    <input
-                      type="number"
-                      min={1}
-                      value={rfqForm.quantity}
-                      onChange={(event) => setRfqForm((prev) => ({ ...prev, quantity: Number(event.target.value) }))}
-                      className="rounded-xl border border-[#cde2e5] bg-white px-4 py-3 outline-none transition focus:border-[var(--brand)]"
-                    />
-                  </label>
-
-                  <div className="rounded-xl border border-[#d8e8f6] bg-[#f8fbff] px-4 py-3 text-sm text-[#355860]">
-                    <p className="font-semibold text-[#214752]">Commercial note</p>
-                    <p className="mt-1 text-xs leading-5 text-[#5c7780]">
-                      Pricing is collected from supplier quotations. Budget is not mandatory for publishing this RFQ.
-                    </p>
-                  </div>
-
-                  <label className="grid gap-1 text-sm md:col-span-2">
-                    <span className="font-semibold text-[#2f5560]">Delivery Location</span>
-                    <input
-                      value={rfqForm.delivery_location}
-                      onChange={(event) =>
-                        setRfqForm((prev) => ({ ...prev, delivery_location: event.target.value }))
-                      }
-                      placeholder="Hospital store, Kolkata"
-                      className="rounded-xl border border-[#cde2e5] bg-white px-4 py-3 outline-none transition focus:border-[var(--brand)]"
-                    />
-                  </label>
-
-                  <label className="grid gap-1 text-sm">
-                    <span className="font-semibold text-[#2f5560]">Quote Deadline</span>
-                    <input
-                      type="date"
-                      value={rfqForm.quote_deadline}
-                      onChange={(event) => setRfqForm((prev) => ({ ...prev, quote_deadline: event.target.value }))}
-                      min={getToday()}
-                      className="rounded-xl border border-[#cde2e5] bg-white px-4 py-3 outline-none transition focus:border-[var(--brand)]"
-                    />
-                  </label>
-
-                  <label className="grid gap-1 text-sm">
-                    <span className="font-semibold text-[#2f5560]">Expected Delivery</span>
-                    <input
-                      type="date"
-                      value={rfqForm.expected_delivery_date}
-                      onChange={(event) =>
-                        setRfqForm((prev) => ({ ...prev, expected_delivery_date: event.target.value }))
-                      }
-                      min={rfqForm.quote_deadline || getToday()}
-                      className="rounded-xl border border-[#cde2e5] bg-white px-4 py-3 outline-none transition focus:border-[var(--brand)]"
-                    />
-                  </label>
-
-                  <div className="grid gap-2 text-sm md:col-span-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="font-semibold text-[#2f5560]">Select Vendors</span>
-                      <span className="text-xs text-[var(--text-muted)]">
-                        {rfqForm.tender_type === "open"
-                          ? "Optional for open tender"
-                          : "Required for limited tender"}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={setAllVendorsOption}
-                        className={`rounded-xl border px-4 py-2 text-sm font-semibold transition ${rfqForm.tender_type === "open" && rfqForm.invited_vendors.length === 0
-                          ? "border-[#2563eb] bg-[#edf3ff] text-[#1d4ed8]"
-                          : "border-[#d0e0e8] bg-white text-[#355860] hover:border-[#9fc6ff]"
-                          }`}
-                      >
-                        All Vendors
-                      </button>
-                    </div>
-                    <p className="text-xs text-[#607881]">
-                      Use `All Vendors` to publish the tender to the full supplier market. Selecting a vendor only shortlists them. The RFQ is created only after you click
-                      `{editingRfqId ? "Save RFQ Changes" : "Publish RFQ"}`.
-                    </p>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {vendorDirectory.map((vendor) => {
-                        const selected = rfqForm.invited_vendors.some((item) => item.vendor_id === vendor.vendor_id)
-                        return (
-                          <button
-                            key={vendor.vendor_id}
-                            type="button"
-                            onClick={() => handleVendorToggle(vendor.vendor_id)}
-                            className={`rounded-xl border px-4 py-3 text-left text-sm transition ${selected
-                              ? "border-[#3b82f6] bg-[#eaf1ff] text-[#1d4ed8]"
-                              : "border-[#d0e0e8] bg-white text-[#355860] hover:border-[#9fc6ff]"
-                              }`}
-                          >
-                            <p className="font-semibold">{vendor.vendor_name}</p>
-                            <p className="text-xs opacity-80">{vendor.vendor_username || `Vendor ID ${vendor.vendor_id}`}</p>
-                          </button>
-                        )
-                      })}
-                    </div>
-                    {rfqForm.invited_vendors.length > 0 ? (
-                      <div className="rounded-xl border border-[#d8e8f6] bg-[#f8fbff] px-4 py-3">
-                        <p className="text-[11px] font-semibold tracking-[0.08em] text-[#5a7480] uppercase">
-                          Selected Vendors ({rfqForm.invited_vendors.length})
-                        </p>
-                        <p className="mt-2 text-sm font-semibold text-[#214752]">
-                          {rfqForm.invited_vendors.map((vendor) => vendor.vendor_name).join(", ")}
-                        </p>
-                      </div>
-                    ) : null}
-                    {rfqForm.tender_type === "limited" && vendorDirectory.length === 0 ? (
-                      <p className="text-xs text-[#8a5a2f]">
-                        No supplier listings are available yet, so limited tenders cannot be targeted.
-                      </p>
-                    ) : null}
-                  </div>
+      <main className={`flex-1 rfq-experience-page w-full py-8 md:py-12 ${isSupplierRoute || isBuyerRoute ? "mx-auto max-w-[1600px] px-4 sm:px-6 md:px-8 pb-12" : ""}`}>
+        <div className={`${isBuyerRoute || isSupplierRoute ? "w-full max-w-full" : "health-container"} space-y-6`}>
+          {loading ? (
+            <div className="flex-1 flex flex-col justify-center items-center min-h-[50vh] py-12">
+              <div className="flex flex-col items-center justify-center space-y-4">
+                <div className="relative flex items-center justify-center">
+                  <div className="h-12 w-12 rounded-full border-4 border-blue-100 border-t-blue-600 animate-spin" />
+                  <div className="absolute h-3 w-3 rounded-full bg-blue-600 animate-ping" />
                 </div>
-
-                <div className="mt-5 flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    onClick={handleSaveRfq}
-                    disabled={submitting}
-                    className="rounded-2xl bg-[linear-gradient(90deg,#0f766e_0%,#115e59_100%)] px-4 py-3 text-base font-bold text-white shadow-[0_10px_24px_rgba(15,118,110,0.25)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {submitting
-                      ? editingRfqId
-                        ? "Saving..."
-                        : "Publishing..."
-                      : editingRfqId
-                        ? "Save RFQ Changes"
-                        : rfqForm.tender_type === "limited" && rfqForm.invited_vendors.length > 0
-                          ? `Publish RFQ to ${rfqForm.invited_vendors.length} Vendor${rfqForm.invited_vendors.length > 1 ? "s" : ""}`
-                          : "Publish RFQ"}
-                  </button>
-                  {editingRfqId ? (
-                    <button
-                      type="button"
-                      onClick={cancelEditingRfq}
-                      className="rounded-2xl border border-[#d3e4e7] bg-white px-4 py-3 text-base font-bold text-[#3a616b]"
-                    >
-                      Cancel Edit
-                    </button>
-                  ) : null}
-                </div>
-
-                {latestPublishedRfq ? (
-                  <div className="mt-4 rounded-2xl border border-[#d4ead9] bg-[#f6fff8] p-4 text-sm text-[#305a45]">
-                    <p className="font-bold">Latest Published Requirement</p>
-                    <p className="mt-1">
-                      RFQ #{latestPublishedRfq.id} for {latestPublishedRfq.quantity}{" "}
-                      {latestPublishedRfq.product_type === "product" ? "units / machines" : "service slots"} has been
-                      issued to the supplier network.
-                    </p>
-                    <p className="mt-1">
-                      Quote deadline: {formatDisplayDate(latestPublishedRfq.quote_deadline)} | Delivery required by:{" "}
-                      {formatDisplayDate(latestPublishedRfq.expected_delivery_date)}
-                    </p>
-                    {latestPublishedRfq.tender_document_url ? (
-                      <div className="mt-2 flex flex-wrap gap-3">
-                        <a
-                          href={latestPublishedRfq.tender_document_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex text-sm font-semibold text-[#155e57] underline-offset-4 hover:underline"
-                        >
-                          View Tender PDF
-                        </a>
-                        <a
-                          href={latestPublishedRfq.tender_document_url}
-                          download={latestPublishedRfq.tender_document_name || `rfq-${latestPublishedRfq.id}.pdf`}
-                          className="inline-flex text-sm font-semibold text-[#155e57] underline-offset-4 hover:underline"
-                        >
-                          Download Tender PDF
-                        </a>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-              </article>
-            ) : null}
-
-          </section>
-
-          {message ? (
-            <section className="soft-panel rounded-[20px] p-4">
-              <p className="rounded-lg border border-[#d9e8ea] bg-[#f8fdff] px-3 py-2 text-sm text-[#355860]">
-                {message}
-              </p>
-            </section>
-          ) : null}
-
-          <section className="soft-panel rounded-[20px] p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-bold">
-                  {userRole === "buyer" || (userRole === "supplier" && requestFilter === "my_rfqs") ? "My RFQs" : "Buyer Procurement Requests"}
-                </h2>
-                <p className="text-sm text-[var(--text-muted)]">
-                  {userRole === "buyer" || (userRole === "supplier" && requestFilter === "my_rfqs")
-                    ? "Track vendor reach, quotation activity, and award decisions across active RFQs."
-                    : "Review buyer demand, validate scope and timelines, respond to active tenders, and keep a record of closed or awarded requirements."}
-                </p>
+                <span className="text-sm font-bold text-slate-500 tracking-tight">
+                  Loading RFQs & bidding activities...
+                </span>
               </div>
-              <span className="rounded-full bg-[#edf3ff] px-3 py-1 text-xs font-semibold text-[#1d4ed8]">
-                {loading ? "Loading..." : `${records.length} records`}
-              </span>
             </div>
+          ) : (
+            <>
+              <section>
+                {showCreateForm ? (
+                  <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm animate-fade-in-up">
+                    <div className="border-b border-slate-100 pb-4 mb-5">
+                      <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                        {editingRfqId ? `Edit RFQ Reference #${editingRfqId}` : "Publish Procurement RFQ"}
+                      </h2>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">
+                        {editingRfqId
+                          ? "Modify procurement technical specifications, deadline dates, vendor shortlists, or tender documents."
+                          : "Create a formal procurement notice detailing product specification scope, required quantity, deadline, and delivery location."}
+                      </p>
+                    </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              {filterTabs.map((tab) => (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setRequestFilter(tab.key)}
-                  className={`rounded-full px-4 py-2 text-xs font-semibold transition ${requestFilter === tab.key
-                    ? "bg-[#2563eb] text-white shadow-[0_8px_20px_rgba(37,99,235,0.20)]"
-                    : "border border-[#cdd9f4] bg-white text-[#51617a] hover:border-[#9db7f5]"
-                    }`}
-                >
-                  {tab.label} ({tab.count})
-                </button>
-              ))}
-            </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <label className="grid gap-1 text-xs font-bold text-slate-500 md:col-span-2">
+                        <span>Requirement Title</span>
+                        <input
+                          value={rfqForm.title}
+                          onChange={(event) => setRfqForm((prev) => ({ ...prev, title: event.target.value }))}
+                          placeholder="e.g. High-performance patient monitoring systems"
+                          className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold outline-none transition focus:border-blue-500"
+                        />
+                      </label>
 
-            <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_220px_220px]">
-              <input
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search tender title, buyer, description, location..."
-                className="rounded-xl border border-[#cdd9f4] bg-white px-4 py-3 text-sm outline-none transition focus:border-[#2563eb]"
-              />
-              <select
-                value={tenderTypeFilter}
-                onChange={(event) => setTenderTypeFilter(event.target.value as "all" | VendorRfq["tender_type"])}
-                className="rounded-xl border border-[#cdd9f4] bg-white px-4 py-3 text-sm outline-none transition focus:border-[#2563eb]"
-              >
-                <option value="all">All Tender Types</option>
-                <option value="open">Open Tender</option>
-                <option value="limited">Limited Tender</option>
-                <option value="reverse">Reverse Auction</option>
-              </select>
-              <select
-                value={sortBy}
-                onChange={(event) =>
-                  setSortBy(
-                    event.target.value as "latest" | "oldest" | "budget_high" | "budget_low" | "deadline_nearest"
-                  )
-                }
-                className="rounded-xl border border-[#cdd9f4] bg-white px-4 py-3 text-sm outline-none transition focus:border-[#2563eb]"
-              >
-                <option value="latest">Sort: Latest</option>
-                <option value="oldest">Sort: Oldest</option>
-                <option value="budget_high">Sort: Budget High to Low</option>
-                <option value="budget_low">Sort: Budget Low to High</option>
-                <option value="deadline_nearest">Sort: Nearest Deadline</option>
-              </select>
-            </div>
+                      <label className="grid gap-1 text-xs font-bold text-slate-500 md:col-span-2">
+                        <span>Specification / Technical Scope</span>
+                        <textarea
+                          value={rfqForm.description}
+                          onChange={(event) => setRfqForm((prev) => ({ ...prev, description: event.target.value }))}
+                          rows={4}
+                          placeholder="Specify detailed technical compliance criteria, warranty expectations, support terms, etc."
+                          className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold outline-none transition focus:border-blue-500"
+                        />
+                      </label>
 
-            <div className="mt-3 flex justify-end">
-              <button
-                type="button"
-                onClick={refreshRfqs}
-                disabled={submitting}
-                className="rounded-lg border border-[#cdd9f4] bg-white px-3 py-2 text-xs font-semibold text-[#51617a] disabled:opacity-60"
-              >
-                Refresh Requests
-              </button>
-            </div>
-
-            {!loading && records.length === 0 ? (
-              <p className="mt-4 rounded-lg border border-[#e0e8f8] bg-[#f8faff] px-3 py-4 text-sm text-[#51617a]">
-                No RFQ records available yet.
-              </p>
-            ) : null}
-
-            <div className="mt-4 grid gap-4">
-              {records.map((rfq) => {
-                const awardedQuote = rfq.awarded_quote_id
-                  ? rfq.quotations.find((quote) => quote.id === rfq.awarded_quote_id)
-                  : null
-                const isExpanded = expandedRfqIds.includes(rfq.id)
-                const isOwner = rfq.buyer_name === username
-                const statusTone =
-                  rfq.status === "closed"
-                    ? "bg-[#fff2f2] text-[#a53c3c]"
-                    : rfq.status === "awarded"
-                      ? "bg-[#eefaf2] text-[#0f7a54]"
-                      : rfq.status === "under_review"
-                        ? "bg-[#edf4ff] text-[#2459c4]"
-                        : "bg-[#edf7f6] text-[#0f766e]"
-
-                return (
-                  <article
-                    id={`rfq-${rfq.id}`}
-                    key={rfq.id}
-                    className={`rfq-record-card rounded-2xl border bg-white p-5 ${recentlyPublishedRfqId === rfq.id ? "border-[#57a56d] shadow-[0_10px_26px_rgba(47,92,69,0.10)]" : "border-[#dbe8ea]"
-                      }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => toggleRfqExpansion(rfq.id)}
-                      className="flex w-full flex-wrap items-start justify-between gap-3 text-left"
-                    >
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-lg font-bold">{rfq.title}</h3>
-                          <span className="rounded-full bg-[#edf7f6] px-2 py-1 text-[11px] font-semibold uppercase text-[#0f766e]">
-                            Type: {formatTenderType(rfq.tender_type)}
-                          </span>
-                          <span className={`rounded-full px-2 py-1 text-[11px] font-semibold uppercase ${statusTone}`}>
-                            {formatRfqStatus(rfq.status)}
-                          </span>
-                          <span className="rounded-full bg-[#fff4de] px-2 py-1 text-[11px] font-semibold uppercase text-[#9a6700]">
-                            {getDeadlineLabel(rfq.quote_deadline, rfq.status)}
-                          </span>
-                        </div>
-                        <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--text-muted)]">{rfq.description}</p>
-                      </div>
-                      <div className="text-right text-sm text-[#4b6670]">
-                        <p>RFQ #{rfq.id}</p>
-                        <p>Buyer: {rfq.buyer_company || rfq.buyer_name}</p>
-                        <p>Institution Type: {formatBuyerType(rfq.buyer_type)}</p>
-                        <p>Published: {formatDisplayDate(rfq.created_at)}</p>
-                      </div>
-                    </button>
-
-                    {isExpanded ? (
-                      <>
-                        <div className="mt-4 rounded-2xl border border-[#d7e7ea] bg-[#f9fcfc] p-4">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <p className="text-[11px] font-semibold tracking-[0.08em] text-[#607881] uppercase">
-                              Requirement Snapshot
+                      <label className="grid gap-1 text-xs font-bold text-slate-500 md:col-span-2">
+                        <span>Attach Tender PDF</span>
+                        <input
+                          type="file"
+                          accept="application/pdf,.pdf"
+                          onChange={handleTenderDocumentChange}
+                          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold outline-none transition file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-blue-700 cursor-pointer"
+                        />
+                        <span className="text-[10px] font-medium text-slate-400">
+                          Optional. Upload tech specifications, BOQ spreadsheets, or bidding term sheets (PDF up to 10 MB).
+                        </span>
+                        {editingRfq?.tender_document_url && !rfqForm.remove_tender_document && !rfqForm.tender_document ? (
+                          <div className="mt-2 rounded-xl border border-blue-100 bg-blue-50/20 p-3 text-xs">
+                            <p className="font-bold text-slate-700 flex items-center gap-1.5">
+                              <FileText className="h-4 w-4 text-blue-500" />
+                              <span>Current Document: {editingRfq.tender_document_name || "Tender specifications"}</span>
                             </p>
-                            <p className="text-xs font-semibold text-[#56707a]">
-                              {rfq.product_type === "product" ? "Machine / Product Requirement" : "Service Requirement"}
+                            <p className="mt-0.5 text-[10px] text-slate-400">
+                              Uploaded on: {formatDisplayDateTime(editingRfq.tender_document_uploaded_at)}
                             </p>
-                          </div>
-                          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                            <InfoPill label="Requested Quantity" value={`${rfq.quantity} ${rfq.product_type === "product" ? "units" : "slots"}`} />
-                            <InfoPill label="Tender Type" value={formatTenderType(rfq.tender_type)} />
-                            <InfoPill label="Quote Due" value={formatDisplayDate(rfq.quote_deadline)} />
-                            <InfoPill label="Delivery Timeline" value={formatDisplayDate(rfq.expected_delivery_date)} />
-                          </div>
-                          <div className="mt-3 grid gap-3 md:grid-cols-2">
-                            <InfoPill label="Delivery Location" value={rfq.delivery_location} />
-                            <InfoPill
-                              label="Requirement Type"
-                              value={rfq.product_type === "product" ? "Equipment / Product Procurement" : "Vendor Service Procurement"}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="mt-4 grid gap-3 md:grid-cols-4">
-                          <InfoPill label="Quantity" value={rfq.quantity} />
-                          <InfoPill label="Tender Type" value={formatTenderType(rfq.tender_type)} />
-                          <InfoPill label="Delivery Required By" value={formatDisplayDate(rfq.expected_delivery_date)} />
-                          <InfoPill label="Location" value={rfq.delivery_location} />
-                        </div>
-
-                        <div className="mt-3 grid gap-3 md:grid-cols-3">
-                          <InfoPill label="Quote Submission Deadline" value={formatDisplayDate(rfq.quote_deadline)} />
-                          <InfoPill label="Requirement Type" value={rfq.product_type === "product" ? "Product Procurement" : "Service Procurement"} />
-                          <InfoPill label="Quotations Received" value={rfq.quotations.length} />
-                        </div>
-
-                        <div className="mt-4 rounded-xl border border-[#e2ecee] bg-[#fbfeff] px-4 py-3">
-                          <p className="text-[11px] font-semibold tracking-[0.08em] text-[#67818a] uppercase">Scope / Buyer Need</p>
-                          <p className="mt-1 text-sm leading-6 text-[#355860]">{rfq.description}</p>
-                          {rfq.tender_document_url ? (
-                            <div className="mt-3 rounded-xl border border-[#d8e8f6] bg-[#f8fbff] px-4 py-3">
-                              <p className="text-[11px] font-semibold tracking-[0.08em] text-[#5a7480] uppercase">Tender Document</p>
-                              <p className="mt-2 text-sm font-semibold text-[#214752]">
-                                {rfq.tender_document_name || `RFQ-${rfq.id}.pdf`}
-                              </p>
-                              <p className="mt-1 text-xs text-[#607881]">
-                                Uploaded: {formatDisplayDateTime(rfq.tender_document_uploaded_at)}
-                              </p>
-                              {rfq.tender_document_note ? (
-                                <p className="mt-2 text-sm text-[#355860]">{rfq.tender_document_note}</p>
-                              ) : null}
-                              <div className="mt-3 flex flex-wrap gap-2">
-                                <a
-                                  href={rfq.tender_document_url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex rounded-lg border border-[#cfe2e4] bg-white px-3 py-2 text-sm font-semibold text-[#155e57] transition hover:bg-[#f4fbfa]"
-                                >
-                                  Open PDF
-                                </a>
-                                <a
-                                  href={rfq.tender_document_url}
-                                  download={rfq.tender_document_name || `rfq-${rfq.id}.pdf`}
-                                  className="inline-flex rounded-lg border border-[#cfe2e4] bg-white px-3 py-2 text-sm font-semibold text-[#155e57] transition hover:bg-[#f4fbfa]"
-                                >
-                                  Download PDF
-                                </a>
-                              </div>
-                            </div>
-                          ) : null}
-                        </div>
-
-                        <div className="mt-4 rounded-xl border border-[#e2ecee] bg-[#fbfeff] px-4 py-3">
-                          <p className="text-[11px] font-semibold tracking-[0.08em] text-[#67818a] uppercase">Invited Vendors</p>
-                          <p className="mt-1 text-sm font-semibold text-[#284851]">
-                            {rfq.invited_vendors.length > 0
-                              ? rfq.invited_vendors.map((vendor) => vendor.vendor_name).join(", ")
-                              : "Open market request for all eligible vendors"}
-                          </p>
-                        </div>
-
-                        {awardedQuote ? (
-                          <div className="mt-4 rounded-xl border border-[#d6eadb] bg-[#f6fff8] px-4 py-3 text-sm text-[#2f5c45]">
-                            Awarded to {awardedQuote.supplier_company || awardedQuote.supplier_name}
-                            {rfq.awarded_order_id ? ` | Order #${rfq.awarded_order_id}` : ""}
-                          </div>
-                        ) : null}
-
-                        {rfq.status === "closed" ? (
-                          <div className="mt-4 rounded-xl border border-[#f1d7d7] bg-[#fff7f7] px-4 py-3 text-sm text-[#934848]">
-                            This RFQ is currently closed. Quotations are locked until the buyer reopens it.
-                          </div>
-                        ) : null}
-
-                        {!userRole ? (
-                          <div className="mt-4 rounded-xl border border-[#d8e8f6] bg-[#f8fbff] px-4 py-3 text-sm text-[#476673]">
-                            <p className="font-semibold text-[#24454f]">Want to participate in this tender?</p>
-                            <p className="mt-1">
-                              Register as a vendor to submit quotations, view buyer interactions, and access the live tender desk.
-                            </p>
-                            <Link
-                              href={`/register?next=${supplierRfqAuthNext}`}
-                              className="mt-3 inline-flex rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--brand-strong)]"
-                            >
-                              Register to Apply
-                            </Link>
-                          </div>
-                        ) : null}
-
-                        {userRole === "supplier" && !isOwner && rfq.status !== "awarded" && rfq.status !== "closed" ? (
-                          <div className="mt-5">
-                            {activeQuoteRfqId === rfq.id ? (
-                              <div className="grid gap-3 rounded-xl border border-[#dce9f3] bg-[#f8fbff] p-4 md:grid-cols-2">
-                                {!activeQuoteRfq || matchingSupplierListings.length === 0 ? (
-                                  <div className="rounded-lg border border-[#f0dfc4] bg-[#fff9f1] px-3 py-2 text-sm text-[#8a5a2f] md:col-span-2">
-                                    No matching {rfq.product_type} listings are available in your active catalog for this RFQ.
-                                  </div>
-                                ) : null}
-                                <label className="grid gap-1 text-sm md:col-span-2">
-                                  <span className="font-semibold text-[#2f5560]">Select Your Listing</span>
-                                  <select
-                                    value={quoteForm.product_id}
-                                    onChange={(event) =>
-                                      setQuoteForm((prev) => ({ ...prev, product_id: Number(event.target.value) }))
-                                    }
-                                    className="rounded-xl border border-[#cde2e5] bg-white px-4 py-3 outline-none transition focus:border-[var(--brand)]"
-                                  >
-                                    <option value={0}>Choose listing</option>
-                                    {matchingSupplierListings.map((listing) => (
-                                      <option key={listing.id} value={listing.id}>
-                                        {listing.name} | INR {Number(listing.price).toLocaleString()} | Stock {listing.stock}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </label>
-
-                                <label className="grid gap-1 text-sm">
-                                  <span className="font-semibold text-[#2f5560]">Unit Price (INR)</span>
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    value={quoteForm.unit_price}
-                                    onChange={(event) =>
-                                      setQuoteForm((prev) => ({ ...prev, unit_price: Number(event.target.value) }))
-                                    }
-                                    className="rounded-xl border border-[#cde2e5] bg-white px-4 py-3 outline-none transition focus:border-[var(--brand)]"
-                                  />
-                                </label>
-
-                                <label className="grid gap-1 text-sm">
-                                  <span className="font-semibold text-[#2f5560]">Lead Time (days)</span>
-                                  <input
-                                    type="number"
-                                    min={1}
-                                    value={quoteForm.lead_time_days}
-                                    onChange={(event) =>
-                                      setQuoteForm((prev) => ({ ...prev, lead_time_days: Number(event.target.value) }))
-                                    }
-                                    className="rounded-xl border border-[#cde2e5] bg-white px-4 py-3 outline-none transition focus:border-[var(--brand)]"
-                                  />
-                                </label>
-
-                                <label className="grid gap-1 text-sm">
-                                  <span className="font-semibold text-[#2f5560]">Quote Validity (days)</span>
-                                  <input
-                                    type="number"
-                                    min={1}
-                                    value={quoteForm.validity_days}
-                                    onChange={(event) =>
-                                      setQuoteForm((prev) => ({ ...prev, validity_days: Number(event.target.value) }))
-                                    }
-                                    className="rounded-xl border border-[#cde2e5] bg-white px-4 py-3 outline-none transition focus:border-[var(--brand)]"
-                                  />
-                                </label>
-
-                                <label className="grid gap-1 text-sm md:col-span-2">
-                                  <span className="font-semibold text-[#2f5560]">Commercial Notes</span>
-                                  <textarea
-                                    rows={3}
-                                    value={quoteForm.notes}
-                                    onChange={(event) => setQuoteForm((prev) => ({ ...prev, notes: event.target.value }))}
-                                    placeholder="Warranty, installation, payment terms."
-                                    className="rounded-xl border border-[#cde2e5] bg-white px-4 py-3 outline-none transition focus:border-[var(--brand)]"
-                                  />
-                                </label>
-
-                                <div className="flex gap-2 md:col-span-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleSubmitQuotation(rfq)}
-                                    disabled={submitting || matchingSupplierListings.length === 0}
-                                    className="rounded-xl bg-[linear-gradient(90deg,#2563eb_0%,#1d4ed8_100%)] px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                                  >
-                                    {submitting ? "Submitting..." : "Submit Commercial Quote"}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setActiveQuoteRfqId(null)
-                                      setQuoteForm(emptyQuoteForm)
-                                    }}
-                                    className="rounded-xl border border-[#d3e4e7] bg-white px-4 py-3 text-sm font-semibold text-[#3a616b]"
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
+                            <div className="mt-2.5 flex flex-wrap gap-2">
+                              <a
+                                href={editingRfq.tender_document_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-[11px] font-bold text-slate-700 transition"
+                              >
+                                Open PDF
+                              </a>
+                              <a
+                                href={editingRfq.tender_document_url}
+                                download={editingRfq.tender_document_name || `rfq-${editingRfq.id}.pdf`}
+                                className="rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-[11px] font-bold text-slate-700 transition"
+                              >
+                                Download PDF
+                              </a>
                               <button
                                 type="button"
-                                onClick={() => {
-                                  setActiveQuoteRfqId(rfq.id)
-                                  setQuoteForm(emptyQuoteForm)
-                                  setMessage("")
-                                }}
-                                disabled={!supplierCanQuote}
-                                className="rounded-xl bg-[var(--brand)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[var(--brand-strong)]"
+                                onClick={removeExistingTenderDocument}
+                                className="rounded-lg border border-rose-200 bg-white hover:bg-rose-50 px-3 py-1.5 text-[11px] font-bold text-rose-700 transition cursor-pointer"
                               >
-                                Respond to Request
+                                Remove Document
                               </button>
-                            )}
+                            </div>
                           </div>
                         ) : null}
-
-                        <div className="mt-5">
-                          <div className="flex items-center justify-between gap-3">
-                            <h4 className="text-sm font-bold text-[#24454f]">
-                              Quotations Received ({rfq.quotations.length})
-                            </h4>
-                            {isOwner ? (
-                              <div className="flex flex-wrap gap-2">
-                                {rfq.status !== "awarded" ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => startEditingRfq(rfq)}
-                                    disabled={submitting}
-                                    className="rounded-lg border border-[#cfe2e4] bg-white px-3 py-2 text-xs font-semibold text-[#155e57] disabled:opacity-60"
-                                  >
-                                    Edit RFQ
-                                  </button>
-                                ) : null}
-                                {rfq.status === "closed" ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleReopenRfq(rfq.id)}
-                                    disabled={submitting}
-                                    className="rounded-lg bg-[#123f49] px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
-                                  >
-                                    Reopen RFQ
-                                  </button>
-                                ) : rfq.status !== "awarded" ? (
-                                  <div className="flex flex-wrap gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleCloseRfq(rfq.id)}
-                                      disabled={submitting}
-                                      className="rounded-lg border border-[#d3e4e7] bg-white px-3 py-2 text-xs font-semibold text-[#3a616b] disabled:opacity-60"
-                                    >
-                                      Close RFQ
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => openDeleteRfqModal(rfq.id)}
-                                      disabled={submitting}
-                                      className="rounded-lg border border-[#efcaca] bg-white px-3 py-2 text-xs font-semibold text-[#b42318] disabled:opacity-60"
-                                    >
-                                      Delete RFQ
-                                    </button>
-                                  </div>
-                                ) : null}
-                              </div>
-                            ) : null}
+                        {rfqForm.remove_tender_document ? (
+                          <div className="mt-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs text-rose-700 font-bold flex items-center gap-2">
+                            <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+                            <span>Existing document will be removed once changes are saved.</span>
                           </div>
+                        ) : null}
+                        {rfqForm.tender_document ? (
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className="text-xs font-bold text-emerald-700 flex items-center gap-1">
+                              <CheckCircle className="h-4 w-4 text-emerald-650" />
+                              <span>Selected: {rfqForm.tender_document.name}</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={clearSelectedTenderDocument}
+                              className="rounded-lg border border-slate-200 hover:bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-600 transition cursor-pointer"
+                            >
+                              Clear
+                            </button>
+                          </div>
+                        ) : null}
+                      </label>
 
-                          {rfq.quotations.length === 0 ? (
-                            <p className="mt-2 text-sm text-[var(--text-muted)]">No quotations submitted yet.</p>
-                          ) : (
-                            <div className="mt-3 overflow-x-auto">
-                              <table className="w-full min-w-[860px] text-sm">
-                                <thead>
-                                  <tr className="border-b border-[#d9e9eb] text-left text-[#4a6872]">
-                                    <th className="px-2 py-2">Supplier</th>
-                                    <th className="px-2 py-2">Listing</th>
-                                    <th className="px-2 py-2">Unit Price</th>
-                                    <th className="px-2 py-2">Lead Time</th>
-                                    <th className="px-2 py-2">Validity</th>
-                                    <th className="px-2 py-2">Notes</th>
-                                    {isOwner || userRole === "supplier" ? <th className="px-2 py-2">Action</th> : null}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {rfq.quotations.map((quote) => {
-                                    const isAwarded = rfq.awarded_quote_id === quote.id
-                                    return (
-                                      <tr key={quote.id} className="border-b border-[#edf5f6] align-top">
-                                        <td className="px-2 py-2 font-semibold">
-                                          {quote.supplier_company || quote.supplier_name}
-                                        </td>
-                                        <td className="px-2 py-2">{quote.product_name}</td>
-                                        <td className="px-2 py-2">INR {quote.unit_price.toLocaleString()}</td>
-                                        <td className="px-2 py-2">{quote.lead_time_days} days</td>
-                                        <td className="px-2 py-2">{quote.validity_days} days</td>
-                                        <td className="px-2 py-2 text-[#4d6972]">{quote.notes || "-"}</td>
-                                        {isOwner ? (
-                                          <td className="px-2 py-2">
-                                            {isAwarded || quote.status === "awarded" ? (
-                                              <span className="rounded-full bg-[#e8fbf1] px-2 py-1 text-xs font-semibold text-[#0a7c57]">
-                                                Awarded
-                                              </span>
-                                            ) : quote.status === "rejected" ? (
-                                              <span className="rounded-full bg-[#fff1f1] px-2 py-1 text-xs font-semibold text-[#b42318]" title={quote.rejection_reason || "Rejected"}>
-                                                Rejected
-                                              </span>
-                                            ) : rfq.status === "awarded" || rfq.status === "closed" ? (
-                                              <span className="text-xs text-[#6b7f86]">Locked</span>
-                                            ) : (
-                                              <div className="flex gap-2">
-                                                <button
-                                                  type="button"
-                                                  onClick={() => handleAwardQuotation(rfq, quote.id)}
-                                                  disabled={submitting}
-                                                  className="rounded-lg bg-[#155e57] px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
-                                                >
-                                                  Award Quote and Create PO
-                                                </button>
-                                                <button
-                                                  type="button"
-                                                  onClick={() => openRejectQuotationModal(rfq.id, quote.id)}
-                                                  disabled={submitting}
-                                                  className="rounded-lg border border-[#efcaca] bg-white px-3 py-2 text-xs font-semibold text-[#b42318] disabled:opacity-60"
-                                                >
-                                                  Reject Quote
-                                                </button>
-                                              </div>
-                                            )}
-                                          </td>
-                                        ) : userRole === "supplier" ? (
-                                          <td className="px-2 py-2">
-                                            {isSupplierQuoteOwner(quote) ? (
-                                              rfq.status === "awarded" || rfq.status === "closed" ? (
-                                                <span className="text-xs text-[#6b7f86]">Locked</span>
-                                              ) : (
-                                                <button
-                                                  type="button"
-                                                  onClick={() => startEditingQuotation(rfq, quote)}
-                                                  disabled={submitting}
-                                                  className="rounded-lg border border-[#cfe2e4] bg-white px-3 py-2 text-xs font-semibold text-[#155e57] disabled:opacity-60"
-                                                >
-                                                  Edit Quote
-                                                </button>
-                                              )
-                                            ) : (
-                                              <span className="text-xs text-[#6b7f86]">-</span>
-                                            )}
-                                          </td>
-                                        ) : null}
-                                      </tr>
-                                    )
-                                  })}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
+                      <label className="grid gap-1 text-xs font-bold text-slate-500 md:col-span-2">
+                        <span>Tender Document Note</span>
+                        <textarea
+                          rows={2}
+                          value={rfqForm.tender_document_note}
+                          onChange={(event) => setRfqForm((prev) => ({ ...prev, tender_document_note: event.target.value }))}
+                          placeholder="e.g. Please refer to Section 4 of document for technical specifications."
+                          className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold outline-none transition focus:border-blue-500"
+                        />
+                      </label>
 
-                          {userRole === "supplier" && editingQuotationContext?.rfqId === rfq.id ? (
-                            <div className="mt-4 grid gap-3 rounded-xl border border-[#dce9f3] bg-[#f8fbff] p-4 md:grid-cols-2">
-                              {editingMatchingSupplierListings.length === 0 ? (
-                                <div className="rounded-lg border border-[#f0dfc4] bg-[#fff9f1] px-3 py-2 text-sm text-[#8a5a2f] md:col-span-2">
-                                  No matching active listings available for this RFQ.
-                                </div>
-                              ) : null}
+                      <label className="grid gap-1 text-xs font-bold text-slate-500">
+                        <span>Category Type</span>
+                        <select
+                          value={rfqForm.product_type}
+                          onChange={(event) =>
+                            setRfqForm((prev) => ({
+                              ...prev,
+                              product_type: event.target.value as "product" | "service",
+                            }))
+                          }
+                          className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold outline-none transition focus:border-blue-500"
+                        >
+                          <option value="product">Product Procurement</option>
+                          <option value="service">Service Agreement</option>
+                        </select>
+                      </label>
 
-                              <label className="grid gap-1 text-sm md:col-span-2">
-                                <span className="font-semibold text-[#2f5560]">Select Your Listing</span>
-                                <select
-                                  value={editingQuoteForm.product_id}
-                                  onChange={(event) =>
-                                    setEditingQuoteForm((prev) => ({ ...prev, product_id: Number(event.target.value) }))
-                                  }
-                                  className="rounded-xl border border-[#cde2e5] bg-white px-4 py-3 outline-none transition focus:border-[var(--brand)]"
-                                >
-                                  <option value={0}>Choose listing</option>
-                                  {editingMatchingSupplierListings.map((listing) => (
-                                    <option key={listing.id} value={listing.id}>
-                                      {listing.name} | INR {Number(listing.price).toLocaleString()} | Stock {listing.stock}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
+                      <label className="grid gap-1 text-xs font-bold text-slate-500">
+                        <span>Tender Desk Mode</span>
+                        <select
+                          value={rfqForm.tender_type}
+                          onChange={(event) =>
+                            setRfqForm((prev) => ({
+                              ...prev,
+                              tender_type: event.target.value as "open" | "limited" | "reverse",
+                              invited_vendors:
+                                event.target.value === "limited" ? prev.invited_vendors : [],
+                            }))
+                          }
+                          className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold outline-none transition focus:border-blue-500"
+                        >
+                          <option value="open">Open Bidding (All Suppliers)</option>
+                          <option value="limited">Limited Bidding (Shortlisted Only)</option>
+                          <option value="reverse">Reverse Auction</option>
+                        </select>
+                      </label>
 
-                              <label className="grid gap-1 text-sm">
-                                <span className="font-semibold text-[#2f5560]">Unit Price (INR)</span>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  value={editingQuoteForm.unit_price}
-                                  onChange={(event) =>
-                                    setEditingQuoteForm((prev) => ({ ...prev, unit_price: Number(event.target.value) }))
-                                  }
-                                  className="rounded-xl border border-[#cde2e5] bg-white px-4 py-3 outline-none transition focus:border-[var(--brand)]"
-                                />
-                              </label>
+                      <label className="grid gap-1 text-xs font-bold text-slate-500">
+                        <span>Quantity Required</span>
+                        <input
+                          type="number"
+                          min={1}
+                          value={rfqForm.quantity}
+                          onChange={(event) => setRfqForm((prev) => ({ ...prev, quantity: Number(event.target.value) }))}
+                          className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold outline-none transition focus:border-blue-500"
+                        />
+                      </label>
 
-                              <label className="grid gap-1 text-sm">
-                                <span className="font-semibold text-[#2f5560]">Lead Time (days)</span>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  value={editingQuoteForm.lead_time_days}
-                                  onChange={(event) =>
-                                    setEditingQuoteForm((prev) => ({ ...prev, lead_time_days: Number(event.target.value) }))
-                                  }
-                                  className="rounded-xl border border-[#cde2e5] bg-white px-4 py-3 outline-none transition focus:border-[var(--brand)]"
-                                />
-                              </label>
+                      <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-xs">
+                        <p className="font-bold text-slate-700 flex items-center gap-1.5">
+                          <Tag className="h-4 w-4 text-slate-500" />
+                          <span>Commercial Term Bidding</span>
+                        </p>
+                        <p className="mt-1 leading-relaxed text-slate-550 font-semibold">
+                          Prices will be collected from supplier quotations. Budget estimate cap is not required to publish.
+                        </p>
+                      </div>
 
-                              <label className="grid gap-1 text-sm">
-                                <span className="font-semibold text-[#2f5560]">Quote Validity (days)</span>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  value={editingQuoteForm.validity_days}
-                                  onChange={(event) =>
-                                    setEditingQuoteForm((prev) => ({ ...prev, validity_days: Number(event.target.value) }))
-                                  }
-                                  className="rounded-xl border border-[#cde2e5] bg-white px-4 py-3 outline-none transition focus:border-[var(--brand)]"
-                                />
-                              </label>
+                      <label className="grid gap-1 text-xs font-bold text-slate-500 md:col-span-2">
+                        <span>Delivery Location</span>
+                        <input
+                          value={rfqForm.delivery_location}
+                          onChange={(event) =>
+                            setRfqForm((prev) => ({ ...prev, delivery_location: event.target.value }))
+                          }
+                          placeholder="e.g. Central Warehouse, Kolkata"
+                          className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold outline-none transition focus:border-blue-500"
+                        />
+                      </label>
 
-                              <label className="grid gap-1 text-sm md:col-span-2">
-                                <span className="font-semibold text-[#2f5560]">Commercial Notes</span>
-                                <textarea
-                                  rows={3}
-                                  value={editingQuoteForm.notes}
-                                  onChange={(event) => setEditingQuoteForm((prev) => ({ ...prev, notes: event.target.value }))}
-                                  placeholder="Warranty, installation, payment terms."
-                                  className="rounded-xl border border-[#cde2e5] bg-white px-4 py-3 outline-none transition focus:border-[var(--brand)]"
-                                />
-                              </label>
+                      <label className="grid gap-1 text-xs font-bold text-slate-500">
+                        <span>Quotation Submission Deadline</span>
+                        <input
+                          type="date"
+                          value={rfqForm.quote_deadline}
+                          onChange={(event) => setRfqForm((prev) => ({ ...prev, quote_deadline: event.target.value }))}
+                          min={getToday()}
+                          className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold outline-none transition focus:border-blue-500"
+                        />
+                      </label>
 
-                              <div className="flex gap-2 md:col-span-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleUpdateQuotation(rfq)}
-                                  disabled={submitting || editingMatchingSupplierListings.length === 0}
-                                  className="rounded-xl bg-[linear-gradient(90deg,#2563eb_0%,#1d4ed8_100%)] px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                  {submitting ? "Updating..." : "Update Quote"}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={cancelEditingQuotation}
-                                  className="rounded-xl border border-[#d3e4e7] bg-white px-4 py-3 text-sm font-semibold text-[#3a616b]"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          ) : null}
+                      <label className="grid gap-1 text-xs font-bold text-slate-500">
+                        <span>Target Delivery Date</span>
+                        <input
+                          type="date"
+                          value={rfqForm.expected_delivery_date}
+                          onChange={(event) =>
+                            setRfqForm((prev) => ({ ...prev, expected_delivery_date: event.target.value }))
+                          }
+                          min={rfqForm.quote_deadline || getToday()}
+                          className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold outline-none transition focus:border-blue-500"
+                        />
+                      </label>
+
+                      <div className="grid gap-2 text-xs md:col-span-2 border-t border-slate-100 pt-4 mt-2">
+                        <div className="flex items-center justify-between gap-3 mb-1">
+                          <span className="font-bold text-slate-700">Supplier Access & Shortlist</span>
+                          <span className="text-[10px] font-extrabold text-slate-400 uppercase">
+                            {rfqForm.tender_type === "open"
+                              ? "Optional for open tender"
+                              : "Required for limited tender"}
+                          </span>
                         </div>
-                      </>
-                    ) : (
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={setAllVendorsOption}
+                            className={`rounded-xl border px-4 py-2 text-xs font-bold transition cursor-pointer ${rfqForm.tender_type === "open" && rfqForm.invited_vendors.length === 0
+                              ? "border-blue-600 bg-blue-50 text-blue-700 shadow-sm shadow-blue-500/5"
+                              : "border-slate-200 bg-white text-slate-750 hover:bg-slate-50"
+                              }`}
+                          >
+                            All Registered Suppliers
+                          </button>
+                        </div>
+                        <p className="text-[10px] font-medium text-slate-400">
+                          Shortlist individual target vendors below. Keep "All Registered Suppliers" selected if you want any eligible supplier on the marketplace to bid.
+                        </p>
+                        <div className="grid gap-2 sm:grid-cols-2 mt-1.5">
+                          {vendorDirectory.map((vendor) => {
+                            const selected = rfqForm.invited_vendors.some((item) => item.vendor_id === vendor.vendor_id)
+                            return (
+                              <button
+                                key={vendor.vendor_id}
+                                type="button"
+                                onClick={() => handleVendorToggle(vendor.vendor_id)}
+                                className={`rounded-xl border p-3 text-left text-xs transition cursor-pointer flex flex-col justify-between ${selected
+                                  ? "border-blue-600 bg-blue-50/40 text-blue-700 shadow-sm"
+                                  : "border-slate-200 bg-white text-slate-750 hover:bg-slate-50"
+                                  }`}
+                              >
+                                <p className="font-bold text-slate-800">{vendor.vendor_name}</p>
+                                <p className="text-[10px] opacity-75 font-semibold mt-0.5">@{vendor.vendor_username || `vendor_${vendor.vendor_id}`}</p>
+                              </button>
+                            )
+                          })}
+                        </div>
+                        {rfqForm.invited_vendors.length > 0 ? (
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 mt-2">
+                            <p className="text-[9px] font-extrabold tracking-wider text-slate-455 uppercase">
+                              Selected Shortlist ({rfqForm.invited_vendors.length})
+                            </p>
+                            <p className="mt-1 text-xs font-bold text-slate-700">
+                              {rfqForm.invited_vendors.map((vendor) => vendor.vendor_name).join(", ")}
+                            </p>
+                          </div>
+                        ) : null}
+                        {rfqForm.tender_type === "limited" && vendorDirectory.length === 0 ? (
+                          <div className="rounded-xl border border-amber-250 bg-amber-50 p-3 text-xs text-amber-800 mt-2 flex items-center gap-2">
+                            <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
+                            <span>No supplier listings are available yet. Limited shortlists require active suppliers.</span>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="mt-6 flex flex-wrap gap-3 border-t border-slate-100 pt-5">
                       <button
                         type="button"
-                        onClick={() => toggleRfqExpansion(rfq.id)}
-                        className="mt-4 flex w-full flex-wrap items-center justify-between gap-3 rounded-xl border border-[#e0ecee] bg-[#fbfeff] px-4 py-3 text-left text-sm text-[#48666f] hover:border-[#9db7f5] hover:bg-[#f8faff]"
+                        onClick={handleSaveRfq}
+                        disabled={submitting}
+                        className="rounded-xl bg-blue-600 md:hover:bg-blue-700 px-5 py-3 text-xs font-bold text-white shadow-sm transition active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <p>
-                          {rfq.quantity} units | {formatTenderType(rfq.tender_type)} | Quote due {formatDisplayDate(rfq.quote_deadline)}
-                        </p>
-                        <p className="font-semibold text-[#123f49]">
-                          {rfq.status === "closed" || rfq.status === "awarded"
-                            ? "Read-only record"
-                            : userRole === "supplier"
-                              ? "View details"
-                              : "View details"}
-                        </p>
+                        {submitting
+                          ? editingRfqId
+                            ? "Saving..."
+                            : "Publishing..."
+                          : editingRfqId
+                            ? "Save RFQ Changes"
+                            : rfqForm.tender_type === "limited" && rfqForm.invited_vendors.length > 0
+                              ? `Publish to ${rfqForm.invited_vendors.length} Vendor${rfqForm.invited_vendors.length > 1 ? "s" : ""}`
+                              : "Publish Procurement Request"}
                       </button>
-                    )}
+                      {editingRfqId ? (
+                        <button
+                          type="button"
+                          onClick={cancelEditingRfq}
+                          className="rounded-xl border border-slate-250 bg-white md:hover:bg-slate-50 px-5 py-3 text-xs font-bold text-slate-700 transition cursor-pointer"
+                        >
+                          Cancel Edit
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {latestPublishedRfq ? (
+                      <div className="mt-4 rounded-xl border border-emerald-250 bg-emerald-50/40 p-4 text-xs text-emerald-800">
+                        <p className="font-bold flex items-center gap-1 text-emerald-900">
+                          <CheckCircle className="h-4 w-4 text-emerald-650" />
+                          <span>Latest Published RFQ</span>
+                        </p>
+                        <p className="mt-1 font-semibold">
+                          RFQ #{latestPublishedRfq.id} for {latestPublishedRfq.quantity}{" "}
+                          {latestPublishedRfq.product_type === "product" ? "units / equipment" : "service contracts"} has been
+                          successfully posted.
+                        </p>
+                        <p className="mt-1 font-semibold">
+                          Deadline: {formatDisplayDate(latestPublishedRfq.quote_deadline)} | Delivery target:{" "}
+                          {formatDisplayDate(latestPublishedRfq.expected_delivery_date)}
+                        </p>
+                        {latestPublishedRfq.tender_document_url ? (
+                          <div className="mt-2.5 flex flex-wrap gap-3">
+                            <a
+                              href={latestPublishedRfq.tender_document_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex text-xs font-bold text-emerald-850 hover:underline"
+                            >
+                              View Tender Document
+                            </a>
+                            <a
+                              href={latestPublishedRfq.tender_document_url}
+                              download={latestPublishedRfq.tender_document_name || `rfq-${latestPublishedRfq.id}.pdf`}
+                              className="inline-flex text-xs font-bold text-emerald-850 hover:underline"
+                            >
+                              Download Document
+                            </a>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </article>
+                ) : null}
+
+              </section>
+
+              {message && selectedRfqId === null ? (
+                <section className="soft-panel rounded-[20px] p-4">
+                  <p className="rounded-lg border border-[#d9e8ea] bg-[#f8fdff] px-3 py-2 text-sm text-[#355860]">
+                    {message}
+                  </p>
+                </section>
+              ) : null}
+
+              {(() => {
+                const selectedRfq = selectedRfqId !== null ? rfqs.find((r) => r.id === selectedRfqId) : null
+                if (selectedRfqId !== null && selectedRfq) {
+                  return (
+                    <RfqDetailPage
+                      selectedRfq={selectedRfq}
+                      userRole={userRole as "buyer" | "supplier"}
+                      username={username}
+                      supplierCompanyName={supplierCompanyName || null}
+                      supplierVendorProfile={supplierVendorProfile}
+                      setSelectedRfqId={setSelectedRfqId}
+                      openRejectQuotationModal={openRejectQuotationModal}
+                      openDeleteRfqModal={openDeleteRfqModal}
+                      handleReopenRfq={handleReopenRfq}
+                      handleCloseRfq={handleCloseRfq}
+                      startEditingRfq={startEditingRfq}
+                      handleAwardQuotation={handleAwardQuotation}
+                      submitting={submitting}
+                      supplierCanQuote={supplierCanQuote}
+                      activeQuoteRfqId={activeQuoteRfqId}
+                      setActiveQuoteRfqId={setActiveQuoteRfqId}
+                      quoteForm={quoteForm}
+                      setQuoteForm={setQuoteForm}
+                      emptyQuoteForm={emptyQuoteForm}
+                      handleSubmitQuotation={handleSubmitQuotation}
+                      matchingSupplierListings={matchingSupplierListings}
+                      editingQuotationContext={editingQuotationContext}
+                      editingMatchingSupplierListings={editingMatchingSupplierListings}
+                      editingQuoteForm={editingQuoteForm}
+                      setEditingQuoteForm={setEditingQuoteForm}
+                      handleUpdateQuotation={handleUpdateQuotation}
+                      cancelEditingQuotation={cancelEditingQuotation}
+                      startEditingQuotation={startEditingQuotation}
+                      message={message}
+                      setMessage={setMessage}
+                    />
+                  )
+                }
+
+                return (
+                  <>
+                    {/* Clean Header Section outside the card container */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 animate-fade-in-down">
+                      <div>
+                        <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-black">
+                          {userRole === "supplier" ? (
+                            <>Tender Desk & <span className="text-blue-600">Bidding Opportunities</span></>
+                          ) : (
+                            <>My <span className="text-blue-600">Procurement RFQs</span></>
+                          )}
+                        </h1>
+                        <p className="text-xs sm:text-sm font-semibold text-slate-500 mt-1">
+                          {userRole === "supplier" ? (
+                            "Review buyer tender requirements, submit competitive quotes, and track bid awards."
+                          ) : (
+                            "Track vendor reach, quotation activity, and award decisions across active RFQs."
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 self-start sm:self-center shrink-0">
+                        <span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 border border-blue-100 shadow-sm">
+                          {loading ? "Loading..." : `${records.length} RFQs`}
+                        </span>
+                        {userRole === "buyer" && !showCreateForm && (
+                          <Link
+                            href="/buyer/rfq?view=new"
+                            className="flex items-center gap-2 rounded-xl bg-blue-600 md:hover:bg-blue-700 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-500/10 transition duration-150 active:scale-95"
+                          >
+                            <Plus className="h-4 w-4" />
+                            <span>Create New RFQ</span>
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Clean Filter Panel Card outside */}
+                    <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4 animate-fade-in-down">
+                      <div className="flex flex-col gap-4">
+                        {/* Status tabs: Wrapped neatly to two lines/rows on mobile */}
+                        <div className="flex flex-wrap gap-1.5">
+                          {filterTabs.map((tab) => {
+                            const isActive = requestFilter === tab.key
+                            return (
+                              <button
+                                key={tab.key}
+                                type="button"
+                                onClick={() => setRequestFilter(tab.key)}
+                                className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition-all duration-150 cursor-pointer ${isActive
+                                    ? "bg-blue-600 text-white shadow-md shadow-blue-500/15"
+                                    : "border border-slate-200 bg-white text-slate-500 md:hover:text-slate-800 md:hover:border-slate-300"
+                                  }`}
+                              >
+                                {tab.label} <span className={`text-[10px] ml-0.5 ${isActive ? "text-blue-100" : "text-slate-400"}`}>({tab.count})</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+
+                        {/* Segmented Tender Type Tabs, Search, and Sorting Row */}
+                        <div className="grid gap-4 lg:grid-cols-[auto_1fr_auto] items-center pt-3.5 border-t border-slate-100">
+                          {/* Segmented Tender Mode Selection */}
+                          <div className="flex flex-wrap items-center gap-2 bg-slate-50 border border-slate-200 p-1.5 rounded-xl w-full lg:w-fit">
+                            <span className="text-[10px] font-bold text-slate-450 uppercase tracking-wider pl-1.5">Format:</span>
+                            <div className="flex flex-wrap gap-1">
+                              {[
+                                { key: "all", label: "All" },
+                                { key: "open", label: "Open Market" },
+                                { key: "limited", label: "Limited" },
+                                { key: "reverse", label: "Reverse Auction" },
+                              ].map((type) => {
+                                const isActive = tenderTypeFilter === type.key
+                                return (
+                                  <button
+                                    key={type.key}
+                                    type="button"
+                                    onClick={() => setTenderTypeFilter(type.key as any)}
+                                    className={`rounded-lg px-2.5 py-1 text-xs font-bold transition duration-150 cursor-pointer ${isActive
+                                        ? "bg-white text-blue-600 text-xs shadow-sm border border-slate-200/50"
+                                        : "text-slate-500 md:hover:text-slate-800"
+                                      }`}
+                                  >
+                                    {type.label}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Search input field */}
+                          <div className="relative w-full">
+                            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <input
+                              value={searchQuery}
+                              onChange={(event) => setSearchQuery(event.target.value)}
+                              placeholder="Search tender title, buyer company, description, delivery location..."
+                              className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl border border-slate-200 bg-slate-50 md:hover:bg-slate-100/50 focus:bg-white text-slate-800 transition duration-150 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            />
+                          </div>
+
+                          {/* Sorting options & Refresh button */}
+                          <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full lg:w-auto justify-end">
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                              <ArrowUpDown className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                              <select
+                                value={sortBy}
+                                onChange={(event) =>
+                                  setSortBy(
+                                    event.target.value as "latest" | "oldest" | "budget_high" | "budget_low" | "deadline_nearest"
+                                  )
+                                }
+                                className="text-xs font-bold bg-white border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500 transition cursor-pointer text-slate-700 w-full sm:w-auto"
+                              >
+                                <option value="latest">Sort: Latest</option>
+                                <option value="oldest">Sort: Oldest</option>
+                                <option value="budget_high">Sort: Budget High to Low</option>
+                                <option value="budget_low">Sort: Budget Low to High</option>
+                                <option value="deadline_nearest">Sort: Nearest Deadline</option>
+                              </select>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={refreshRfqs}
+                              disabled={submitting}
+                              className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white md:hover:bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-700 shadow-sm transition duration-150 active:scale-[0.98] cursor-pointer w-full sm:w-auto"
+                            >
+                              <RefreshCw className={`h-3.5 w-3.5 text-slate-500 ${submitting ? "animate-spin" : ""}`} />
+                              <span>Refresh</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Cards List directly on the page layout container */}
+                    <div className="mt-4 space-y-4">
+                      {!loading && records.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-16 gap-3 rounded-2xl border border-slate-200 bg-white shadow-sm text-center">
+                          <Inbox className="h-10 w-10 text-slate-355" />
+                          <h3 className="text-sm font-bold text-slate-805">No Procurement Requests</h3>
+                          <p className="text-xs text-slate-450 max-w-xs leading-normal">We couldn't find any RFQs matching your search query or status filter.</p>
+                        </div>
+                      ) : null}
+
+                      <div className="grid gap-4">
+                        {records.map((rfq) => {
+                          const statusTone =
+                            rfq.status === "closed"
+                              ? "bg-[#fff2f2] text-[#a53c3c]"
+                              : rfq.status === "awarded"
+                                ? "bg-[#eefaf2] text-[#0f7a54]"
+                                : rfq.status === "under_review"
+                                  ? "bg-[#edf4ff] text-[#2459c4]"
+                                  : "bg-[#edf7f6] text-[#0f766e]"
+
+                          const supplierQuote = findSupplierQuote(rfq)
+                          const lowestQuote = getLowestBid(rfq.quotations)
+                          const isL1 = lowestQuote && supplierQuote && supplierQuote.id === lowestQuote.id
+
+                          return (
+                            <article
+                              id={`rfq-${rfq.id}`}
+                              key={rfq.id}
+                              className="rounded-2xl border bg-white p-4 sm:p-5 relative overflow-hidden transition-all duration-300 animate-fade-in-up border-slate-200 cursor-pointer md:hover:border-blue-300 md:hover:shadow-md flex flex-col md:flex-row justify-between gap-4"
+                              onClick={() => setSelectedRfqId(rfq.id)}
+                            >
+                              <div className="flex-1 min-w-0 text-left">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className={`text-[10px] uppercase font-extrabold px-2 py-0.5 rounded border ${rfq.product_type === "product"
+                                      ? "bg-cyan-50 text-cyan-705 border-cyan-100"
+                                      : "bg-purple-50 text-purple-705 border-purple-100"
+                                    }`}>
+                                    {rfq.product_type}
+                                  </span>
+                                  <h3 className="text-sm sm:text-base font-bold text-slate-805 tracking-tight truncate max-w-full sm:max-w-md">
+                                    {rfq.title}
+                                  </h3>
+                                  <span className="rounded bg-slate-100 border border-slate-200/60 px-2 py-0.5 text-[9px] font-bold uppercase text-slate-500">
+                                    {formatTenderType(rfq.tender_type)}
+                                  </span>
+                                  <span className={`rounded px-2 py-0.5 text-[9px] font-bold uppercase ${statusTone}`}>
+                                    {formatRfqStatus(rfq.status)}
+                                  </span>
+                                  {rfq.status === "open" && (
+                                    <span className="rounded bg-rose-50 border border-rose-100 px-2 py-0.5 text-[9px] font-bold text-rose-600 uppercase">
+                                      {getRemainingTimeText(rfq.quote_deadline)}
+                                    </span>
+                                  )}
+                                  {userRole === "supplier" && rfq.buyer_name !== username && (
+                                    <>
+                                      {supplierListings.some((item) => item.product_type === rfq.product_type) ? (
+                                        <span className="rounded bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[9px] font-extrabold uppercase text-emerald-700 flex items-center gap-1 shadow-sm">
+                                          <CheckCircle className="h-3 w-3 shrink-0 text-emerald-600" />
+                                          Eligible to Bid
+                                        </span>
+                                      ) : (
+                                        <span className="rounded bg-amber-50 border border-amber-200 px-2 py-0.5 text-[9px] font-extrabold uppercase text-amber-705 flex items-center gap-1 shadow-sm">
+                                          <AlertCircle className="h-3 w-3 shrink-0 text-amber-605" />
+                                          No Catalog Match
+                                        </span>
+                                      )}
+                                    </>
+                                  )}
+                                  {rfq.tender_type === "reverse" && rfq.status === "open" && (
+                                    <span className="flex items-center gap-1 bg-rose-650 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full animate-pulse">
+                                      <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" />
+                                      Live Auction
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="mt-2 text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                                  {rfq.description}
+                                </p>
+                                <div className="mt-3.5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-400">
+                                  <span className="flex items-center gap-1.5">
+                                    <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                                    <span className="text-[11px]">Deadline: <strong className="text-slate-600">{formatDisplayDate(rfq.quote_deadline)}</strong></span>
+                                  </span>
+                                  <span className="flex items-center gap-1.5">
+                                    <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                                    <span className="text-[11px]">Location: <strong className="text-slate-600 truncate max-w-[120px] inline-block align-bottom">{rfq.delivery_location}</strong></span>
+                                  </span>
+                                  <span className="flex items-center gap-1.5">
+                                    <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                                    <span className="text-[11px] flex items-center gap-1">
+                                      Buyer: <strong className="text-slate-600 truncate max-w-[100px] inline-block align-bottom">{rfq.buyer_company || rfq.buyer_name}</strong>
+                                      {userRole === "supplier" && rfq.buyer_user_id && (
+                                        <Link
+                                          href={`/supplier/messages?partner_id=${rfq.buyer_user_id}`}
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="inline-flex items-center gap-0.5 text-[9px] font-bold text-indigo-650 md:hover:text-indigo-800 transition ml-1 px-1.5 py-0.2 bg-indigo-50 md:hover:bg-indigo-100 rounded align-middle shrink-0"
+                                          title={`Chat with ${rfq.buyer_company || rfq.buyer_name}`}
+                                        >
+                                          <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                                          </svg>
+                                          <span>Chat</span>
+                                        </Link>
+                                      )}
+                                    </span>
+                                  </span>
+                                  <span className="flex items-center gap-1.5">
+                                    <FileSpreadsheet className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                                    <span className="text-[11px]">Offers: <strong className="text-slate-600">{rfq.quotations.length} received</strong></span>
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-3 shrink-0 pt-3 md:pt-0 border-t border-slate-100 md:border-none">
+                                <div className="flex flex-col items-end gap-1">
+                                  <span className="text-[10px] font-mono font-bold text-slate-400">Reference #{rfq.id}</span>
+                                  {userRole === "supplier" && rfq.buyer_name !== username && rfq.status === "open" && (
+                                    <>
+                                      {supplierQuote ? (
+                                        isL1 ? (
+                                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-extrabold text-emerald-705">
+                                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                            L1 Bid: ₹{supplierQuote.unit_price.toLocaleString()}
+                                          </span>
+                                        ) : (
+                                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-extrabold text-amber-705">
+                                            Outbid: ₹{supplierQuote.unit_price.toLocaleString()}
+                                          </span>
+                                        )
+                                      ) : (
+                                        <span className="text-[9px] font-bold text-rose-500 bg-rose-50 border border-rose-100 rounded-full px-2 py-0.5">
+                                          Not Quoted Yet
+                                        </span>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {userRole === "supplier" && rfq.buyer_name !== username && rfq.status === "open" && !supplierQuote && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setSelectedRfqId(rfq.id)
+                                        setActiveQuoteRfqId(rfq.id)
+                                      }}
+                                      className="rounded-xl bg-blue-600 hover:bg-blue-700 px-3.5 py-1.5 text-xs text-white font-bold transition shadow-sm cursor-pointer"
+                                    >
+                                      Submit Bid
+                                    </button>
+                                  )}
+                                  <div className="flex items-center justify-center w-full md:w-auto px-4 py-2.5 md:py-1.5 rounded-xl border border-blue-200 bg-blue-50 text-blue-750 md:hover:bg-blue-105 transition duration-150 text-xs md:text-[10px] font-bold md:font-black uppercase tracking-wider text-center active:scale-95">
+                                    View Details &rarr;
+                                  </div>
+                                </div>
+                              </div>
+                            </article>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </>
                 )
-              })}
-            </div>
-          </section>
+              })()}            </>
+          )}
         </div>
         {deleteModal.open ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(11,20,38,0.55)] px-4">
@@ -2031,7 +1920,8 @@ function RfqPageContent() {
         }
       `}</style>
       </main>
-    </>
+      {isBuyerRoute ? <BuyerFooter /> : isSupplierRoute ? <SupplierFooter /> : null}
+    </div>
   )
 }
 
@@ -2044,6 +1934,17 @@ function InfoPill({ label, value }: { label: string; value: number | string }) {
   )
 }
 
+function InfoPillIcon({ icon, label, value }: { icon: React.ReactNode; label: string; value: number | string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 flex items-center gap-2.5 shadow-sm">
+      <div className="shrink-0 p-1.5 bg-slate-50 border border-slate-100 rounded-lg">{icon}</div>
+      <div className="min-w-0">
+        <p className="text-[9px] font-extrabold text-slate-405 uppercase tracking-wider truncate">{label}</p>
+        <p className="mt-0.5 text-xs font-extrabold text-slate-700 truncate">{value}</p>
+      </div>
+    </div>
+  )
+}
 
 
 

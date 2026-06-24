@@ -11,6 +11,7 @@ from vendor.models.vendor_rfq import VendorRfq
 from vendor.models.vendor_order import VendorOrder
 from vendor.models.vendor_profile import VendorProfile
 from vendor.models.vendor_product_service import VendorProductService
+from vendor.models.notification import Notification
 from vendor.serializers.vendor_order_serializer import VendorOrderSerializer, VendorOrderTrackingUpdateSerializer
 from vendor.utils.account_role import get_or_create_account_role
 from vendor.utils.order_events import log_order_event
@@ -47,7 +48,28 @@ class VendorOrderViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         # Both buyers and suppliers can place orders (suppliers for subcontracting).
-        serializer.save(status="po_released")
+        order = serializer.save(status="po_released")
+
+        # Notify the buyer that the PO has been generated
+        Notification.create_notification(
+            user=order.buyer,
+            n_type="success",
+            title="New Order Created",
+            message=f"Order HL-ORD-{str(order.id).zfill(4)} has been generated.",
+            details=f"Total Amount: ₹{order.total_amount} | Status: po released",
+            url="/buyer/orders"
+        )
+
+        # Notify the supplier that they received a new PO
+        if order.vendor and order.vendor.user:
+            Notification.create_notification(
+                user=order.vendor.user,
+                n_type="success",
+                title="New Purchase Order",
+                message=f"You have received a new Purchase Order HL-ORD-{str(order.id).zfill(4)}.",
+                details=f"Total Amount: ₹{order.total_amount} | Status: po released",
+                url="/supplier/orders"
+            )
 
     @action(detail=True, methods=["post"], url_path="accept-po")
     def accept_po(self, request, pk=None):
@@ -64,6 +86,28 @@ class VendorOrderViewSet(viewsets.ModelViewSet):
             event_type="po_accepted",
             user=request.user,
         )
+
+        # Notify the buyer
+        Notification.create_notification(
+            user=order.buyer,
+            n_type="success",
+            title="PO Accepted by Supplier",
+            message=f"Supplier has accepted your Purchase Order HL-ORD-{str(order.id).zfill(4)}.",
+            details=f"Status: po accepted | Accepted at: {order.po_accepted_at.strftime('%Y-%m-%d %H:%M')}",
+            url="/buyer/orders"
+        )
+
+        # Notify the supplier
+        if order.vendor and order.vendor.user:
+            Notification.create_notification(
+                user=order.vendor.user,
+                n_type="success",
+                title="PO Accepted",
+                message=f"You have accepted Purchase Order HL-ORD-{str(order.id).zfill(4)}.",
+                details=f"Status: po accepted",
+                url="/supplier/orders"
+            )
+
         return Response(self.get_serializer(order).data)
 
     @action(detail=True, methods=["post"], url_path="update-tracking")
@@ -74,7 +118,29 @@ class VendorOrderViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         update_serializer = self.get_serializer(order, data=serializer.validated_data, partial=True)
         update_serializer.is_valid(raise_exception=True)
-        update_serializer.save()
+        updated_order = update_serializer.save()
+
+        # Notify the buyer that tracking/status was updated
+        Notification.create_notification(
+            user=order.buyer,
+            n_type="info",
+            title="Order Delivery Updated",
+            message=f"Order HL-ORD-{str(order.id).zfill(4)} status/delivery is now \"{updated_order.status.replace('_', ' ')}\".",
+            details=f"Delivery Status: {updated_order.delivery_status.replace('_', ' ')} | Note: {updated_order.tracking_note}",
+            url="/buyer/orders"
+        )
+
+        # Notify the supplier
+        if order.vendor and order.vendor.user:
+            Notification.create_notification(
+                user=order.vendor.user,
+                n_type="info",
+                title="Order Tracking Updated",
+                message=f"You updated tracking/status for Order HL-ORD-{str(order.id).zfill(4)}.",
+                details=f"Status: {updated_order.status.replace('_', ' ')} | Delivery Status: {updated_order.delivery_status.replace('_', ' ')}",
+                url="/supplier/orders"
+            )
+
         return Response(update_serializer.data)
 
     @action(detail=True, methods=["post"], url_path="mark-received")
@@ -108,6 +174,28 @@ class VendorOrderViewSet(viewsets.ModelViewSet):
             event_type="goods_received",
             user=request.user,
         )
+
+        # Notify the buyer
+        Notification.create_notification(
+            user=order.buyer,
+            n_type="success",
+            title="Order Delivered",
+            message=f"You marked order HL-ORD-{str(order.id).zfill(4)} as received & completed.",
+            details=f"Status: completed | Delivery Status: delivered",
+            url="/buyer/orders"
+        )
+
+        # Notify the supplier
+        if order.vendor and order.vendor.user:
+            Notification.create_notification(
+                user=order.vendor.user,
+                n_type="success",
+                title="Order Received & Completed",
+                message=f"Buyer has marked order HL-ORD-{str(order.id).zfill(4)} as received & completed.",
+                details=f"Status: completed | Delivery Status: delivered",
+                url="/supplier/orders"
+            )
+
         return Response(self.get_serializer(order).data)
 
     @action(detail=True, methods=["post"], url_path="make-payment")
@@ -124,6 +212,28 @@ class VendorOrderViewSet(viewsets.ModelViewSet):
             event_type="payment_updated",
             user=request.user,
         )
+
+        # Notify the buyer
+        Notification.create_notification(
+            user=order.buyer,
+            n_type="success",
+            title="Order Payment Completed",
+            message=f"You completed/recorded payment for Order HL-ORD-{str(order.id).zfill(4)}.",
+            details=f"Payment status: paid | Total Amount: ₹{order.total_amount}",
+            url="/buyer/orders"
+        )
+
+        # Notify the supplier
+        if order.vendor and order.vendor.user:
+            Notification.create_notification(
+                user=order.vendor.user,
+                n_type="success",
+                title="Order Payment Received",
+                message=f"Buyer has recorded payment for Order HL-ORD-{str(order.id).zfill(4)}.",
+                details=f"Payment status: paid | Total Amount: ₹{order.total_amount}",
+                url="/supplier/orders"
+            )
+
         return Response(self.get_serializer(order).data)
 
     @action(detail=True, methods=["post"], url_path="mark-payment-overdue")
@@ -138,6 +248,28 @@ class VendorOrderViewSet(viewsets.ModelViewSet):
             event_type="payment_updated",
             user=request.user,
         )
+
+        # Notify the buyer
+        Notification.create_notification(
+            user=order.buyer,
+            n_type="error",
+            title="Order Payment Overdue",
+            message=f"Supplier has flagged payment for Order HL-ORD-{str(order.id).zfill(4)} as overdue.",
+            details=f"Please verify payment status. Amount: ₹{order.total_amount}",
+            url="/buyer/orders"
+        )
+
+        # Notify the supplier
+        if order.vendor and order.vendor.user:
+            Notification.create_notification(
+                user=order.vendor.user,
+                n_type="warning",
+                title="Order Flagged Overdue",
+                message=f"You flagged payment for Order HL-ORD-{str(order.id).zfill(4)} as overdue.",
+                details=f"Amount: ₹{order.total_amount}",
+                url="/supplier/orders"
+            )
+
         return Response(self.get_serializer(order).data)
 
     @action(detail=True, methods=["post"], url_path="subcontract")
@@ -182,6 +314,27 @@ class VendorOrderViewSet(viewsets.ModelViewSet):
             user=request.user,
         )
 
+        # Notify the buyer that their order has been partially subcontracted
+        Notification.create_notification(
+            user=order.buyer,
+            n_type="info",
+            title="Order Subcontracted",
+            message=f"Supplier has subcontracted shortage quantity {shortage_qty} for Order HL-ORD-{str(order.id).zfill(4)}.",
+            details=f"Subcontract RFQ #{rfq.id} is published.",
+            url="/buyer/orders"
+        )
+
+        # Notify the supplier
+        if order.vendor and order.vendor.user:
+            Notification.create_notification(
+                user=order.vendor.user,
+                n_type="info",
+                title="Subcontract Initiated",
+                message=f"You initiated a subcontract RFQ #{rfq.id} for Order HL-ORD-{str(order.id).zfill(4)}.",
+                details=f"Shortage quantity: {shortage_qty}",
+                url="/supplier/orders"
+            )
+
         return Response(
             {
                 "order_id": order.id,
@@ -215,5 +368,26 @@ class VendorOrderViewSet(viewsets.ModelViewSet):
             event_type="reorder_created",
             user=request.user,
         )
+
+        # Notify the buyer
+        Notification.create_notification(
+            user=cloned_order.buyer,
+            n_type="success",
+            title="Reorder Placed",
+            message=f"You placed a reorder HL-ORD-{str(cloned_order.id).zfill(4)} (cloned from #{order.id}).",
+            details=f"Total Amount: ₹{cloned_order.total_amount}",
+            url="/buyer/orders"
+        )
+
+        # Notify the supplier
+        if cloned_order.vendor and cloned_order.vendor.user:
+            Notification.create_notification(
+                user=cloned_order.vendor.user,
+                n_type="success",
+                title="New Purchase Order (Reorder)",
+                message=f"You have received a new Purchase Order HL-ORD-{str(cloned_order.id).zfill(4)} (Reorder).",
+                details=f"Total Amount: ₹{cloned_order.total_amount}",
+                url="/supplier/orders"
+            )
 
         return Response(self.get_serializer(cloned_order).data, status=status.HTTP_201_CREATED)

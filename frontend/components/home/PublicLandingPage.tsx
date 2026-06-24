@@ -72,45 +72,63 @@ const animationStyles = `
   /* ── scroll-reveal base states ── */
   .reveal {
     opacity: 0;
-    transform: translateY(32px);
-    transition: opacity 0.9s cubic-bezier(0.22,1,0.36,1), transform 0.9s cubic-bezier(0.22,1,0.36,1);
+    transform: translateY(40px);
+    transition: opacity 1.4s cubic-bezier(0.22,1,0.36,1), transform 1.4s cubic-bezier(0.22,1,0.36,1);
   }
   .reveal-left {
     opacity: 0;
-    transform: translateX(-44px);
-    transition: opacity 0.9s cubic-bezier(0.22,1,0.36,1), transform 0.9s cubic-bezier(0.22,1,0.36,1);
+    transform: translateX(-60px);
+    transition: opacity 1.4s cubic-bezier(0.22,1,0.36,1), transform 1.4s cubic-bezier(0.22,1,0.36,1);
   }
   .reveal-right {
     opacity: 0;
-    transform: translateX(44px);
-    transition: opacity 0.9s cubic-bezier(0.22,1,0.36,1), transform 0.9s cubic-bezier(0.22,1,0.36,1);
+    transform: translateX(60px);
+    transition: opacity 1.4s cubic-bezier(0.22,1,0.36,1), transform 1.4s cubic-bezier(0.22,1,0.36,1);
+  }
+  .reveal-up {
+    opacity: 0;
+    transform: translateY(70px);
+    transition: opacity 1.5s cubic-bezier(0.22,1,0.36,1), transform 1.5s cubic-bezier(0.22,1,0.36,1);
   }
   .reveal-scale {
     opacity: 0;
-    transform: scale(0.9);
-    transition: opacity 0.9s cubic-bezier(0.22,1,0.36,1), transform 0.9s cubic-bezier(0.22,1,0.36,1);
+    transform: scale(0.88);
+    transition: opacity 1.4s cubic-bezier(0.22,1,0.36,1), transform 1.4s cubic-bezier(0.22,1,0.36,1);
   }
   .reveal.is-visible,
   .reveal-left.is-visible,
   .reveal-right.is-visible,
+  .reveal-up.is-visible,
   .reveal-scale.is-visible {
     opacity: 1;
     transform: none;
   }
   /* stagger delays — comfortable reading pace */
-  .reveal-d1 { transition-delay: 0.12s; }
-  .reveal-d2 { transition-delay: 0.24s; }
-  .reveal-d3 { transition-delay: 0.36s; }
-  .reveal-d4 { transition-delay: 0.50s; }
-  .reveal-d5 { transition-delay: 0.64s; }
+  .reveal-d1 { transition-delay: 0.18s; }
+  .reveal-d2 { transition-delay: 0.36s; }
+  .reveal-d3 { transition-delay: 0.54s; }
+  .reveal-d4 { transition-delay: 0.72s; }
+  .reveal-d5 { transition-delay: 0.92s; }
 
   /* ── scroll-triggered for lifecycle steps ── */
   .animate-fade-slide-up {
     opacity: 0;
-    transform: translateY(28px);
-    transition: opacity 0.85s cubic-bezier(0.22,1,0.36,1), transform 0.85s cubic-bezier(0.22,1,0.36,1);
+    transform: translateY(50px);
+    transition: opacity 1.3s cubic-bezier(0.22,1,0.36,1), transform 1.3s cubic-bezier(0.22,1,0.36,1);
   }
-  .animate-fade-slide-up.is-visible { opacity: 1; transform: none; }
+  .animate-fade-slide-left {
+    opacity: 0;
+    transform: translateX(-50px);
+    transition: opacity 1.3s cubic-bezier(0.22,1,0.36,1), transform 1.3s cubic-bezier(0.22,1,0.36,1);
+  }
+  .animate-fade-slide-right {
+    opacity: 0;
+    transform: translateX(50px);
+    transition: opacity 1.3s cubic-bezier(0.22,1,0.36,1), transform 1.3s cubic-bezier(0.22,1,0.36,1);
+  }
+  .animate-fade-slide-up.is-visible,
+  .animate-fade-slide-left.is-visible,
+  .animate-fade-slide-right.is-visible { opacity: 1; transform: none; }
 
   /* ── grid + card ── */
   .bg-premium-grid {
@@ -176,7 +194,7 @@ function useScrollReveal(rootMargin = "-40px", trigger?: unknown) {
     const el = ref.current
     if (!el) return
     const targets = el.querySelectorAll(
-      ".reveal, .reveal-left, .reveal-right, .reveal-scale, .animate-fade-slide-up"
+      ".reveal, .reveal-left, .reveal-right, .reveal-up, .reveal-scale, .animate-fade-slide-up, .animate-fade-slide-left, .animate-fade-slide-right"
     )
     const observer = new IntersectionObserver(
       (entries) => {
@@ -290,21 +308,21 @@ export default function PublicLandingPage() {
         
         {/* Left Content */}
         <div className="md:col-span-6 lg:col-span-6 space-y-8 text-center md:text-left order-2 md:order-none">
-          <h1 className="reveal max-w-2xl font-[family-name:var(--font-display)] text-4xl sm:text-5xl md:text-6xl font-extrabold leading-[1.02] tracking-[-0.05em] text-[#0F172A]">
+          <h1 className="reveal-left max-w-2xl font-[family-name:var(--font-display)] text-4xl sm:text-5xl md:text-6xl font-extrabold leading-[1.02] tracking-[-0.05em] text-[#0F172A]">
             The Future of <br />
             <span className="text-[#2563EB]">
               Clinical Sourcing
             </span>
           </h1>
 
-          <p className="reveal reveal-d1 max-w-xl mx-auto md:mx-0 text-sm md:text-base leading-relaxed text-[#64748B]">
+          <p className="reveal-left reveal-d1 max-w-xl mx-auto md:mx-0 text-sm md:text-base leading-relaxed text-[#64748B]">
             MedVendor transforms healthcare procurement into a seamless, high-performance operation.
             Navigate the marketplace with verified suppliers, live RFQs, and secure escrow workflows.
           </p>
 
           {/* Hero Feature Highlights with Icons */}
           {/* Desktop grid (hidden on mobile, shown on sm and above) */}
-          <div className="reveal reveal-d2 hidden sm:grid gap-6 sm:grid-cols-2 max-w-xl mx-auto md:mx-0 pt-2">
+          <div className="reveal-left reveal-d2 hidden sm:grid gap-6 sm:grid-cols-2 max-w-xl mx-auto md:mx-0 pt-2">
             <div className="flex flex-col items-center text-center sm:flex-row sm:items-start sm:text-left gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#2563EB]">
                 <Shield className="h-5 w-5" />
@@ -418,7 +436,7 @@ export default function PublicLandingPage() {
             })}
           </div>
 
-          <div className="reveal reveal-d3 flex flex-col sm:flex-row justify-center md:justify-start gap-4 pt-2">
+          <div className="reveal-left reveal-d3 flex flex-col sm:flex-row justify-center md:justify-start gap-4 pt-2">
             <button 
               onClick={() => triggerAuthModal("register", "buyer")}
               className="inline-flex items-center justify-center rounded-2xl bg-[#2563EB] px-6 py-3.5 text-sm font-bold text-white shadow-[0_16px_34px_rgba(37,99,235,0.22)] hover:bg-[#1D4ED8] transition-all duration-300 active:scale-95"
@@ -574,7 +592,7 @@ export default function PublicLandingPage() {
       <section id="tenders" className="w-full bg-[#F8FAFC] py-16 md:py-24">
         <div className="mx-auto max-w-7xl px-6 md:px-12">
           <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between border-b border-[#E2E8F0] pb-8">
-            <div className="reveal">
+            <div className="reveal-left">
               <h2 className="font-[family-name:var(--font-display)] text-3xl font-black tracking-[-0.04em] text-[#0F172A]">
                 Live Public <span className="text-[#2563EB]">Tenders</span>
               </h2>
@@ -583,7 +601,7 @@ export default function PublicLandingPage() {
               </p>
             </div>
             
-            <div className="reveal reveal-d1 flex items-center gap-3">
+            <div className="reveal-right reveal-d1 flex items-center gap-3">
               <span className="rounded-full bg-blue-50 border border-blue-100 px-3 py-1 text-xs font-bold text-[#2563EB]">
                 {loadingRfqs ? "Refreshing..." : "Live Market Feed"}
               </span>
@@ -611,10 +629,12 @@ export default function PublicLandingPage() {
               </div>
             ) : (
               <div className="grid gap-6 md:grid-cols-3">
-                {displayedTenders.map((tender) => (
+                {displayedTenders.map((tender, tIdx) => (
                   <article 
                     key={tender.id} 
-                    className="tender-card reveal reveal-d1 group relative flex flex-col items-center text-center rounded-3xl border border-[#E2E8F0] bg-[#FFFFFF] p-8 shadow-sm transition-all duration-500 ease-out hover:-translate-y-2 hover:border-[#2563EB]/40 hover:shadow-xl hover:shadow-[#2563EB]/5"
+                    className={`tender-card group relative flex flex-col items-center text-center rounded-3xl border border-[#E2E8F0] bg-[#FFFFFF] p-8 shadow-sm transition-all duration-500 ease-out hover:-translate-y-2 hover:border-[#2563EB]/40 hover:shadow-xl hover:shadow-[#2563EB]/5 ${
+                      tIdx === 0 ? 'reveal-left reveal-d1' : tIdx === 1 ? 'reveal-up reveal-d2' : 'reveal-right reveal-d3'
+                    }`}
                   >
                     {/* Centered Initials */}
                     <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 border border-blue-100 text-sm font-black text-[#2563EB] transition-transform duration-300 group-hover:scale-110 mb-4">
@@ -709,7 +729,7 @@ export default function PublicLandingPage() {
       <section id="marketplace" className="border-t border-[#E2E8F0] bg-[#F1F5F9] py-16 md:py-24">
         <div className="mx-auto max-w-7xl px-6 md:px-12">
           
-          <div className="reveal mb-12 max-w-2xl">
+          <div className="reveal-left mb-12 max-w-2xl">
             <h2 className="font-[family-name:var(--font-display)] text-3xl font-black tracking-[-0.04em] text-[#0F172A]">
               Platform <span className="text-[#2563EB]">Capabilities</span>
             </h2>
@@ -721,7 +741,7 @@ export default function PublicLandingPage() {
           <div className="grid gap-6 md:grid-cols-4 md:grid-rows-2">
             
             {/* Grid Box 1 (B2C Marketplace - Double Size) */}
-            <article className="reveal reveal-d1 interactive-glass-card group rounded-[2rem] p-6 md:col-span-2 md:row-span-2 flex flex-col justify-between relative overflow-hidden min-h-[22rem] bg-[#FFFFFF]">
+            <article className="reveal-left reveal-d1 interactive-glass-card group rounded-[2rem] p-6 md:col-span-2 md:row-span-2 flex flex-col justify-between relative overflow-hidden min-h-[22rem] bg-[#FFFFFF]">
               <div className="relative z-10 space-y-4">
                 <div className="space-y-2">
                   <h3 className="font-[family-name:var(--font-display)] text-xl font-bold tracking-[-0.03em] text-[#0F172A] transition-colors duration-300 group-hover:text-[#2563EB]">
@@ -758,7 +778,7 @@ export default function PublicLandingPage() {
             </article>
 
             {/* Grid Box 2 (RFQ Tendering) */}
-            <article className="reveal reveal-d2 interactive-glass-card group rounded-[2rem] p-6 md:col-span-2 flex items-center justify-between gap-4 bg-[#FFFFFF]">
+            <article className="reveal-right reveal-d2 interactive-glass-card group rounded-[2rem] p-6 md:col-span-2 flex items-center justify-between gap-4 bg-[#FFFFFF]">
               <div className="space-y-2">
                 <h3 className="font-[family-name:var(--font-display)] text-lg font-bold tracking-[-0.03em] text-[#0F172A] transition-colors duration-300 group-hover:text-[#2563EB]">
                   RFQ Tendering
@@ -773,7 +793,7 @@ export default function PublicLandingPage() {
             </article>
 
             {/* Grid Box 3 (Compliance Analytics) */}
-            <article className="reveal reveal-d3 interactive-glass-card group rounded-[2rem] p-6 flex flex-col justify-between bg-[#FFFFFF]">
+            <article className="reveal-up reveal-d3 interactive-glass-card group rounded-[2rem] p-6 flex flex-col justify-between bg-[#FFFFFF]">
               <div className="space-y-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-50 text-[#14B8A6] border border-teal-100 transition-all duration-500 group-hover:scale-110 group-hover:bg-[#14B8A6] group-hover:text-white">
                   <LineChart className="h-5 w-5" />
@@ -786,7 +806,7 @@ export default function PublicLandingPage() {
             </article>
 
             {/* Grid Box 4 (Inventory Control) */}
-            <article className="reveal reveal-d4 interactive-glass-card group rounded-[2rem] p-6 flex flex-col justify-between bg-[#FFFFFF]">
+            <article className="reveal-scale reveal-d4 interactive-glass-card group rounded-[2rem] p-6 flex flex-col justify-between bg-[#FFFFFF]">
               <div className="space-y-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-[#F59E0B] border border-amber-100 transition-all duration-500 group-hover:scale-110 group-hover:bg-[#F59E0B] group-hover:text-white">
                   <Boxes className="h-5 w-5" />
@@ -816,7 +836,7 @@ export default function PublicLandingPage() {
 
         <div className="relative z-10 mx-auto max-w-7xl px-6 md:px-12">
           
-          <div className="reveal text-center mb-16 space-y-4">
+          <div className="reveal-scale text-center mb-16 space-y-4">
             <h2 className="font-[family-name:var(--font-display)] text-3xl md:text-4xl font-extrabold tracking-[-0.04em] text-[#0F172A]">
               The Procurement <span className="text-[#2563EB]">Lifecycle</span>
             </h2>
@@ -857,11 +877,16 @@ export default function PublicLandingPage() {
                   },
                 ][index] ?? { accent: "#2563EB", glow: "rgba(37,99,235,0.18)", bgLight: "#EFF6FF", tag: "", icon: null };
 
+                const stepAnimClass = index === 0
+                  ? 'animate-fade-slide-left'
+                  : index === 1
+                  ? 'animate-fade-slide-up'
+                  : 'animate-fade-slide-right'
                 return (
                   <div
                     key={item.step}
-                    className="group flex flex-col items-center text-center animate-fade-slide-up hover:-translate-y-2"
-                    style={{ transitionDelay: `${index * 0.18}s` }}
+                    className={`group flex flex-col items-center text-center hover:-translate-y-2 ${stepAnimClass}`}
+                    style={{ transitionDelay: `${index * 0.28}s` }}
                   >
                     {/* Glowing orbital node */}
                     <div className="relative mb-7 flex items-center justify-center">
@@ -932,7 +957,7 @@ export default function PublicLandingPage() {
 
       <section className="cta-section w-full bg-[#F8FAFC] border-b border-[#E2E8F0] py-16 md:py-24">
         <div className="mx-auto max-w-7xl px-6 md:px-12">
-          <div className="reveal max-w-2xl mx-auto text-center space-y-6">
+          <div className="reveal-scale max-w-2xl mx-auto text-center space-y-6">
             <h2 className="font-[family-name:var(--font-display)] text-3xl md:text-5xl font-extrabold tracking-[-0.04em] leading-tight text-[#0F172A]">
               Ready to Modernize Your <br />
               <span className="text-[#2563EB]">Clinical Supply Chain?</span>

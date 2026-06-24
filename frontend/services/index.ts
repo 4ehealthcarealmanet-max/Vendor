@@ -23,3 +23,6 @@ export * from "./utils/notificationService"
 // Subscriptions
 export * from "./subscriptionService"
 
+// Messages
+export * from "./messages/messageService"
+

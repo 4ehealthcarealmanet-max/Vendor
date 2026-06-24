@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
 import AdminTopBar from "@/components/admin/AdminTopBar"
-import { getAdminUsers, updateAdminUserStatus, getCurrentUser } from "@/services"
+import { getAdminUsers, updateAdminUserStatus, getCurrentUser, forceLogout, isAuthSessionError } from "@/services"
 import { AdminUser, AuthUser } from "@/types"
 import { ProfileGroup, InfoRow, DocumentPreview, AuditRow } from "@/components/admin/AdminComponents"
 
@@ -47,6 +47,10 @@ export default function UserDetailPage() {
         setAdminUser(me)
       } catch (err) {
         console.error(err)
+        if (isAuthSessionError(err)) {
+          forceLogout()
+          return
+        }
         if (!user) router.push("/admin/dashboard")
       } finally {
         setLoading(false)

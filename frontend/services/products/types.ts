@@ -1,3 +1,8 @@
+export interface ProductImage {
+  id: number
+  image_url: string
+}
+
 export interface VendorProductService {
   id: number
   vendor: number
@@ -9,6 +14,7 @@ export interface VendorProductService {
   price: string
   stock: number
   is_active: boolean
+  images?: ProductImage[]
 }
 
 export interface VendorProductServiceInput {
@@ -18,4 +24,6 @@ export interface VendorProductServiceInput {
   price: number
   stock: number
   is_active: boolean
+  images?: File[]
+  delete_image_ids?: number[]
 }

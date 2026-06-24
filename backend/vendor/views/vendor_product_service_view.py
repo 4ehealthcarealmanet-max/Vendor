@@ -16,8 +16,8 @@ class VendorProductServiceViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         role = get_or_create_account_role(self.request.user)
         if role == "supplier":
-            return VendorProductService.objects.filter(vendor__user=self.request.user).order_by("-id")
-        return VendorProductService.objects.filter(is_active=True).order_by("-id")
+            return VendorProductService.objects.filter(vendor__user=self.request.user).prefetch_related("images").order_by("-id")
+        return VendorProductService.objects.filter(is_active=True).prefetch_related("images").order_by("-id")
 
     def perform_create(self, serializer):
         role = get_or_create_account_role(self.request.user)

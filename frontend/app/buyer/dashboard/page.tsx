@@ -3,8 +3,18 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useDeferredValue, useEffect, useMemo, useState } from "react"
-import BuyerSidebar from "@/components/buyer/BuyerSidebar"
+import BuyerNavbar from "@/components/buyer/BuyerNavbar"
 import BuyerDashboardHeader from "@/components/buyer/BuyerDashboardHeader"
+import BuyerFooter from "@/components/buyer/BuyerFooter"
+import {
+  FileText,
+  MessageSquare,
+  AlertTriangle,
+  IndianRupee,
+  Activity,
+  ArrowRight,
+  TrendingUp,
+} from "lucide-react"
 import {
   clearToken,
   getCurrentUser,
@@ -227,6 +237,7 @@ export default function BuyerDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [searchText, setSearchText] = useState("")
+  const [ledgerFilter, setLedgerFilter] = useState<"all" | "open" | "under_review" | "awarded" | "closed">("all")
   const deferredSearch = useDeferredValue(searchText)
 
   useEffect(() => {
@@ -319,6 +330,31 @@ export default function BuyerDashboardPage() {
     [buyerRfqs]
   )
 
+  const getRfqImage = (rfqTitle: string) => {
+    const matchedProduct = products.find(p =>
+      rfqTitle.toLowerCase().includes(p.name.toLowerCase()) ||
+      p.name.toLowerCase().includes(rfqTitle.toLowerCase())
+    )
+    if (matchedProduct && matchedProduct.images && matchedProduct.images.length > 0) {
+      return matchedProduct.images[0].image_url
+    }
+    if (rfqTitle.toLowerCase().includes("glove") || rfqTitle.toLowerCase().includes("surgical")) {
+      return "/images/clinical-sourcing-user-hero-v3.jpg"
+    }
+    return "/images/clinical-sourcing-hero.png"
+  }
+
+  const getOrderImage = (order: VendorOrder) => {
+    if (order.items && order.items.length > 0) {
+      const firstItem = order.items[0]
+      const matchedProduct = products.find(p => p.id === firstItem.product)
+      if (matchedProduct && matchedProduct.images && matchedProduct.images.length > 0) {
+        return matchedProduct.images[0].image_url
+      }
+    }
+    return "/images/clinical-sourcing-hero.png"
+  }
+
   const searchableLedger = useMemo(() => {
     const query = deferredSearch.trim().toLowerCase()
     const base = [...buyerRfqs].sort((left, right) => getLatestRfqTouch(right) - getLatestRfqTouch(left))
@@ -331,6 +367,11 @@ export default function BuyerDashboardPage() {
         .includes(query)
     )
   }, [buyerRfqs, deferredSearch])
+
+  const filteredLedger = useMemo(() => {
+    if (ledgerFilter === "all") return searchableLedger
+    return searchableLedger.filter((rfq) => rfq.status === ledgerFilter)
+  }, [searchableLedger, ledgerFilter])
 
   const activityFeed = useMemo(() => {
     const query = deferredSearch.trim().toLowerCase()
@@ -404,11 +445,66 @@ export default function BuyerDashboardPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#f7f9fb] px-6 py-10 text-[#191c1e]">
-        <div className="mx-auto max-w-7xl rounded-[2rem] border border-white/70 bg-white/75 p-8 text-sm font-semibold text-[#617084] shadow-[0_25px_60px_rgba(15,23,42,0.08)] backdrop-blur">
-          Loading buyer command center...
-        </div>
-      </main>
+      <div className="min-h-screen bg-[#f7f9fb] text-[#191c1e] flex flex-col">
+        <BuyerNavbar active="dashboard" />
+        <main className="mx-auto max-w-[1600px] w-full px-4 sm:px-6 py-6 md:py-8 pb-10 md:px-8 lg:py-10 flex-1">
+          {/* Skeleton shimmer loader */}
+          <div className="animate-pulse space-y-6">
+            {/* Welcome banner skeleton */}
+            <div className="rounded-2xl border border-slate-100 bg-white p-6 sm:p-8">
+              <div className="h-4 w-24 bg-slate-100 rounded-full mb-4" />
+              <div className="h-7 w-64 bg-slate-100 rounded-lg mb-3" />
+              <div className="h-3 w-80 bg-slate-100 rounded mb-2" />
+              <div className="h-3 w-60 bg-slate-100 rounded" />
+              <div className="mt-6 flex gap-3">
+                <div className="h-10 w-32 bg-slate-100 rounded-xl" />
+                <div className="h-10 w-28 bg-blue-100 rounded-xl" />
+              </div>
+            </div>
+            {/* Metric cards skeleton */}
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="rounded-2xl border border-slate-100 bg-white p-5">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="h-2.5 w-20 bg-slate-100 rounded-full mb-3" />
+                      <div className="h-8 w-14 bg-slate-100 rounded-lg" />
+                    </div>
+                    <div className="h-11 w-11 bg-slate-100 rounded-xl" />
+                  </div>
+                  <div className="mt-4 border-t border-slate-100 pt-4">
+                    <div className="h-2.5 w-32 bg-slate-100 rounded-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Content skeleton */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 rounded-2xl border border-slate-100 bg-white p-6 space-y-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className="h-10 w-10 bg-slate-100 rounded-lg shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-3 w-3/4 bg-slate-100 rounded" />
+                      <div className="h-2.5 w-1/2 bg-slate-100 rounded" />
+                    </div>
+                    <div className="h-5 w-16 bg-slate-100 rounded-full" />
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-2xl border border-slate-100 bg-white p-6 space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="rounded-xl bg-slate-50 p-4 space-y-2">
+                    <div className="h-3 w-4/5 bg-slate-100 rounded" />
+                    <div className="h-2.5 w-2/3 bg-slate-100 rounded" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </main>
+        <BuyerFooter />
+      </div>
     )
   }
 
@@ -428,203 +524,292 @@ export default function BuyerDashboardPage() {
 
   return (
     <div
-      className="min-h-screen bg-[#f7f9fb] text-[#191c1e]"
+      className="min-h-screen bg-[#f7f9fb] text-[#191c1e] flex flex-col"
       style={{
         backgroundImage:
           "radial-gradient(at 0% 0%, rgba(0, 86, 210, 0.04) 0px, transparent 45%), radial-gradient(at 100% 0%, rgba(255, 219, 207, 0.08) 0px, transparent 45%), radial-gradient(at 100% 100%, rgba(178, 197, 255, 0.08) 0px, transparent 45%), radial-gradient(at 0% 100%, rgba(242, 244, 246, 0.05) 0px, transparent 45%)",
       }}
     >
-      <BuyerDashboardHeader
-        user={user}
-        rfqs={rfqs}
-        products={products}
-        searchText={searchText}
-        setSearchText={setSearchText}
-        pendingActions={pendingActions}
-      />
-
-      <BuyerSidebar
+      <BuyerNavbar
         active="dashboard"
         username={user.username}
         buyerType={user.buyer_type}
         status={user.status}
         onSignOut={signOut}
+        userEmail={user.email}
+        userRole={user.role}
+        searchText={searchText}
+        setSearchText={setSearchText}
+        pendingActions={pendingActions}
       />
 
-      <main className="px-4 py-8 pb-24 sm:px-6 lg:pl-[calc(18rem+2.5rem)] lg:pr-10 lg:py-10">
-        <div className="mx-auto max-w-7xl">
-          <div className="mb-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl">
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#ebf2ff] px-3 py-1.5 text-[#0f4fb6]">
-                <span className="text-[10px] font-black uppercase tracking-[0.22em]">{organizationLabel} Performance Cycle</span>
-              </div>
-              <h1 className="mt-4 font-[family-name:var(--font-display)] text-4xl font-black leading-[1.02] tracking-[-0.05em] text-[#0f172a] sm:text-5xl md:text-6xl">
-                Hi {user.username}, <span className="font-medium italic text-[#0f4fb6]">Welcome back.</span>
-              </h1>
-              <p className="mt-5 max-w-2xl text-base leading-7 text-[#657286] sm:text-lg sm:leading-8">
-                Monitor procurement cycles, supplier response depth, and live order velocity across your buyer workspace with actual RFQ and order data.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <button type="button" onClick={exportSnapshot} className="inline-flex items-center gap-2 rounded-[1.2rem] border border-[#e5e9f0] bg-white px-6 py-3.5 text-sm font-bold text-[#0f172a] shadow-sm transition hover:bg-[#f8fafc]">
-                <Glyph label="EX" tone="slate" />
-                Export Data
-              </button>
-              <Link href="/buyer/rfq?view=new" className="inline-flex items-center gap-2 rounded-[1.2rem] bg-[#0f4fb6] px-6 py-3.5 text-sm font-bold text-white shadow-[0_18px_30px_rgba(15,79,182,0.2)] transition hover:shadow-[0_20px_38px_rgba(15,79,182,0.28)]">
-                <span className="text-base leading-none">+</span>
-                New Request
-              </Link>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-            <MetricCard label="Active RFQs" value={String(openBuyerRfqs.length).padStart(2, "0")} hint={`${liveCatalog.length} live listings available`} trend={rfqSpark} accent="blue" glyph="RF" />
-            <MetricCard label="Quotes Received" value={String(totalQuotes).padStart(2, "0")} hint={`Avg ${averageQuotes.toFixed(1)} per RFQ`} trend={quoteSpark} accent="slate" glyph="QT" />
-            <MetricCard label="Pending Action" value={String(pendingActions).padStart(2, "0")} hint={pendingActions > 0 ? `${pendingAwardRfqs.length} RFQs need review` : "No blockers right now"} trend={riskSpark} accent="amber" glyph="AL" />
-            <MetricCard label="Total Spend" value={formatCompactCurrency(totalSpend)} hint={`${buyerOrders.length} orders tracked`} trend={spendSpark} accent="dark" glyph="IN" />
-          </div>
-
-          <div className="mt-10 grid grid-cols-1 gap-8 xl:grid-cols-12">
-            <div className="space-y-10 xl:col-span-8">
-              <section className="overflow-hidden rounded-[2rem] border border-white/80 bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.06)] backdrop-blur">
-                <div className="flex flex-col gap-4 border-b border-[#eff3f8] px-6 py-5 md:flex-row md:items-center md:justify-between md:px-8">
-                  <div>
-                    <h2 className="font-[family-name:var(--font-display)] text-xl font-black text-[#0f172a]">Active Ledger</h2>
-                    <p className="mt-1 text-xs font-medium text-[#94a3b8]">Tracking {searchableLedger.length} buyer RFQs with live quotation activity.</p>
-                  </div>
-                  <Link href="/buyer/rfq?view=my" className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.22em] text-[#0f4fb6] transition hover:gap-2">
-                    Complete History
-                    <span className="text-sm">→</span>
+      <main className="flex-1 mx-auto max-w-[1600px] w-full px-4 sm:px-6 py-6 md:py-8 pb-10 md:px-8 lg:py-10">
+        <div className="w-full animate-fade-in-up">
+          {/* Light Minimalist Welcome Banner */}
+          <div className="mb-6 sm:mb-10 relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-6 sm:p-8 shadow-sm">
+            <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-blue-50/20 to-transparent pointer-events-none" />
+            <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+              <div className="flex-1">
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600">
+                  <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
+                  {organizationLabel} Workspace
+                </div>
+                <h1 className="mt-4 font-[family-name:var(--font-display)] text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+                  Welcome back, <span className="text-blue-600">{user.username}</span>
+                </h1>
+                <p className="mt-2 text-sm text-slate-500 max-w-xl">
+                  Manage procurement schedules, analyze supplier bids, and monitor purchase order states all in one place.
+                </p>
+                <div className="mt-6 flex flex-col sm:flex-row gap-3">
+                  <button
+                    type="button"
+                    onClick={exportSnapshot}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-xs font-bold text-slate-700 hover:bg-slate-50 transition duration-200"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    Export Data
+                  </button>
+                  <Link
+                    href="/buyer/rfq?view=new"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-xs font-bold text-white shadow-sm hover:bg-blue-700 transition duration-200"
+                  >
+                    <span className="text-base leading-none font-bold">+</span>
+                    New RFQ
                   </Link>
                 </div>
-                <div className="overflow-x-auto">
+              </div>
+              <div className="hidden lg:block w-72 h-44 shrink-0 relative overflow-hidden rounded-xl border border-slate-100 shadow-sm bg-slate-50">
+                <img
+                  src="/images/healthcare-procurement.png"
+                  alt="Procurement Overview"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Metric Cards Grid */}
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard label="Active RFQs" value={String(openBuyerRfqs.length).padStart(2, "0")} hint={`${liveCatalog.length} live listings available`} accent="blue" icon={FileText} href="/buyer/rfq?view=my" />
+            <MetricCard label="Quotes Received" value={String(totalQuotes).padStart(2, "0")} hint={`Avg ${averageQuotes.toFixed(1)} per RFQ`} accent="slate" icon={MessageSquare} href="/buyer/rfq?view=my" />
+            <MetricCard label="Pending Action" value={String(pendingActions).padStart(2, "0")} hint={pendingActions > 0 ? `${pendingAwardRfqs.length} RFQs need review` : "No blockers right now"} accent="amber" icon={AlertTriangle} href="/buyer/rfq?view=my" />
+            <MetricCard label="Total Spend" value={formatCompactCurrency(totalSpend)} hint={`${buyerOrders.length} orders tracked`} accent="dark" icon={IndianRupee} href="/buyer/orders" />
+          </div>
+
+          <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-8 lg:grid-cols-3">
+            {/* Left 2-column Content */}
+            <div className="lg:col-span-2 space-y-8">
+              {/* Active Ledger */}
+              <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+                <div className="border-b border-[#eff3f8] px-6 py-6 md:px-8">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-slate-900">Active Ledger</h2>
+                      <p className="mt-1 text-xs text-slate-500">Manage your active Requests for Quotes.</p>
+                    </div>
+                    <Link href="/buyer/rfq?view=my" className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 transition hover:text-blue-700">
+                      Complete History
+                      <span className="text-sm">→</span>
+                    </Link>
+                  </div>
+
+                  {/* Ledger Tab Filter Bar (Scrollable on Mobile) */}
+                  <div className="mt-5 flex overflow-x-auto scrollbar-none gap-1.5 border-b border-slate-100 pb-2 -mx-6 px-6 md:mx-0 md:px-0">
+                    {[
+                      { key: "all", label: "All RFQs" },
+                      { key: "open", label: "Open Market" },
+                      { key: "under_review", label: "In Review" },
+                      { key: "awarded", label: "Awarded" },
+                      { key: "closed", label: "Closed" }
+                    ].map((tab) => (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => setLedgerFilter(tab.key as any)}
+                        className={`rounded-full px-4 py-1.5 text-xs font-bold transition-all duration-200 border whitespace-nowrap ${ledgerFilter === tab.key
+                            ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                            : "bg-transparent text-slate-500 border-transparent hover:bg-slate-50 hover:text-slate-900"
+                          }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Desktop view of ledger (hidden on mobile) */}
+                <div className="hidden md:block overflow-x-auto">
                   <table className="min-w-full border-collapse text-left">
                     <thead>
-                      <tr className="bg-[#fbfcfe]">
-                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.22em] text-[#9aa3b2] md:px-8">Identifier</th>
-                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.22em] text-[#9aa3b2] md:px-8">Resource Title</th>
-                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.22em] text-[#9aa3b2] md:px-8">Status</th>
-                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.22em] text-[#9aa3b2] md:px-8">Quotes</th>
-                        <th className="px-6 py-4 text-right text-[10px] font-black uppercase tracking-[0.22em] text-[#9aa3b2] md:px-8">Updated</th>
+                      <tr className="bg-slate-50/50 border-b border-slate-100">
+                        <th className="px-6 py-3.5 text-xs font-bold text-slate-500 md:px-8">RFQ Title</th>
+                        <th className="px-6 py-3.5 text-xs font-bold text-slate-500 md:px-8">Status</th>
+                        <th className="px-6 py-3.5 text-xs font-bold text-slate-500 md:px-8">Quotes</th>
+                        <th className="px-6 py-3.5 text-right text-xs font-bold text-slate-500 md:px-8">Last Updated</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#f1f5f9]">
-                      {searchableLedger.slice(0, 5).map((rfq) => (
-                        <tr key={rfq.id} className="group transition hover:bg-[#fbfcff]">
-                          <td className="px-6 py-5 font-mono text-[11px] font-bold text-[#7b8798] md:px-8">{buildRfqIdentifier(rfq.id)}</td>
-                          <td className="px-6 py-5 md:px-8">
-                            <Link href="/buyer/rfq?view=my" className="font-[family-name:var(--font-display)] text-sm font-extrabold text-[#0f172a] transition group-hover:text-[#0f4fb6]">{rfq.title}</Link>
-                            <p className="mt-1 text-xs text-[#94a3b8]">{rfq.delivery_location}</p>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredLedger.slice(0, 5).map((rfq) => (
+                        <tr key={rfq.id} className="group transition hover:bg-slate-50/30">
+                          <td className="px-6 py-4 md:px-8">
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-slate-100 bg-slate-50">
+                                <img
+                                  src={getRfqImage(rfq.title)}
+                                  alt={rfq.title}
+                                  className="h-full w-full object-cover"
+                                />
+                              </div>
+                              <div>
+                                <Link href="/buyer/rfq?view=my" className="text-sm font-bold text-slate-900 transition group-hover:text-blue-600">
+                                  {rfq.title}
+                                </Link>
+                                <p className="mt-0.5 text-xs text-slate-400 font-mono">
+                                  {buildRfqIdentifier(rfq.id)} &bull; {rfq.delivery_location}
+                                </p>
+                              </div>
+                            </div>
                           </td>
-                          <td className="px-6 py-5 md:px-8">
-                            <span className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${rfqStatusClasses[rfq.status]}`}>{rfqStatusLabels[rfq.status]}</span>
+                          <td className="px-6 py-4 md:px-8">
+                            <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${rfqStatusClasses[rfq.status]}`}>{rfqStatusLabels[rfq.status]}</span>
                           </td>
-                          <td className="px-6 py-5 text-sm text-[#475569] md:px-8">{rfq.quotations.length} {rfq.quotations.length === 1 ? "response" : "responses"}</td>
-                          <td className="px-6 py-5 text-right text-xs text-[#94a3b8] md:px-8">{formatShortDate(new Date(getLatestRfqTouch(rfq)).toISOString())}</td>
+                          <td className="px-6 py-4 text-xs font-medium text-slate-600 md:px-8">
+                            {rfq.quotations.length} {rfq.quotations.length === 1 ? "quote" : "quotes"}
+                          </td>
+                          <td className="px-6 py-4 text-right text-xs text-slate-400 md:px-8">
+                            {formatShortDate(new Date(getLatestRfqTouch(rfq)).toISOString())}
+                          </td>
                         </tr>
                       ))}
-                      {searchableLedger.length === 0 ? (
+                      {filteredLedger.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="px-6 py-10 text-center text-sm text-[#64748b] md:px-8">No RFQs matched your search. Try another keyword or create a new request.</td>
+                          <td colSpan={4} className="px-6 py-12 text-center text-xs text-slate-450 md:px-8">No RFQs matched your criteria.</td>
                         </tr>
                       ) : null}
                     </tbody>
                   </table>
                 </div>
+
+                {/* Mobile card list view of ledger (hidden on desktop) */}
+                <div className="block md:hidden divide-y divide-slate-100">
+                  {filteredLedger.slice(0, 5).map((rfq) => (
+                    <div key={rfq.id} className="p-5 flex flex-col gap-3">
+                      <div className="flex items-start gap-3">
+                        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-slate-100 bg-slate-50">
+                          <img
+                            src={getRfqImage(rfq.title)}
+                            alt={rfq.title}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <Link href="/buyer/rfq?view=my" className="text-sm font-extrabold text-slate-900 active:text-blue-600 block truncate">
+                            {rfq.title}
+                          </Link>
+                          <p className="mt-0.5 text-[10px] text-slate-400 font-mono">
+                            {buildRfqIdentifier(rfq.id)} &bull; {rfq.delivery_location}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 mt-1">
+                        <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${rfqStatusClasses[rfq.status]}`}>
+                          {rfqStatusLabels[rfq.status]}
+                        </span>
+                        <div className="text-right">
+                          <p className="text-[10px] font-extrabold text-slate-600">
+                            {rfq.quotations.length} {rfq.quotations.length === 1 ? "quote" : "quotes"}
+                          </p>
+                          <p className="text-[9px] text-slate-400 mt-0.5">
+                            Updated {formatShortDate(new Date(getLatestRfqTouch(rfq)).toISOString())}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {filteredLedger.length === 0 ? (
+                    <div className="p-8 text-center text-xs text-slate-400">
+                      No RFQs matched your criteria.
+                    </div>
+                  ) : null}
+                </div>
               </section>
 
-              <section id="recent-activity">
-                <h2 className="mb-6 flex items-center gap-3 font-[family-name:var(--font-display)] text-2xl font-black text-[#0f172a]">
-                  <span className="h-1 w-10 rounded-full bg-[#0f4fb6]" />
-                  Recent Activity
-                </h2>
-                <div className="space-y-4">
-                  {activityFeed.length > 0 ? activityFeed.map((activity) => <ActivityCard key={activity.id} activity={activity} />) : (
-                    <div className="rounded-[1.6rem] border border-white/80 bg-white/80 p-6 text-sm text-[#64748b] shadow-[0_20px_50px_rgba(15,23,42,0.06)]">
-                      No recent buyer activity matched your current search.
+              {/* Order Status */}
+              <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white p-5 sm:p-7 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-50 pb-5">
+                  <div>
+                    <h3 className="font-[family-name:var(--font-display)] text-lg font-bold text-slate-900">Order Status</h3>
+                    <p className="mt-1 text-xs text-slate-500">Latest purchase orders with live delivery and payment states.</p>
+                  </div>
+                  <Link href="/buyer/orders" className="text-xs font-bold text-blue-600 transition hover:text-blue-750">
+                    Open Orders Desk &rarr;
+                  </Link>
+                </div>
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {recentBuyerOrders.length > 0 ? recentBuyerOrders.map((order) => (
+                    <article key={order.id} className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition duration-200 hover:bg-white hover:shadow-sm">
+                      <div className="flex gap-4">
+                        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-slate-100 bg-slate-50">
+                          <img
+                            src={getOrderImage(order)}
+                            alt={`Order #${order.id}`}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-bold text-slate-900">PO #{String(order.id).padStart(4, "0")}</p>
+                              <p className="mt-0.5 text-xs text-slate-400">{formatShortDate(order.created_at)} | {formatCompactCurrency(toNumber(order.total_amount))}</p>
+                            </div>
+                            <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider whitespace-nowrap ${orderStatusChipClass(order)}`}>
+                              {orderStatusLabel(order)}
+                            </span>
+                          </div>
+                          <p className="mt-3 text-xs font-semibold text-slate-600">{orderStatusDetail(order)}</p>
+                          <p className="mt-1 text-[11px] text-slate-400 truncate">{order.tracking_note || "No tracking updates available."}</p>
+                        </div>
+                      </div>
+                    </article>
+                  )) : (
+                    <div className="md:col-span-2 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-8 text-center text-xs text-slate-400">
+                      No active buyer orders yet.
                     </div>
                   )}
                 </div>
               </section>
             </div>
 
-            <div className="space-y-8 xl:col-span-4">
-              <section className="relative overflow-hidden rounded-[2rem] border border-white/80 bg-white/80 p-7 shadow-[0_20px_50px_rgba(15,23,42,0.06)] backdrop-blur">
-                <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-[#0f4fb6]/6 blur-2xl" />
-                <h3 className="text-[10px] font-black uppercase tracking-[0.22em] text-[#9aa3b2]">Priority Actions</h3>
-                <div className="mt-6 space-y-3">
-                  <QuickActionLink href="/buyer/rfq?view=new" glyph="RF" label="Create New RFQ" badge={`${openBuyerRfqs.length} LIVE`} />
-                  <QuickActionLink href="/buyer/orders" glyph="OR" label="Review All Orders" badge={`${buyerOrders.length} TRACKED`} />
-                  <QuickActionLink href="/buyer/rfq?view=my" glyph="QT" label="Compare Supplier Quotes" badge={`${pendingAwardRfqs.length} HOT`} />
-                </div>
-              </section>
-
-              <section className="overflow-hidden rounded-[2rem] border border-white/80 bg-white/85 p-7 shadow-[0_20px_50px_rgba(15,23,42,0.06)] backdrop-blur">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <h3 className="font-[family-name:var(--font-display)] text-xl font-black text-[#0f172a]">Order Status</h3>
-                    <p className="mt-1 text-xs font-medium text-[#94a3b8]">Latest buyer orders with live delivery and payment progress.</p>
-                  </div>
-                  <Link href="/buyer/orders" className="text-[10px] font-black uppercase tracking-[0.22em] text-[#0f4fb6] transition hover:text-[#0b3d8d]">
-                    Open Desk
-                  </Link>
-                </div>
-                <div className="mt-6 space-y-3">
-                  {recentBuyerOrders.length > 0 ? recentBuyerOrders.map((order) => (
-                    <article key={order.id} className="rounded-[1.35rem] border border-[#edf1f7] bg-[#f8fafc] p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-black text-[#0f172a]">PO #{String(order.id).padStart(4, "0")}</p>
-                          <p className="mt-1 text-xs text-[#64748b]">{formatShortDate(order.created_at)} | {formatCompactCurrency(toNumber(order.total_amount))}</p>
-                        </div>
-                        <span className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${orderStatusChipClass(order)}`}>
-                          {orderStatusLabel(order)}
-                        </span>
-                      </div>
-                      <p className="mt-3 text-xs font-medium text-[#64748b]">{orderStatusDetail(order)}</p>
-                      <p className="mt-2 text-[11px] text-[#94a3b8]">{order.tracking_note || "Tracking note will appear here as the supplier updates the order."}</p>
-                    </article>
-                  )) : (
-                    <div className="rounded-[1.35rem] border border-dashed border-[#dbe4ef] bg-[#f8fafc] px-4 py-6 text-sm text-[#64748b]">
-                      No buyer orders yet. New purchase orders will appear here with their live status.
+            {/* Right 1-column Sidebar (Recent Activity) */}
+            <div className="lg:col-span-1">
+              {/* Recent Activity */}
+              <section id="recent-activity" className="h-full rounded-2xl border border-slate-100 bg-white p-5 sm:p-7 shadow-sm">
+                <h2 className="mb-5 flex items-center gap-2 font-[family-name:var(--font-display)] text-lg font-bold text-slate-900">
+                  <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
+                  Recent Activity
+                </h2>
+                <div className="space-y-4">
+                  {activityFeed.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1">
+                      {activityFeed.map((activity) => <ActivityCard key={activity.id} activity={activity} />)}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-slate-400">
+                      No recent buyer activity.
                     </div>
                   )}
-                </div>
-              </section>
-
-              <section id="supplier-health" className="relative overflow-hidden rounded-[2.5rem] bg-[#0f172a] p-8 text-white shadow-[0_30px_60px_rgba(15,23,42,0.28)]">
-                <div className="absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-[#0f4fb6]/20 blur-3xl opacity-60" />
-                <div className="relative">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-[#b9c7df]">
-                      <Glyph label="AI" tone="dark" />
-                    </div>
-                    <h3 className="font-[family-name:var(--font-display)] text-xl font-extrabold">Supplier Health</h3>
-                  </div>
-                  <p className="mt-5 text-sm leading-7 text-[#a5b1c2]">Real marketplace intelligence built from your active RFQs, supplier participation depth, and award readiness.</p>
-                  <div className="mt-8 space-y-7">
-                    <HealthBar label="Response Coverage" value={`${supplierCoverage}%`} progress={supplierCoverage} tone="blue" />
-                    <HealthBar label="Award Readiness" value={`${awardReadiness}%`} progress={awardReadiness} tone="amber" />
-                    <HealthBar label="Supplier Depth" value={`${uniqueSuppliers.size} active`} progress={supplierDepth} tone="blue" />
-                  </div>
-                  <div className="mt-8 rounded-[1.5rem] border border-white/10 bg-white/5 p-5">
-                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#94a3b8]">Workspace Summary</p>
-                    <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-                      <div><p className="text-[#94a3b8]">Buyer Type</p><p className="mt-1 font-bold text-white">{organizationLabel}</p></div>
-                      <div><p className="text-[#94a3b8]">Supplier Reach</p><p className="mt-1 font-bold text-white">{uniqueSuppliers.size} vendors</p></div>
-                      <div><p className="text-[#94a3b8]">Open Orders</p><p className="mt-1 font-bold text-white">{buyerOrders.filter((order) => !["completed", "cancelled"].includes(order.status)).length}</p></div>
-                      <div><p className="text-[#94a3b8]">Catalog Depth</p><p className="mt-1 font-bold text-white">{liveCatalog.length} listings</p></div>
-                    </div>
-                  </div>
-                  <Link href="/buyer/rfq?view=my" className="mt-8 inline-flex w-full items-center justify-center rounded-[1.2rem] bg-white px-5 py-4 text-[11px] font-black uppercase tracking-[0.2em] text-[#111827] transition hover:bg-[#f6f7fb]">
-                    Access Buyer Report
-                  </Link>
                 </div>
               </section>
             </div>
           </div>
         </div>
       </main>
+
+      <BuyerFooter />
     </div>
   )
 }
@@ -822,69 +1007,73 @@ function MetricCard({
   label,
   value,
   hint,
-  trend,
   accent,
-  glyph,
+  icon: Icon,
+  href,
 }: {
   label: string
   value: string
   hint: string
-  trend: number[]
   accent: "blue" | "slate" | "amber" | "dark"
-  glyph: string
+  icon: React.ComponentType<{ className?: string }>
+  href: string
 }) {
   const accentClasses = {
-    blue: "text-[#0f4fb6] bg-[#0f4fb6]/5",
-    slate: "text-[#475569] bg-[#475569]/5",
-    amber: "text-[#ad6a08] bg-[#ad6a08]/5",
-    dark: "text-[#1e293b] bg-[#1e293b]/5",
+    blue: "text-blue-600 bg-blue-50 border-blue-100",
+    slate: "text-slate-600 bg-slate-50 border-slate-100",
+    amber: "text-amber-600 bg-amber-50 border-amber-100",
+    dark: "text-indigo-600 bg-indigo-50 border-indigo-100",
   }
 
   return (
-    <article className="group relative overflow-hidden rounded-[2rem] border border-white/80 bg-white/80 p-6 shadow-[0_20px_50px_rgba(15,23,42,0.06)] backdrop-blur transition hover:bg-white">
-      <div className="flex items-start justify-between gap-4">
+    <Link
+      href={href}
+      className="group relative block overflow-hidden rounded-2xl border border-slate-100 bg-white p-5 md:p-6 shadow-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"
+    >
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#94a3b8]">{label}</p>
-          <p className="mt-2 text-4xl font-black tracking-[-0.04em] text-[#0f172a]">{value}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+          <p className="mt-2 text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900">{value}</p>
         </div>
-        <Glyph label={glyph} tone={accent === "dark" ? "slate" : accent} />
+        <div className={`p-3 rounded-xl border ${accentClasses[accent]}`}>
+          <Icon className="h-5 w-5" />
+        </div>
       </div>
 
-      <div className="mt-6 flex h-10 items-end gap-[3px]">
-        {trend.map((h, i) => (
-          <div
-            key={i}
-            className={`flex-1 rounded-t-sm transition-all duration-500 group-hover:opacity-80 ${accent === "blue" ? "bg-[#0f4fb6]" : accent === "amber" ? "bg-[#ad6a08]" : "bg-[#475569]"
-              }`}
-            style={{ height: `${h}%` }}
-          />
-        ))}
+      <div className="mt-4 flex items-center justify-between gap-2 border-t border-slate-100 pt-4">
+        <p className="text-xs text-slate-500">{hint}</p>
+        <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          Active
+        </span>
       </div>
-
-      <p className="mt-4 text-xs font-semibold text-[#64748b]">{hint}</p>
-    </article>
+    </Link>
   )
 }
 
 function ActivityCard({ activity }: { activity: DashboardActivity }) {
+  const accentBorder = activity.accent === "blue"
+    ? "border-l-blue-400"
+    : activity.accent === "amber"
+      ? "border-l-amber-400"
+      : "border-l-slate-300"
+
   return (
-    <article className="group flex items-start gap-5 rounded-[1.8rem] border border-white bg-white/60 p-5 shadow-[0_15px_35px_rgba(15,23,42,0.04)] backdrop-blur transition hover:bg-white hover:shadow-[0_20px_45px_rgba(15,23,42,0.08)]">
-      <div className="mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.2rem] bg-[#f8fafc] ring-1 ring-[#e5e9f0] transition group-hover:bg-white group-hover:ring-[#dbe4ef]">
+    <article className={`group flex items-start gap-3 sm:gap-4 rounded-2xl border border-slate-100 bg-white/70 p-4 shadow-sm backdrop-blur transition-all duration-200 hover:bg-white hover:shadow-md border-l-4 ${accentBorder}`}>
+      <div className="mt-0.5 flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-[1.2rem] bg-slate-50 ring-1 ring-slate-200 transition group-hover:bg-white group-hover:ring-slate-300">
         <Glyph label={activity.glyph} tone={activity.accent} small />
       </div>
-      <div className="flex-1">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-bold leading-6 text-[#0f172a]">{activity.title}</p>
-          <time className="text-[10px] font-black uppercase tracking-[0.15em] text-[#94a3b8]">{formatRelativeTime(activity.timestamp)}</time>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-xs sm:text-sm font-bold leading-5 text-slate-900 line-clamp-2">{activity.title}</p>
+          <time className="shrink-0 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 mt-0.5">{formatRelativeTime(activity.timestamp)}</time>
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-4">
-          <p className="text-xs font-medium text-[#64748b]">{activity.detail}</p>
-          {activity.amount && (
-            <div className="rounded-full bg-[#f1f5f9] px-2.5 py-0.5 text-[10px] font-bold text-[#475569]">
-              {activity.amount}
-            </div>
-          )}
-        </div>
+        <p className="mt-1.5 text-[11px] text-slate-500 truncate">{activity.detail}</p>
+        {activity.amount && (
+          <div className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-600">
+            {activity.amount}
+          </div>
+        )}
       </div>
     </article>
   )
@@ -930,15 +1119,15 @@ function HealthBar({
   progress: number
   tone: "blue" | "amber"
 }) {
-  const bg = tone === "blue" ? "bg-[#0f4fb6]" : "bg-[#ad6a08]"
+  const bg = tone === "blue" ? "bg-blue-600" : "bg-amber-600"
 
   return (
     <div>
-      <div className="mb-2.5 flex items-center justify-between">
-        <span className="text-[11px] font-bold text-white/70">{label}</span>
-        <span className="text-xs font-black text-white">{value}</span>
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-xs font-semibold text-slate-600">{label}</span>
+        <span className="text-xs font-bold text-slate-950">{value}</span>
       </div>
-      <div className="h-1.5 w-full rounded-full bg-white/10">
+      <div className="h-1.5 w-full rounded-full bg-slate-100">
         <div
           className={`h-full rounded-full transition-all duration-1000 ease-out ${bg}`}
           style={{ width: `${progress}%` }}

@@ -2,8 +2,10 @@
 
 import { FormEvent, ReactNode, useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import BuyerSidebar from "@/components/buyer/BuyerSidebar"
-import SupplierSidebar from "@/components/supplier/SupplierSidebar"
+import BuyerNavbar from "@/components/buyer/BuyerNavbar"
+import BuyerFooter from "@/components/buyer/BuyerFooter"
+import SupplierNavbar from "@/components/supplier/SupplierNavbar"
+import SupplierFooter from "@/components/supplier/SupplierFooter"
 import {
   clearToken,
   getCurrentUser,
@@ -14,6 +16,18 @@ import {
   updateUserProfile,
 } from "@/services"
 import type { AuthUser } from "@/services"
+import {
+  Building2,
+  User,
+  ShieldCheck,
+  Truck,
+  MapPin,
+  FileText,
+  Lock,
+  Clock,
+  Sparkles,
+  CheckCircle
+} from "lucide-react"
 
 type ProfileRole = "supplier" | "buyer"
 
@@ -151,6 +165,18 @@ export default function ProfileSetupWorkspace({ role }: { role: ProfileRole }) {
   const [originalSupplierForm, setOriginalSupplierForm] = useState<SupplierProfileForm | null>(null)
   const [originalBuyerForm, setOriginalBuyerForm] = useState<BuyerProfileForm | null>(null)
   const [hasActiveSub, setHasActiveSub] = useState(true)
+  const [activeTab, setActiveTab] = useState<"identity" | "contact" | "capacity" | "documents">("identity")
+
+  const tabs = role === "supplier" ? [
+    { id: "identity", label: "Business Identity", icon: Building2 },
+    { id: "contact", label: "Primary Contact", icon: User },
+    { id: "capacity", label: "Supply Capacity", icon: Truck },
+    { id: "documents", label: "Verification Docs", icon: FileText }
+  ] : [
+    { id: "identity", label: "Organization Details", icon: Building2 },
+    { id: "contact", label: "Procurement Contacts", icon: User },
+    { id: "documents", label: "Onboarding Docs", icon: FileText }
+  ]
 
   const isSupplierFormDirty = () => {
     if (!originalSupplierForm) return true
@@ -235,6 +261,9 @@ export default function ProfileSetupWorkspace({ role }: { role: ProfileRole }) {
               licenseDocument: profileData.license_document || "",
               isoCertificate: profileData.iso_certificate || "",
             })
+            const hasSupplierProfile = Boolean(profileData.company_name)
+            setIsEditing(!hasSupplierProfile)
+            setIsNewProfile(!hasSupplierProfile)
           } else {
             const bForm = {
               ...defaultBuyerForm(me),
@@ -262,8 +291,9 @@ export default function ProfileSetupWorkspace({ role }: { role: ProfileRole }) {
             }
             setBuyerForm(bForm)
             setOriginalBuyerForm(bForm)
-            setIsEditing(false)
-            setIsNewProfile(false)
+            const hasBuyerProfile = Boolean(profileData.organization_name)
+            setIsEditing(!hasBuyerProfile)
+            setIsNewProfile(!hasBuyerProfile)
           }
         } catch (profileError) {
           console.error("Profile load failed, using defaults", profileError)
@@ -383,6 +413,11 @@ export default function ProfileSetupWorkspace({ role }: { role: ProfileRole }) {
       if (typeof window !== "undefined") {
         window.localStorage.setItem(supplierDraftKey, JSON.stringify(supplierForm))
       }
+
+      if (!freshUser.has_active_subscription) {
+        router.push("/supplier/subscription")
+        return
+      }
     } catch (saveError) {
       setError("Failed to save profile to database. Please check your connection.")
       notifyUser({
@@ -472,6 +507,11 @@ export default function ProfileSetupWorkspace({ role }: { role: ProfileRole }) {
       if (typeof window !== "undefined") {
         window.localStorage.setItem(buyerDraftKey, JSON.stringify(buyerForm))
       }
+
+      if (!freshUser.has_active_subscription) {
+        router.push("/buyer/subscription")
+        return
+      }
     } catch (saveError) {
       setError("Failed to save profile to database. Please check your connection.")
       notifyUser({
@@ -485,7 +525,27 @@ export default function ProfileSetupWorkspace({ role }: { role: ProfileRole }) {
   }
 
   if (loading) {
-    return <main className="min-h-screen bg-[#f6f8fb]" />
+    return (
+      <div className="min-h-screen bg-[#f6f8fb] text-[#0f172a] flex flex-col">
+        {role === "supplier" ? (
+          <SupplierNavbar active="profile" />
+        ) : (
+          <BuyerNavbar active="profile" />
+        )}
+        <main className={`w-full py-8 md:py-12 ${role === "supplier" || role === "buyer" ? "mx-auto max-w-[1600px] px-6 md:px-8 pb-24" : ""} flex-1 flex flex-col justify-center items-center min-h-[50vh]`}>
+          <div className="flex flex-col items-center justify-center space-y-4">
+            <div className="relative flex items-center justify-center">
+              <div className="h-12 w-12 rounded-full border-4 border-blue-100 border-t-blue-600 animate-spin" />
+              <div className="absolute h-3 w-3 rounded-full bg-blue-600 animate-ping" />
+            </div>
+            <span className="text-sm font-bold text-slate-500 tracking-tight">
+              Loading profile settings...
+            </span>
+          </div>
+        </main>
+        {role === "buyer" ? <BuyerFooter /> : <SupplierFooter />}
+      </div>
+    )
   }
 
   if (!user) {
@@ -501,15 +561,15 @@ export default function ProfileSetupWorkspace({ role }: { role: ProfileRole }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#f6f8fb] text-[#0f172a]">
+    <div className="min-h-screen bg-[#f6f8fb] text-[#0f172a] flex flex-col">
       {role === "supplier" ? (
-        <SupplierSidebar active="profile" username={user.username} status={user.status} hasActiveSubscription={hasActiveSub} onSignOut={signOut} />
+        <SupplierNavbar active="profile" username={user.username} onSignOut={signOut} />
       ) : (
-        <BuyerSidebar active="profile" username={user.username} buyerType={user.buyer_type} status={user.status} hasActiveSubscription={hasActiveSub} onSignOut={signOut} />
+        <BuyerNavbar active="profile" username={user.username} buyerType={user.buyer_type} status={user.status} hasActiveSubscription={hasActiveSub} onSignOut={signOut} />
       )}
 
-      <main className="px-4 py-6 pb-24 sm:px-6 lg:pl-[calc(18rem+2rem)] lg:pr-6 lg:py-8">
-        <div className="mx-auto max-w-4xl">
+      <main className={`flex-1 px-4 py-6 pb-24 sm:px-6 lg:py-8 ${role === "supplier" || role === "buyer" ? "mx-auto max-w-[1600px] lg:px-8 w-full" : ""}`}>
+        <div className="mx-auto max-w-5xl">
           {showConfirmModal && (
             <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity">
               <div className="w-[400px] rounded-[1.5rem] bg-white p-6 shadow-2xl animate-fade-in-up">
@@ -544,6 +604,7 @@ export default function ProfileSetupWorkspace({ role }: { role: ProfileRole }) {
               </div>
             </div>
           )}
+
           {user.status !== "approved" && (
             <div className="mb-6 rounded-[1.2rem] border border-[#fde3b8] bg-[#fff8ec] p-5 shadow-[0_10px_30px_rgba(189,127,15,0.05)]">
               <div className="flex items-start gap-4">
@@ -559,164 +620,375 @@ export default function ProfileSetupWorkspace({ role }: { role: ProfileRole }) {
               </div>
             </div>
           )}
-          <section className="rounded-[1.2rem] border border-[#e2e8f0] bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)] sm:p-5">
-            <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#64748b]">Form</p>
-                <h2 className="mt-1 text-base font-semibold text-[#0f172a]">
-                  {role === "supplier" ? "Supplier details" : "Buyer details"}
-                </h2>
+
+          {/* Modern Profile Header Hero Card */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 text-[#0f172a] shadow-sm mb-6">
+            <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-6">
+              {/* Profile Avatar & Info */}
+              <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
+                <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center shadow-sm shrink-0">
+                  <Building2 className="h-8 w-8 sm:h-10 sm:w-10 text-blue-600" />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
+                    <h1 className="text-xl sm:text-2xl font-black tracking-tight leading-none text-slate-800">
+                      {role === "supplier" 
+                        ? (supplierForm.companyName || "Unnamed Business Profile") 
+                        : (buyerForm.organizationName || "Unnamed Organization Profile")}
+                    </h1>
+                    {user.status === "approved" ? (
+                      <span className="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full">
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                        Approved
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full">
+                        <Clock className="h-3.5 w-3.5 animate-pulse" />
+                        Pending
+                      </span>
+                    )}
+                  </div>
+                  
+                  <p className="text-slate-500 text-xs mt-1.5 font-semibold flex items-center justify-center sm:justify-start gap-1.5">
+                    <span>{role === "supplier" ? "Supplier Partner Account" : "Healthcare Procurement Account"}</span>
+                    <span className="h-1 w-1 rounded-full bg-slate-300" />
+                    <span>@{user.username}</span>
+                  </p>
+
+                  <div className="flex flex-wrap justify-center sm:justify-start items-center gap-3 mt-3 text-xs text-slate-600">
+                    {role === "supplier" ? (
+                      <>
+                        {supplierForm.businessCategory && (
+                          <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg">
+                            <span className="text-[10px] font-bold text-slate-400">Category:</span>
+                            <span className="font-extrabold text-blue-600">{supplierForm.businessCategory}</span>
+                          </div>
+                        )}
+                        {supplierForm.city && (
+                          <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg">
+                            <MapPin className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                            <span className="font-extrabold text-slate-700">{supplierForm.city}, {supplierForm.state}</span>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {buyerForm.buyerType && (
+                          <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg">
+                            <span className="text-[10px] font-bold text-slate-400">Type:</span>
+                            <span className="font-extrabold text-indigo-600 capitalize">{buyerForm.buyerType}</span>
+                          </div>
+                        )}
+                        {buyerForm.city && (
+                          <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg">
+                            <MapPin className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                            <span className="font-extrabold text-slate-700">{buyerForm.city}, {buyerForm.state}</span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
-              <p className="max-w-xl text-xs leading-5 text-[#64748b]">
-                {role === "supplier"
-                  ? "Only the fields needed for verification and order readiness."
-                  : "Only the fields needed for procurement clarity and supplier communication."}
-              </p>
+            </div>
+          </div>
+
+          {/* Tabbed Layout Container */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Sidebar Navigation */}
+            <div className="space-y-3 lg:col-span-1">
+              <div className="bg-white rounded-2xl border border-slate-200 p-2 shadow-sm grid grid-cols-2 lg:flex lg:flex-col gap-2">
+                {tabs.map((t) => {
+                  const Icon = t.icon
+                  const isActive = activeTab === t.id
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setActiveTab(t.id as any)}
+                      className={`flex items-center justify-center lg:justify-start gap-2 px-2.5 py-3 text-[11px] lg:text-xs font-black rounded-xl transition duration-200 cursor-pointer select-none text-center lg:text-left ${
+                        isActive
+                          ? "bg-blue-600 text-white shadow-md shadow-blue-500/10"
+                          : "bg-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span className="truncate">{t.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Verification Tip */}
+              <div className="hidden lg:block bg-gradient-to-br from-blue-50/50 to-indigo-50/50 border border-blue-100 rounded-2xl p-4 shadow-inner">
+                <div className="flex items-start gap-3">
+                  <Sparkles className="h-4.5 w-4.5 text-blue-600 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-xs font-black text-slate-800">Verification Tip</h4>
+                    <p className="text-[10px] text-slate-500 leading-relaxed font-medium mt-1">
+                      Ensure your regulatory credentials (GSTIN / Drug License) match your uploaded certificates exactly to avoid delays in admin verification.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {role === "supplier" ? (
-              <form className="space-y-5" onSubmit={handleSupplierSave}>
-                <ProfileSection
-                  title="Company Details"
-                  caption="Basic business information."
-                >
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <TextField label="Company Name" value={supplierForm.companyName} onChange={(value) => setSupplierForm((prev) => ({ ...prev, companyName: value }))} placeholder="Meditech Surgical Pvt Ltd" disabled={!isEditing || Boolean(originalSupplierForm?.companyName)} />
-                    <TextField label="Brand Name" value={supplierForm.brandName} onChange={(value) => setSupplierForm((prev) => ({ ...prev, brandName: value }))} placeholder="MediSure" disabled={!isEditing || Boolean(originalSupplierForm?.brandName)} />
-                    <TextField label="GST Number" value={supplierForm.gstNumber} onChange={(value) => setSupplierForm((prev) => ({ ...prev, gstNumber: value }))} placeholder="27ABCDE1234F1Z5" disabled={!isEditing || Boolean(originalSupplierForm?.gstNumber)} />
-                    <TextField label="Drug Or Trade License" value={supplierForm.licenseNumber} onChange={(value) => setSupplierForm((prev) => ({ ...prev, licenseNumber: value }))} placeholder="DL-2026-7788" disabled={!isEditing || Boolean(originalSupplierForm?.licenseNumber)} />
-                    <TextField label="Business Category" value={supplierForm.businessCategory} onChange={(value) => setSupplierForm((prev) => ({ ...prev, businessCategory: value }))} placeholder="Disposables, diagnostics, equipment" disabled={!isEditing} />
-                    <TextField label="Years In Business" value={supplierForm.yearsInBusiness} onChange={(value) => setSupplierForm((prev) => ({ ...prev, yearsInBusiness: value }))} placeholder="8 years" disabled={!isEditing} />
+            {/* Main Form Content Card */}
+            <div className="lg:col-span-3">
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 sm:p-6">
+                <div className="border-b border-slate-100 pb-4 mb-5 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-sm font-black uppercase tracking-wider text-slate-800">
+                      {tabs.find((t) => t.id === activeTab)?.label}
+                    </h2>
+                    <p className="text-[10px] text-slate-400 font-bold mt-0.5">
+                      {activeTab === "identity" && "Core identification, registration & billing setup."}
+                      {activeTab === "contact" && "Primary point of contact for customer enquiries."}
+                      {activeTab === "capacity" && "Logistics, warehousing capacity, and lead times."}
+                      {activeTab === "documents" && "Uploaded certificates for compliance auditing."}
+                    </p>
                   </div>
-                  <TextAreaField label="Registered Address" value={supplierForm.address} onChange={(value) => setSupplierForm((prev) => ({ ...prev, address: value }))} placeholder="Full office or warehouse address" disabled={!isEditing} />
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <TextField label="City" value={supplierForm.city} onChange={(value) => setSupplierForm((prev) => ({ ...prev, city: value }))} placeholder="Mumbai" disabled={!isEditing} />
-                    <TextField label="State" value={supplierForm.state} onChange={(value) => setSupplierForm((prev) => ({ ...prev, state: value }))} placeholder="Maharashtra" disabled={!isEditing} />
-                    <TextField label="Pincode" value={supplierForm.pincode} onChange={(value) => setSupplierForm((prev) => ({ ...prev, pincode: value }))} placeholder="400001" disabled={!isEditing} />
-                  </div>
-                </ProfileSection>
-
-                <ProfileSection title="Primary Contact" caption="Primary contact details.">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <TextField label="Contact Person" value={supplierForm.contactName} onChange={(value) => setSupplierForm((prev) => ({ ...prev, contactName: value }))} placeholder="Aman Verma" disabled={!isEditing} />
-                    <TextField label="Designation" value={supplierForm.designation} onChange={(value) => setSupplierForm((prev) => ({ ...prev, designation: value }))} placeholder="Sales Manager" disabled={!isEditing} />
-                    <TextField label="Phone Number" value={supplierForm.phone} onChange={(value) => setSupplierForm((prev) => ({ ...prev, phone: value }))} placeholder="+91 98765 43210" disabled={!isEditing} />
-                    <TextField label="Official Email" value={supplierForm.email} onChange={(value) => setSupplierForm((prev) => ({ ...prev, email: value }))} placeholder="sales@company.com" disabled={!isEditing} />
-                  </div>
-                </ProfileSection>
-
-                <ProfileSection title="Supply Capacity" caption="Products and fulfilment details.">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <TextAreaField label="Product Categories" value={supplierForm.productCategories} onChange={(value) => setSupplierForm((prev) => ({ ...prev, productCategories: value }))} placeholder="Syringes, gloves, test kits, ward consumables" disabled={!isEditing} />
-                    <TextAreaField label="Supply Regions" value={supplierForm.supplyRegions} onChange={(value) => setSupplierForm((prev) => ({ ...prev, supplyRegions: value }))} placeholder="Delhi NCR, Punjab, Haryana" disabled={!isEditing} />
-                    <TextField label="Minimum Order Value" value={supplierForm.minimumOrderValue} onChange={(value) => setSupplierForm((prev) => ({ ...prev, minimumOrderValue: value }))} placeholder="INR 25,000" disabled={!isEditing} />
-                    <TextField label="Average Lead Time" value={supplierForm.averageLeadTime} onChange={(value) => setSupplierForm((prev) => ({ ...prev, averageLeadTime: value }))} placeholder="3-5 working days" disabled={!isEditing} />
-                    <TextField label="Warehouse Capacity" value={supplierForm.warehouseCapacity} onChange={(value) => setSupplierForm((prev) => ({ ...prev, warehouseCapacity: value }))} placeholder="2000 sq ft cold + dry storage" disabled={!isEditing} />
-                  </div>
-                </ProfileSection>
-
-                <ProfileSection title="Compliance Documents" caption="Upload images of your certificates.">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <FileUploadField label="GST Certificate" value={supplierForm.gstDocument} onChange={(val) => setSupplierForm(prev => ({ ...prev, gstDocument: val }))} disabled={!isEditing} />
-                    <FileUploadField label="Drug/Trade License" value={supplierForm.licenseDocument} onChange={(val) => setSupplierForm(prev => ({ ...prev, licenseDocument: val }))} disabled={!isEditing} />
-                    <FileUploadField label="ISO Certificate (Optional)" value={supplierForm.isoCertificate} onChange={(val) => setSupplierForm(prev => ({ ...prev, isoCertificate: val }))} disabled={!isEditing} />
-                  </div>
-                </ProfileSection>
-
-                <FormMessage message={message} error={error} />
-                <div className="flex flex-wrap gap-3">
-                  {isEditing ? (
-                    <button type="submit" className="rounded-[0.9rem] bg-[#0f4fb6] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#0b46a8]">
-                      {loading ? "Saving..." : "Save Profile"}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMessage("")
-                        setError("")
-                        setIsEditing(true)
-                      }}
-                      className="rounded-[0.9rem] border border-[#dbe4ef] bg-white px-4 py-2.5 text-xs font-semibold text-[#0f4fb6] transition hover:bg-[#f8fafc]"
-                    >
-                      Edit Profile
-                    </button>
+                  {isEditing && (
+                    <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                      Editing Mode
+                    </span>
                   )}
                 </div>
-              </form>
-            ) : (
-              <form className="space-y-5" onSubmit={handleBuyerSave}>
-                <ProfileSection
-                  title="Organization Details"
-                  caption="Basic organization information."
-                >
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <TextField label="Organization Name" value={buyerForm.organizationName} onChange={(value) => setBuyerForm((prev) => ({ ...prev, organizationName: value }))} placeholder="CityCare Hospital" disabled={!isEditing || Boolean(originalBuyerForm?.organizationName)} />
-                    <SelectField
-                      label="Buyer Type"
-                      value={buyerForm.buyerType}
-                      onChange={(value) => setBuyerForm((prev) => ({ ...prev, buyerType: value }))}
-                      disabled={!isEditing || Boolean(originalBuyerForm?.buyerType)}
-                      options={[
-                        { label: "Select type", value: "" },
-                        { label: "Hospital", value: "hospital" },
-                        { label: "Pharmacy", value: "pharmacy" },
-                        { label: "Clinic", value: "clinic" },
-                        { label: "NGO", value: "ngo" },
-                      ]}
-                    />
-                    <TextField label="Department" value={buyerForm.department} onChange={(value) => setBuyerForm((prev) => ({ ...prev, department: value }))} placeholder="Central Procurement" disabled={!isEditing} />
-                    <TextField label="Institution Size" value={buyerForm.institutionSize} onChange={(value) => setBuyerForm((prev) => ({ ...prev, institutionSize: value }))} placeholder="250 beds or 12 branches" disabled={!isEditing} />
-                    <TextField label="GST Number" value={buyerForm.gstNumber} onChange={(value) => setBuyerForm((prev) => ({ ...prev, gstNumber: value }))} placeholder="Optional for internal billing" disabled={!isEditing || Boolean(originalBuyerForm?.gstNumber)} />
-                  </div>
-                  <TextAreaField label="Registered Address" value={buyerForm.address} onChange={(value) => setBuyerForm((prev) => ({ ...prev, address: value }))} placeholder="Procurement office address" disabled={!isEditing} />
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <TextField label="City" value={buyerForm.city} onChange={(value) => setBuyerForm((prev) => ({ ...prev, city: value }))} placeholder="Lucknow" disabled={!isEditing} />
-                    <TextField label="State" value={buyerForm.state} onChange={(value) => setBuyerForm((prev) => ({ ...prev, state: value }))} placeholder="Uttar Pradesh" disabled={!isEditing} />
-                    <TextField label="Pincode" value={buyerForm.pincode} onChange={(value) => setBuyerForm((prev) => ({ ...prev, pincode: value }))} placeholder="226001" disabled={!isEditing} />
-                  </div>
-                </ProfileSection>
 
-                <ProfileSection title="Procurement Contacts" caption="Primary contact information.">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <TextField label="Procurement Contact" value={buyerForm.procurementContactName} onChange={(value) => setBuyerForm((prev) => ({ ...prev, procurementContactName: value }))} placeholder="Neha Sharma" disabled={!isEditing} />
-                    <TextField label="Designation" value={buyerForm.designation} onChange={(value) => setBuyerForm((prev) => ({ ...prev, designation: value }))} placeholder="Purchase Head" disabled={!isEditing} />
-                    <TextField label="Phone Number" value={buyerForm.phone} onChange={(value) => setBuyerForm((prev) => ({ ...prev, phone: value }))} placeholder="+91 98111 22334" disabled={!isEditing} />
-                    <TextField label="Official Email" value={buyerForm.email} onChange={(value) => setBuyerForm((prev) => ({ ...prev, email: value }))} placeholder="procurement@citycare.org" disabled={!isEditing} />
-                  </div>
-                </ProfileSection>
+                {role === "supplier" ? (
+                  <form className="space-y-6" onSubmit={handleSupplierSave}>
+                    {activeTab === "identity" && (
+                      <div className="space-y-5 animate-fade-in">
+                        <ProfileSection title="Company Details" caption="Basic business information.">
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <TextField label="Company Name" value={supplierForm.companyName} onChange={(value) => setSupplierForm((prev) => ({ ...prev, companyName: value }))} placeholder="Meditech Surgical Pvt Ltd" disabled={!isEditing || Boolean(originalSupplierForm?.companyName)} />
+                            <TextField label="Brand Name" value={supplierForm.brandName} onChange={(value) => setSupplierForm((prev) => ({ ...prev, brandName: value }))} placeholder="MediSure" disabled={!isEditing || Boolean(originalSupplierForm?.brandName)} />
+                            <TextField label="GST Number" value={supplierForm.gstNumber} onChange={(value) => setSupplierForm((prev) => ({ ...prev, gstNumber: value }))} placeholder="27ABCDE1234F1Z5" disabled={!isEditing || Boolean(originalSupplierForm?.gstNumber)} />
+                            <TextField label="Drug Or Trade License" value={supplierForm.licenseNumber} onChange={(value) => setSupplierForm((prev) => ({ ...prev, licenseNumber: value }))} placeholder="DL-2026-7788" disabled={!isEditing || Boolean(originalSupplierForm?.licenseNumber)} />
+                            <TextField label="Business Category" value={supplierForm.businessCategory} onChange={(value) => setSupplierForm((prev) => ({ ...prev, businessCategory: value }))} placeholder="Disposables, diagnostics, equipment" disabled={!isEditing} />
+                            <TextField label="Years In Business" value={supplierForm.yearsInBusiness} onChange={(value) => setSupplierForm((prev) => ({ ...prev, yearsInBusiness: value }))} placeholder="8 years" disabled={!isEditing} />
+                          </div>
+                          <TextAreaField label="Registered Address" value={supplierForm.address} onChange={(value) => setSupplierForm((prev) => ({ ...prev, address: value }))} placeholder="Full office or warehouse address" disabled={!isEditing} />
+                          <div className="grid gap-4 md:grid-cols-3">
+                            <TextField label="City" value={supplierForm.city} onChange={(value) => setSupplierForm((prev) => ({ ...prev, city: value }))} placeholder="Mumbai" disabled={!isEditing} />
+                            <TextField label="State" value={supplierForm.state} onChange={(value) => setSupplierForm((prev) => ({ ...prev, state: value }))} placeholder="Maharashtra" disabled={!isEditing} />
+                            <TextField label="Pincode" value={supplierForm.pincode} onChange={(value) => setSupplierForm((prev) => ({ ...prev, pincode: value }))} placeholder="400001" disabled={!isEditing} />
+                          </div>
+                        </ProfileSection>
+                      </div>
+                    )}
 
-                <ProfileSection title="Onboarding Documents" caption="Upload any initial required files for registration.">
-                  <div className="grid gap-4 md:grid-cols-1">
-                    <FileUploadField label="Authorization Document" value={buyerForm.onboardingDocuments} onChange={(val) => setBuyerForm(prev => ({ ...prev, onboardingDocuments: val }))} disabled={!isEditing} />
-                  </div>
-                </ProfileSection>
+                    {activeTab === "contact" && (
+                      <div className="space-y-5 animate-fade-in">
+                        <ProfileSection title="Primary Contact" caption="Primary contact details.">
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <TextField label="Contact Person" value={supplierForm.contactName} onChange={(value) => setSupplierForm((prev) => ({ ...prev, contactName: value }))} placeholder="Aman Verma" disabled={!isEditing} />
+                            <TextField label="Designation" value={supplierForm.designation} onChange={(value) => setSupplierForm((prev) => ({ ...prev, designation: value }))} placeholder="Sales Manager" disabled={!isEditing} />
+                            <TextField label="Phone Number" value={supplierForm.phone} onChange={(value) => setSupplierForm((prev) => ({ ...prev, phone: value }))} placeholder="+91 98765 43210" disabled={!isEditing} />
+                            <TextField label="Official Email" value={supplierForm.email} onChange={(value) => setSupplierForm((prev) => ({ ...prev, email: value }))} placeholder="sales@company.com" disabled={!isEditing} />
+                          </div>
+                        </ProfileSection>
+                      </div>
+                    )}
 
-                <FormMessage message={message} error={error} />
-                <div className="flex flex-wrap gap-3">
-                  {isEditing ? (
-                    <button type="submit" className="rounded-[0.9rem] bg-[#0f4fb6] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#0b46a8]">
-                      {loading ? "Saving..." : "Save Profile"}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMessage("")
-                        setError("")
-                        setIsEditing(true)
-                      }}
-                      className="rounded-[0.9rem] border border-[#dbe4ef] bg-white px-4 py-2.5 text-xs font-semibold text-[#0f4fb6] transition hover:bg-[#f8fafc]"
-                    >
-                      Edit Profile
-                    </button>
-                  )}
-                </div>
-              </form>
-            )}
-          </section>
+                    {activeTab === "capacity" && (
+                      <div className="space-y-5 animate-fade-in">
+                        <ProfileSection title="Supply Capacity" caption="Products and fulfilment details.">
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <TextAreaField label="Product Categories" value={supplierForm.productCategories} onChange={(value) => setSupplierForm((prev) => ({ ...prev, productCategories: value }))} placeholder="Syringes, gloves, test kits, ward consumables" disabled={!isEditing} />
+                            <TextAreaField label="Supply Regions" value={supplierForm.supplyRegions} onChange={(value) => setSupplierForm((prev) => ({ ...prev, supplyRegions: value }))} placeholder="Delhi NCR, Punjab, Haryana" disabled={!isEditing} />
+                            <TextField label="Minimum Order Value" value={supplierForm.minimumOrderValue} onChange={(value) => setSupplierForm((prev) => ({ ...prev, minimumOrderValue: value }))} placeholder="INR 25,000" disabled={!isEditing} />
+                            <TextField label="Average Lead Time" value={supplierForm.averageLeadTime} onChange={(value) => setSupplierForm((prev) => ({ ...prev, averageLeadTime: value }))} placeholder="3-5 working days" disabled={!isEditing} />
+                            <TextField label="Warehouse Capacity" value={supplierForm.warehouseCapacity} onChange={(value) => setSupplierForm((prev) => ({ ...prev, warehouseCapacity: value }))} placeholder="2000 sq ft cold + dry storage" disabled={!isEditing} />
+                          </div>
+                        </ProfileSection>
+                      </div>
+                    )}
+
+                    {activeTab === "documents" && (
+                      <div className="space-y-5 animate-fade-in">
+                        <ProfileSection title="Compliance Documents" caption="Upload images of your certificates.">
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <FileUploadField label="GST Certificate" value={supplierForm.gstDocument} onChange={(val) => setSupplierForm(prev => ({ ...prev, gstDocument: val }))} disabled={!isEditing} />
+                            <FileUploadField label="Drug/Trade License" value={supplierForm.licenseDocument} onChange={(val) => setSupplierForm(prev => ({ ...prev, licenseDocument: val }))} disabled={!isEditing} />
+                            <FileUploadField label="ISO Certificate (Optional)" value={supplierForm.isoCertificate} onChange={(val) => setSupplierForm(prev => ({ ...prev, isoCertificate: val }))} disabled={!isEditing} />
+                          </div>
+                        </ProfileSection>
+                      </div>
+                    )}
+
+                    <FormMessage message={message} error={error} />
+                    
+                    <div className="border-t border-slate-100 pt-5 mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <p className="text-[10px] text-slate-400 font-bold max-w-sm text-center sm:text-left">
+                        {isEditing 
+                          ? "Identity fields cannot be changed once verified by our admin." 
+                          : "Click 'Edit Profile' to modify contact, logistics, or document files."}
+                      </p>
+                      
+                      <div className="flex flex-col sm:flex-row gap-2.5 w-full sm:w-auto">
+                        {isEditing ? (
+                          <>
+                            {!isNewProfile && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (originalSupplierForm) {
+                                    setSupplierForm(originalSupplierForm)
+                                  }
+                                  setIsEditing(false)
+                                  setMessage("")
+                                  setError("")
+                                }}
+                                className="w-full sm:w-auto justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-5 py-3 text-xs font-black text-slate-500 transition duration-200 active:scale-95 cursor-pointer flex items-center gap-2"
+                              >
+                                Cancel
+                              </button>
+                            )}
+                            <button 
+                              type="submit" 
+                              disabled={loading}
+                              className="w-full sm:w-auto justify-center rounded-xl bg-blue-600 hover:bg-blue-700 px-6 py-3 text-xs font-black text-white shadow-md shadow-blue-500/10 transition duration-200 active:scale-95 cursor-pointer flex items-center gap-2 disabled:opacity-75 disabled:cursor-not-allowed"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                              {loading ? "Saving..." : "Save Profile"}
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMessage("")
+                              setError("")
+                              setIsEditing(true)
+                            }}
+                            className="w-full sm:w-auto justify-center rounded-xl border border-blue-200 bg-white hover:bg-blue-50 px-6 py-3 text-xs font-black text-blue-600 shadow-sm transition duration-200 active:scale-95 cursor-pointer flex items-center gap-2"
+                          >
+                            <Sparkles className="h-4 w-4" />
+                            Edit Profile
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </form>
+                ) : (
+                  <form className="space-y-6" onSubmit={handleBuyerSave}>
+                    {activeTab === "identity" && (
+                      <div className="space-y-5 animate-fade-in">
+                        <ProfileSection title="Organization Details" caption="Basic organization information.">
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <TextField label="Organization Name" value={buyerForm.organizationName} onChange={(value) => setBuyerForm((prev) => ({ ...prev, organizationName: value }))} placeholder="CityCare Hospital" disabled={!isEditing || Boolean(originalBuyerForm?.organizationName)} />
+                            <SelectField
+                              label="Buyer Type"
+                              value={buyerForm.buyerType}
+                              onChange={(value) => setBuyerForm((prev) => ({ ...prev, buyerType: value }))}
+                              disabled={!isEditing || Boolean(originalBuyerForm?.buyerType)}
+                              options={[
+                                { label: "Select type", value: "" },
+                                { label: "Hospital", value: "hospital" },
+                                { label: "Pharmacy", value: "pharmacy" },
+                                { label: "Clinic", value: "clinic" },
+                                { label: "NGO", value: "ngo" },
+                              ]}
+                            />
+                            <TextField label="Department" value={buyerForm.department} onChange={(value) => setBuyerForm((prev) => ({ ...prev, department: value }))} placeholder="Central Procurement" disabled={!isEditing} />
+                            <TextField label="Institution Size" value={buyerForm.institutionSize} onChange={(value) => setBuyerForm((prev) => ({ ...prev, institutionSize: value }))} placeholder="250 beds or 12 branches" disabled={!isEditing} />
+                            <TextField label="GST Number" value={buyerForm.gstNumber} onChange={(value) => setBuyerForm((prev) => ({ ...prev, gstNumber: value }))} placeholder="Optional for internal billing" disabled={!isEditing || Boolean(originalBuyerForm?.gstNumber)} />
+                          </div>
+                          <TextAreaField label="Registered Address" value={buyerForm.address} onChange={(value) => setBuyerForm((prev) => ({ ...prev, address: value }))} placeholder="Procurement office address" disabled={!isEditing} />
+                          <div className="grid gap-4 md:grid-cols-3">
+                            <TextField label="City" value={buyerForm.city} onChange={(value) => setBuyerForm((prev) => ({ ...prev, city: value }))} placeholder="Lucknow" disabled={!isEditing} />
+                            <TextField label="State" value={buyerForm.state} onChange={(value) => setBuyerForm((prev) => ({ ...prev, state: value }))} placeholder="Uttar Pradesh" disabled={!isEditing} />
+                            <TextField label="Pincode" value={buyerForm.pincode} onChange={(value) => setBuyerForm((prev) => ({ ...prev, pincode: value }))} placeholder="226001" disabled={!isEditing} />
+                          </div>
+                        </ProfileSection>
+                      </div>
+                    )}
+
+                    {activeTab === "contact" && (
+                      <div className="space-y-5 animate-fade-in">
+                        <ProfileSection title="Procurement Contacts" caption="Primary contact information.">
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <TextField label="Procurement Contact" value={buyerForm.procurementContactName} onChange={(value) => setBuyerForm((prev) => ({ ...prev, procurementContactName: value }))} placeholder="Neha Sharma" disabled={!isEditing} />
+                            <TextField label="Designation" value={buyerForm.designation} onChange={(value) => setBuyerForm((prev) => ({ ...prev, designation: value }))} placeholder="Purchase Head" disabled={!isEditing} />
+                            <TextField label="Phone Number" value={buyerForm.phone} onChange={(value) => setBuyerForm((prev) => ({ ...prev, phone: value }))} placeholder="+91 98111 22334" disabled={!isEditing} />
+                            <TextField label="Official Email" value={buyerForm.email} onChange={(value) => setBuyerForm((prev) => ({ ...prev, email: value }))} placeholder="procurement@citycare.org" disabled={!isEditing} />
+                          </div>
+                        </ProfileSection>
+                      </div>
+                    )}
+
+                    {activeTab === "documents" && (
+                      <div className="space-y-5 animate-fade-in">
+                        <ProfileSection title="Onboarding Documents" caption="Upload any initial required files for registration.">
+                          <div className="grid gap-4 md:grid-cols-1">
+                            <FileUploadField label="Authorization Document" value={buyerForm.onboardingDocuments} onChange={(val) => setBuyerForm(prev => ({ ...prev, onboardingDocuments: val }))} disabled={!isEditing} />
+                          </div>
+                        </ProfileSection>
+                      </div>
+                    )}
+
+                    <FormMessage message={message} error={error} />
+                    
+                    <div className="border-t border-slate-100 pt-5 mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <p className="text-[10px] text-slate-400 font-bold max-w-sm text-center sm:text-left">
+                        {isEditing 
+                          ? "Core details like organization name and type are locked after submission." 
+                          : "Click 'Edit Profile' to update procurement details."}
+                      </p>
+                      
+                      <div className="flex flex-col sm:flex-row gap-2.5 w-full sm:w-auto">
+                        {isEditing ? (
+                          <>
+                            {!isNewProfile && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (originalBuyerForm) {
+                                    setBuyerForm(originalBuyerForm)
+                                  }
+                                  setIsEditing(false)
+                                  setMessage("")
+                                  setError("")
+                                }}
+                                className="w-full sm:w-auto justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-5 py-3 text-xs font-black text-slate-500 transition duration-200 active:scale-95 cursor-pointer flex items-center gap-2"
+                              >
+                                Cancel
+                              </button>
+                            )}
+                            <button 
+                              type="submit" 
+                              disabled={loading}
+                              className="w-full sm:w-auto justify-center rounded-xl bg-blue-600 hover:bg-blue-700 px-6 py-3 text-xs font-black text-white shadow-md shadow-blue-500/10 transition duration-200 active:scale-95 cursor-pointer flex items-center gap-2 disabled:opacity-75 disabled:cursor-not-allowed"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                              {loading ? "Saving..." : "Save Profile"}
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMessage("")
+                              setError("")
+                              setIsEditing(true)
+                            }}
+                            className="w-full sm:w-auto justify-center rounded-xl border border-blue-200 bg-white hover:bg-blue-50 px-6 py-3 text-xs font-black text-blue-600 shadow-sm transition duration-200 active:scale-95 cursor-pointer flex items-center gap-2"
+                          >
+                            <Sparkles className="h-4 w-4" />
+                            Edit Profile
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </main>
+      {role === "buyer" ? <BuyerFooter /> : <SupplierFooter />}
     </div>
   )
 }
@@ -731,10 +1003,10 @@ function ProfileSection({
   children: ReactNode
 }) {
   return (
-    <section className="rounded-[1rem] border border-[#edf2f7] bg-[#fbfcff] p-4">
-      <div className="mb-4">
-        <h3 className="text-sm font-semibold text-[#0f172a]">{title}</h3>
-        <p className="mt-1 text-[11px] leading-5 text-[#64748b]">{caption}</p>
+    <section className="space-y-4">
+      <div>
+        <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">{title}</h3>
+        <p className="mt-1 text-[10px] text-slate-400 font-bold leading-normal">{caption}</p>
       </div>
       <div className="space-y-4">{children}</div>
     </section>
@@ -755,15 +1027,24 @@ function TextField({
   disabled?: boolean
 }) {
   return (
-    <label className={`grid gap-1.5 text-xs font-medium ${disabled ? "text-[#94a3b8]" : "text-[#334155]"}`}>
-      <span>{label}</span>
-      <input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        disabled={disabled}
-        className={`rounded-[0.85rem] border border-[#dbe4ef] bg-white px-3 py-2.5 text-xs text-[#0f172a] outline-none transition focus:border-[#0f4fb6] focus:shadow-[0_0_0_3px_rgba(15,79,182,0.08)] disabled:bg-[#f8fafc] disabled:text-[#94a3b8] disabled:cursor-not-allowed`}
-      />
+    <label className="block text-xs font-black text-slate-700 tracking-tight">
+      <span className="block mb-2">{label}</span>
+      <div className="relative">
+        <input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          disabled={disabled}
+          className={`w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-xs text-slate-850 outline-none transition duration-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed ${
+            disabled ? "pr-10" : ""
+          }`}
+        />
+        {disabled && (
+          <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+            <Lock className="h-3.5 w-3.5" />
+          </div>
+        )}
+      </div>
     </label>
   )
 }
@@ -782,15 +1063,15 @@ function TextAreaField({
   disabled?: boolean
 }) {
   return (
-    <label className={`grid gap-1.5 text-xs font-medium ${disabled ? "text-[#94a3b8]" : "text-[#334155]"}`}>
-      <span>{label}</span>
+    <label className="block text-xs font-black text-slate-700 tracking-tight">
+      <span className="block mb-2">{label}</span>
       <textarea
-        rows={4}
+        rows={3}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        className={`rounded-[0.85rem] border border-[#dbe4ef] bg-white px-3 py-2.5 text-xs text-[#0f172a] outline-none transition focus:border-[#0f4fb6] focus:shadow-[0_0_0_3px_rgba(15,79,182,0.08)] disabled:bg-[#f8fafc] disabled:text-[#94a3b8] disabled:cursor-not-allowed`}
+        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-xs text-slate-850 outline-none transition duration-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
       />
     </label>
   )
@@ -810,20 +1091,35 @@ function SelectField({
   disabled?: boolean
 }) {
   return (
-    <label className={`grid gap-1.5 text-xs font-medium ${disabled ? "text-[#94a3b8]" : "text-[#334155]"}`}>
-      <span>{label}</span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        disabled={disabled}
-        className={`rounded-[0.85rem] border border-[#dbe4ef] bg-white px-3 py-2.5 text-xs text-[#0f172a] outline-none transition focus:border-[#0f4fb6] focus:shadow-[0_0_0_3px_rgba(15,79,182,0.08)] disabled:bg-[#f8fafc] disabled:text-[#94a3b8] disabled:cursor-not-allowed`}
-      >
-        {options.map((option) => (
-          <option key={option.value || option.label} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+    <label className="block text-xs font-black text-slate-700 tracking-tight">
+      <span className="block mb-2">{label}</span>
+      <div className="relative">
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          disabled={disabled}
+          className={`w-full appearance-none rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-xs text-slate-850 outline-none transition duration-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed ${
+            disabled ? "pr-10" : ""
+          }`}
+        >
+          {options.map((option) => (
+            <option key={option.value || option.label} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        {disabled ? (
+          <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+            <Lock className="h-3.5 w-3.5" />
+          </div>
+        ) : (
+          <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m19 9-7 7-7-7" />
+            </svg>
+          </div>
+        )}
+      </div>
     </label>
   )
 }
@@ -833,9 +1129,9 @@ function FormMessage({ message, error }: { message: string; error: string }) {
 
   return (
     <div
-      className={`rounded-[0.9rem] border px-3 py-2.5 text-xs ${error
-          ? "border-[#f7d5d5] bg-[#fff7f7] text-[#991b1b]"
-          : "border-[#d9e8ff] bg-[#f8fbff] text-[#0f4fb6]"
+      className={`rounded-xl border px-4 py-3 text-xs font-bold ${error
+          ? "border-red-100 bg-red-50 text-red-700"
+          : "border-blue-100 bg-blue-50/70 text-blue-700"
         }`}
     >
       {error || message}
@@ -866,17 +1162,26 @@ function FileUploadField({
   }
 
   return (
-    <label className={`grid gap-1.5 text-xs font-medium ${disabled ? "text-[#94a3b8]" : "text-[#334155]"}`}>
-      <span>{label}</span>
-      <div className="flex items-center gap-3">
-        <input
-          type="file"
-          accept="image/*,application/pdf"
-          onChange={handleFileChange}
-          disabled={disabled}
-          className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-[#f0f4f8] file:text-[#0f4fb6] hover:file:bg-[#e1eaf4] disabled:cursor-not-allowed"
-        />
-        {value && <span className="text-emerald-600 font-semibold flex items-center gap-1"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Uploaded</span>}
+    <label className="block text-xs font-black text-slate-700 tracking-tight">
+      <span className="block mb-2">{label}</span>
+      <div className={`flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-3.5 rounded-xl border border-dashed transition duration-200 ${
+        disabled ? "bg-slate-50 border-slate-200" : "bg-white border-slate-300 hover:border-blue-500"
+      }`}>
+        <div className="relative flex-1">
+          <input
+            type="file"
+            accept="image/*,application/pdf"
+            onChange={handleFileChange}
+            disabled={disabled}
+            className="block w-full text-xs text-slate-500 file:mr-3.5 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-black file:uppercase file:tracking-wider file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100 disabled:cursor-not-allowed"
+          />
+        </div>
+        {value && (
+          <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg self-start sm:self-auto">
+            <CheckCircle className="h-3.5 w-3.5 animate-pulse" />
+            Uploaded
+          </span>
+        )}
       </div>
     </label>
   )
