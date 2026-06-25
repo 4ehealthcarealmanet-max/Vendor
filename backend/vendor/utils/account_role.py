@@ -23,6 +23,11 @@ def get_or_create_account_profile(user):
             return account_profile
         return AccountProfile(role="admin", status="approved")
 
+    try:
+        return user.account_profile
+    except (AccountProfile.DoesNotExist, AttributeError):
+        pass
+
     account_profile = AccountProfile.objects.filter(user=user).first()
     if account_profile:
         return account_profile

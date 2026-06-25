@@ -42,9 +42,22 @@ class VendorOrderViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         # Users see orders where they are either the buyer or the vendor.
-        return VendorOrder.objects.filter(
-            Q(buyer=self.request.user) | Q(vendor__user=self.request.user)
-        ).distinct().order_by("-id")
+        return (
+            VendorOrder.objects.select_related(
+                "buyer",
+                "buyer__account_profile",
+                "vendor",
+                "vendor__user",
+            )
+            .prefetch_related(
+                "items",
+                "items__product",
+                "events",
+            )
+            .filter(Q(buyer=self.request.user) | Q(vendor__user=self.request.user))
+            .distinct()
+            .order_by("-id")
+        )
 
     def perform_create(self, serializer):
         # Both buyers and suppliers can place orders (suppliers for subcontracting).

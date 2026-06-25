@@ -86,12 +86,40 @@ function ProductsPageContent() {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [products, setProducts] = useState<VendorProductService[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [products, setProducts] = useState<VendorProductService[]>(() => {
+    if (typeof window !== "undefined") {
+      const cached = sessionStorage.getItem("catalog_products")
+      if (cached) {
+        try { return JSON.parse(cached) } catch { return [] }
+      }
+    }
+    return []
+  })
+  const [isLoading, setIsLoading] = useState(() => {
+    if (typeof window !== "undefined") {
+      return !sessionStorage.getItem("catalog_products")
+    }
+    return true
+  })
   const [error, setError] = useState<string | null>(null)
-  const [username, setUsername] = useState<string>("")
-  const [userRole, setUserRole] = useState<"supplier" | "buyer" | "admin" | "">("")
-  const [buyerType, setBuyerType] = useState<string>("")
+  const [username, setUsername] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("catalog_username") || ""
+    }
+    return ""
+  })
+  const [userRole, setUserRole] = useState<"supplier" | "buyer" | "admin" | "">(() => {
+    if (typeof window !== "undefined") {
+      return (sessionStorage.getItem("catalog_user_role") as any) || ""
+    }
+    return ""
+  })
+  const [buyerType, setBuyerType] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("catalog_buyer_type") || ""
+    }
+    return ""
+  })
   const [editingProductId, setEditingProductId] = useState<number | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<VendorProductService | null>(null)
   const [updating, setUpdating] = useState(false)
@@ -186,7 +214,7 @@ function ProductsPageContent() {
   useEffect(() => {
     let active = true
     const fetchProducts = async (isPoll = false) => {
-      if (!isPoll) {
+      if (!isPoll && !sessionStorage.getItem("catalog_products")) {
         setIsLoading(true)
       }
       setError(null)
@@ -209,10 +237,15 @@ function ProductsPageContent() {
           setUserRole(me.role)
           setBuyerType(me.buyer_type || "")
           setHasActiveSub(me.has_active_subscription ?? true)
+          
+          sessionStorage.setItem("catalog_username", me.username)
+          sessionStorage.setItem("catalog_user_role", me.role)
+          sessionStorage.setItem("catalog_buyer_type", me.buyer_type || "")
         }
         const data = await getProducts()
         if (active) {
           setProducts(data)
+          sessionStorage.setItem("catalog_products", JSON.stringify(data))
         }
       } catch (error) {
         if (isAuthSessionError(error)) {

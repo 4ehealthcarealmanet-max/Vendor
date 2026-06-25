@@ -11,9 +11,9 @@ from vendor.serializers.profile_serializer import VendorProfileSerializer, Buyer
 def _get_profile_instance(user):
     # Try to get role from AccountProfile
     try:
-        account_profile = AccountProfile.objects.get(user=user)
+        account_profile = getattr(user, "account_profile", None) or AccountProfile.objects.get(user=user)
         role = account_profile.role
-    except AccountProfile.DoesNotExist:
+    except (AccountProfile.DoesNotExist, AttributeError):
         # Fallback to AdminSessionUser or other logic if needed
         role = getattr(user, "role", "buyer")
 

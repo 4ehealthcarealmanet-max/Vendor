@@ -163,8 +163,11 @@ export default function MessagesWorkspace({ userRole }: MessagesWorkspaceProps) 
             try {
                 const data = await getMessages(activePartner.partner_id)
                 setMessages(data)
-                // Mark read
-                await markMessagesRead(activePartner.partner_id)
+                // Mark read only if there are unread messages received by the user
+                const hasUnread = data.some(m => !m.is_read && m.receiver === userId)
+                if (hasUnread) {
+                    await markMessagesRead(activePartner.partner_id)
+                }
             } catch (err) {
                 console.error("Error loading messages", err)
             }

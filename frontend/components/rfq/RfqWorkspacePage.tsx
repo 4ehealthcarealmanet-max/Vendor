@@ -210,12 +210,48 @@ function RfqPageContent() {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [username, setUsername] = useState("")
-  const [userRole, setUserRole] = useState<"supplier" | "buyer" | "admin" | "">("")
-  const [buyerType, setBuyerType] = useState<"hospital" | "pharmacy" | "ngo" | "clinic" | null>(null)
-  const [products, setProducts] = useState<VendorProductService[]>([])
-  const [rfqs, setRfqs] = useState<VendorRfq[]>([])
-  const [loading, setLoading] = useState(true)
+  const [username, setUsername] = useState(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("rfq_username") || ""
+    }
+    return ""
+  })
+  const [userRole, setUserRole] = useState<"supplier" | "buyer" | "admin" | "">(() => {
+    if (typeof window !== "undefined") {
+      return (sessionStorage.getItem("rfq_user_role") as any) || ""
+    }
+    return ""
+  })
+  const [buyerType, setBuyerType] = useState<"hospital" | "pharmacy" | "ngo" | "clinic" | null>(() => {
+    if (typeof window !== "undefined") {
+      return (sessionStorage.getItem("rfq_buyer_type") as any) || null
+    }
+    return null
+  })
+  const [products, setProducts] = useState<VendorProductService[]>(() => {
+    if (typeof window !== "undefined") {
+      const cached = sessionStorage.getItem("rfq_products")
+      if (cached) {
+        try { return JSON.parse(cached) } catch { return [] }
+      }
+    }
+    return []
+  })
+  const [rfqs, setRfqs] = useState<VendorRfq[]>(() => {
+    if (typeof window !== "undefined") {
+      const cached = sessionStorage.getItem("rfq_rfqs")
+      if (cached) {
+        try { return JSON.parse(cached) } catch { return [] }
+      }
+    }
+    return []
+  })
+  const [loading, setLoading] = useState(() => {
+    if (typeof window !== "undefined") {
+      return !(sessionStorage.getItem("rfq_rfqs") && sessionStorage.getItem("rfq_username"))
+    }
+    return true
+  })
   const [message, setMessage] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [activeQuoteRfqId, setActiveQuoteRfqId] = useState<number | null>(null)
@@ -299,6 +335,12 @@ function RfqPageContent() {
         setUserRole(me.role)
         setBuyerType(me.buyer_type)
         setHasActiveSub(me.has_active_subscription ?? true)
+        
+        sessionStorage.setItem("rfq_username", me.username)
+        sessionStorage.setItem("rfq_user_role", me.role)
+        if (me.buyer_type) {
+          sessionStorage.setItem("rfq_buyer_type", me.buyer_type)
+        }
       } catch (error) {
         if (!isAuthSessionError(error)) {
           setMessage("Could not verify your session right now. Check whether the backend API is running.")
@@ -318,6 +360,7 @@ function RfqPageContent() {
         try {
           const rfqData = await getPublicRfqs()
           setRfqs(rfqData)
+          sessionStorage.setItem("rfq_rfqs", JSON.stringify(rfqData))
         } catch {
           setRfqs([])
         } finally {
@@ -330,6 +373,9 @@ function RfqPageContent() {
         const [rfqData, productData] = await Promise.all([getRfqs(), getProducts()])
         setRfqs(rfqData)
         setProducts(productData)
+        
+        sessionStorage.setItem("rfq_rfqs", JSON.stringify(rfqData))
+        sessionStorage.setItem("rfq_products", JSON.stringify(productData))
       } catch (error) {
         setMessage(getApiErrorMessage(error, "Could not load the RFQ workspace. Your login is still active; please refresh or try again."))
       } finally {

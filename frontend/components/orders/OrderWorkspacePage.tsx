@@ -185,12 +185,49 @@ const printOrderPdf = (order: VendorOrder, products: VendorProductService[]) => 
 export default function OrderPage() {
   const pathname = usePathname()
   const router = useRouter()
-  const [products, setProducts] = useState<VendorProductService[]>([])
-  const [orders, setOrders] = useState<VendorOrder[]>([])
-  const [userId, setUserId] = useState<number | null>(null)
-  const [username, setUsername] = useState<string>("")
-  const [userRole, setUserRole] = useState<"supplier" | "buyer" | "admin" | "">("")
-  const [buyerType, setBuyerType] = useState<string>("")
+  const [products, setProducts] = useState<VendorProductService[]>(() => {
+    if (typeof window !== "undefined") {
+      const cached = sessionStorage.getItem("orders_products")
+      if (cached) {
+        try { return JSON.parse(cached) } catch { return [] }
+      }
+    }
+    return []
+  })
+  const [orders, setOrders] = useState<VendorOrder[]>(() => {
+    if (typeof window !== "undefined") {
+      const cached = sessionStorage.getItem("orders_list")
+      if (cached) {
+        try { return JSON.parse(cached) } catch { return [] }
+      }
+    }
+    return []
+  })
+  const [userId, setUserId] = useState<number | null>(() => {
+    if (typeof window !== "undefined") {
+      const cached = sessionStorage.getItem("orders_user_id")
+      return cached ? Number(cached) : null
+    }
+    return null
+  })
+  const [username, setUsername] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("orders_username") || ""
+    }
+    return ""
+  })
+  const [userRole, setUserRole] = useState<"supplier" | "buyer" | "admin" | "">(() => {
+    if (typeof window !== "undefined") {
+      return (sessionStorage.getItem("orders_user_role") as any) || ""
+    }
+    return ""
+  })
+  const [buyerType, setBuyerType] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("orders_buyer_type") || ""
+    }
+    return ""
+  })
   const [feedback, setFeedback] = useState<string>("")
   const [orderFilter, setOrderFilter] = useState<SupplierOrderFilter>("all")
   const [orderSearch, setOrderSearch] = useState("")
@@ -198,12 +235,19 @@ export default function OrderPage() {
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null)
   const [shortageQuantity, setShortageQuantity] = useState<number>(1)
   const [hasActiveSub, setHasActiveSub] = useState(true)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => {
+    if (typeof window !== "undefined") {
+      return !(sessionStorage.getItem("orders_products") && sessionStorage.getItem("orders_list") && sessionStorage.getItem("orders_username"))
+    }
+    return true
+  })
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        setLoading(true)
+        if (!sessionStorage.getItem("orders_list")) {
+          setLoading(true)
+        }
         const me = await getCurrentUser()
         if (pathname?.startsWith("/buyer") && me.role === "supplier") {
           router.replace("/supplier/orders")
@@ -225,6 +269,14 @@ export default function OrderPage() {
         const [productList, orderList] = await Promise.all([getProducts(), getOrders()])
         setProducts(productList)
         setOrders(orderList)
+
+        // Cache for next visit
+        sessionStorage.setItem("orders_products", JSON.stringify(productList))
+        sessionStorage.setItem("orders_list", JSON.stringify(orderList))
+        sessionStorage.setItem("orders_user_id", String(me.id))
+        sessionStorage.setItem("orders_username", me.username)
+        sessionStorage.setItem("orders_user_role", me.role)
+        sessionStorage.setItem("orders_buyer_type", me.buyer_type || "")
       } catch (error) {
         if (isAuthSessionError(error)) {
           clearToken()

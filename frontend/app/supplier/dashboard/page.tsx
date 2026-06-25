@@ -264,11 +264,52 @@ export default function SupplierDashboardPage() {
 function SupplierDashboardPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [user, setUser] = useState<AuthUser | null>(null)
-  const [products, setProducts] = useState<VendorProductService[]>([])
-  const [orders, setOrders] = useState<VendorOrder[]>([])
-  const [rfqs, setRfqs] = useState<VendorRfq[]>([])
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    if (typeof window !== "undefined") {
+      const cached = sessionStorage.getItem("supplier_user")
+      if (cached) {
+        try { return JSON.parse(cached) } catch { return null }
+      }
+    }
+    return null
+  })
+  const [products, setProducts] = useState<VendorProductService[]>(() => {
+    if (typeof window !== "undefined") {
+      const cached = sessionStorage.getItem("supplier_products")
+      if (cached) {
+        try { return JSON.parse(cached) } catch { return [] }
+      }
+    }
+    return []
+  })
+  const [orders, setOrders] = useState<VendorOrder[]>(() => {
+    if (typeof window !== "undefined") {
+      const cached = sessionStorage.getItem("supplier_orders")
+      if (cached) {
+        try { return JSON.parse(cached) } catch { return [] }
+      }
+    }
+    return []
+  })
+  const [rfqs, setRfqs] = useState<VendorRfq[]>(() => {
+    if (typeof window !== "undefined") {
+      const cached = sessionStorage.getItem("supplier_rfqs")
+      if (cached) {
+        try { return JSON.parse(cached) } catch { return [] }
+      }
+    }
+    return []
+  })
+  const [loading, setLoading] = useState(() => {
+    if (typeof window !== "undefined") {
+      const hasCached = sessionStorage.getItem("supplier_products") &&
+                        sessionStorage.getItem("supplier_orders") &&
+                        sessionStorage.getItem("supplier_rfqs") &&
+                        sessionStorage.getItem("supplier_user")
+      return !hasCached
+    }
+    return true
+  })
   const [error, setError] = useState("")
   const [searchText, setSearchText] = useState("")
   const [focusId, setFocusId] = useState<number | null>(null)
@@ -331,6 +372,12 @@ function SupplierDashboardPageContent() {
         setProducts(productData)
         setOrders(orderData)
         setRfqs(rfqData)
+
+        // Cache for next visit
+        sessionStorage.setItem("supplier_user", JSON.stringify(me))
+        sessionStorage.setItem("supplier_products", JSON.stringify(productData))
+        sessionStorage.setItem("supplier_orders", JSON.stringify(orderData))
+        sessionStorage.setItem("supplier_rfqs", JSON.stringify(rfqData))
       } catch (loadError) {
         if (isAuthSessionError(loadError)) {
           clearToken()

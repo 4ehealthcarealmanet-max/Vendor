@@ -9,12 +9,29 @@ from datetime import timedelta
 from vendor.models.subscription import SubscriptionPlan, UserSubscription
 from vendor.utils.account_role import get_or_create_account_profile
 
+from django.core.cache import cache
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+
+@receiver(post_save, sender=SubscriptionPlan)
+@receiver(post_delete, sender=SubscriptionPlan)
+def on_plan_change(sender, **kwargs):
+    cache.delete("subscription_plans_buyer")
+    cache.delete("subscription_plans_supplier")
+    cache.delete("subscription_plans_admin")
+    cache.delete("subscription_plans_unknown")
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def list_plans(request):
     profile = get_or_create_account_profile(request.user)
     role = profile.role  # 'buyer', 'supplier', or 'admin'
     
+    cache_key = f"subscription_plans_{role}"
+    cached_plans = cache.get(cache_key)
+    if cached_plans is not None:
+        return Response(cached_plans)
+        
     plans = SubscriptionPlan.objects.filter(is_active=True)
     if role in ["buyer", "supplier"]:
         plans = plans.filter(target_role__in=[role, "both"])
@@ -29,6 +46,7 @@ def list_plans(request):
             "duration_days": plan.duration_days,
             "target_role": plan.target_role,
         })
+    cache.set(cache_key, data, 86400) # Cache for 24 hours
     return Response(data)
 
 @api_view(["POST"])
