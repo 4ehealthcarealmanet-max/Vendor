@@ -45,7 +45,7 @@ export interface VendorRfq {
   tender_document_name?: string | null
   tender_document_note?: string
   tender_document_uploaded_at?: string | null
-  tender_type: "open" | "limited" | "reverse"
+  tender_type: "open" | "limited"
   status: "open" | "under_review" | "awarded" | "closed"
   buyer_name: string
   buyer_user_id?: number | null
@@ -76,6 +76,6 @@ export interface VendorRfqInput {
   tender_document?: File | null
   tender_document_note: string
   remove_tender_document?: boolean
-  tender_type: "open" | "limited" | "reverse"
+  tender_type: "open" | "limited"
   invited_vendors: VendorRfqVendor[]
 }

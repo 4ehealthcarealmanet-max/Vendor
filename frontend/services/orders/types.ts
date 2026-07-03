@@ -44,7 +44,7 @@ export interface VendorOrder {
     | "goods_received"
     | "completed"
     | "cancelled"
-  payment_status: "pending" | "partially_paid" | "paid" | "overdue"
+  payment_status: "pending" | "partially_paid" | "paid" | "overdue" | "payment_requested"
   delivery_status: "not_started" | "loaded" | "in_transit" | "out_for_delivery" | "delivered"
   tracking_note: string
   po_released_at?: string | null

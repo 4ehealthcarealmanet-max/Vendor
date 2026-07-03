@@ -22,6 +22,7 @@ class VendorOrder(models.Model):
         ("partially_paid", "Partially Paid"),
         ("paid", "Paid"),
         ("overdue", "Overdue"),
+        ("payment_requested", "Payment Requested"),
     ]
     DELIVERY_STATUS = [
         ("not_started", "Not Started"),

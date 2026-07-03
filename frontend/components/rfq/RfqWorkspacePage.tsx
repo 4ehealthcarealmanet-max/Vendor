@@ -58,8 +58,9 @@ import {
   submitQuotation,
   updateRfq,
   logoutUser,
+  getOrders,
 } from "@/services"
-import type { VendorProductService, VendorQuotationInput, VendorRfq, VendorRfqInput } from "@/services"
+import type { VendorProductService, VendorQuotationInput, VendorRfq, VendorRfqInput, VendorOrder } from "@/services"
 
 const emptyRfqForm: VendorRfqInput = {
   title: "",
@@ -139,7 +140,7 @@ const formatBuyerType = (value: VendorRfq["buyer_type"]) => {
   return value.charAt(0).toUpperCase() + value.slice(1)
 }
 
-const formatTenderType = (value: VendorRfq["tender_type"]) => {
+const formatTenderType = (value: string) => {
   if (value === "open") return "Open Tender"
   if (value === "limited") return "Limited Tender"
   return "Reverse Auction"
@@ -168,6 +169,23 @@ const getDeadlineLabel = (value: string, status: VendorRfq["status"]) => {
 const getLowestBid = (quotations: any[]) => {
   if (!quotations || quotations.length === 0) return null
   return quotations.reduce((min, q) => q.unit_price < min.unit_price ? q : min, quotations[0])
+}
+
+const orderStatusLabel = (order: any) => {
+  if (order.status === "po_released") return "Pending"
+  if (order.status === "po_accepted") return "Accepted"
+  if (order.status === "partially_subcontracted") return "Processing"
+  if (order.status === "ready_to_dispatch") return "Ready"
+  if (order.status === "goods_received") return "Completed"
+  return order.status.replaceAll("_", " ")
+}
+
+const statusChipClass = (order: any) => {
+  const status = order.status;
+  if (status === "completed" || status === "goods_received" || order.delivery_status === "delivered") return "bg-emerald-50 text-emerald-700 border-emerald-100"
+  if (status === "shipped" || status === "delivered" || order.delivery_status === "in_transit" || order.delivery_status === "out_for_delivery") return "bg-blue-50 text-blue-700 border-blue-100"
+  if (status === "processing" || status === "ready_to_dispatch" || status === "po_accepted" || order.delivery_status === "loaded") return "bg-amber-50 text-amber-700 border-amber-100"
+  return "bg-slate-50 text-slate-600 border-slate-100"
 }
 
 function CountdownTimer({ deadline }: { deadline: string }) {
@@ -210,55 +228,57 @@ function RfqPageContent() {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [username, setUsername] = useState(() => {
+  const [username, setUsername] = useState("")
+  const [userRole, setUserRole] = useState<"supplier" | "buyer" | "admin" | "">("")
+  const [buyerType, setBuyerType] = useState<"hospital" | "pharmacy" | "ngo" | "clinic" | null>(null)
+  const [products, setProducts] = useState<VendorProductService[]>([])
+  const [rfqs, setRfqs] = useState<VendorRfq[]>([])
+  const [orders, setOrders] = useState<VendorOrder[]>([])
+  const [supplierFilter, setSupplierFilter] = useState<string>("all")
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
     if (typeof window !== "undefined") {
-      return sessionStorage.getItem("rfq_username") || ""
-    }
-    return ""
-  })
-  const [userRole, setUserRole] = useState<"supplier" | "buyer" | "admin" | "">(() => {
-    if (typeof window !== "undefined") {
-      return (sessionStorage.getItem("rfq_user_role") as any) || ""
-    }
-    return ""
-  })
-  const [buyerType, setBuyerType] = useState<"hospital" | "pharmacy" | "ngo" | "clinic" | null>(() => {
-    if (typeof window !== "undefined") {
-      return (sessionStorage.getItem("rfq_buyer_type") as any) || null
-    }
-    return null
-  })
-  const [products, setProducts] = useState<VendorProductService[]>(() => {
-    if (typeof window !== "undefined") {
-      const cached = sessionStorage.getItem("rfq_products")
-      if (cached) {
-        try { return JSON.parse(cached) } catch { return [] }
+      const cachedUsername = sessionStorage.getItem("rfq_username") || ""
+      const cachedUserRole = (sessionStorage.getItem("rfq_user_role") as any) || ""
+      const cachedBuyerType = (sessionStorage.getItem("rfq_buyer_type") as any) || null
+      
+      let cachedProducts: VendorProductService[] = []
+      const storedProducts = sessionStorage.getItem("rfq_products")
+      if (storedProducts) {
+        try { cachedProducts = JSON.parse(storedProducts) } catch {}
       }
-    }
-    return []
-  })
-  const [rfqs, setRfqs] = useState<VendorRfq[]>(() => {
-    if (typeof window !== "undefined") {
-      const cached = sessionStorage.getItem("rfq_rfqs")
-      if (cached) {
-        try { return JSON.parse(cached) } catch { return [] }
+
+      let cachedRfqs: VendorRfq[] = []
+      const storedRfqs = sessionStorage.getItem("rfq_rfqs")
+      if (storedRfqs) {
+        try { cachedRfqs = JSON.parse(storedRfqs) } catch {}
       }
+
+      let cachedOrders: VendorOrder[] = []
+      const storedOrders = sessionStorage.getItem("rfq_orders")
+      if (storedOrders) {
+        try { cachedOrders = JSON.parse(storedOrders) } catch {}
+      }
+
+      if (cachedUsername) setUsername(cachedUsername)
+      if (cachedUserRole) setUserRole(cachedUserRole)
+      if (cachedBuyerType) setBuyerType(cachedBuyerType)
+      if (cachedProducts.length > 0) setProducts(cachedProducts)
+      if (cachedRfqs.length > 0) setRfqs(cachedRfqs)
+      if (cachedOrders.length > 0) setOrders(cachedOrders)
+      
+      const hasCache = Boolean(storedRfqs && cachedUsername)
+      setLoading(!hasCache)
     }
-    return []
-  })
-  const [loading, setLoading] = useState(() => {
-    if (typeof window !== "undefined") {
-      return !(sessionStorage.getItem("rfq_rfqs") && sessionStorage.getItem("rfq_username"))
-    }
-    return true
-  })
+  }, [])
   const [message, setMessage] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [activeQuoteRfqId, setActiveQuoteRfqId] = useState<number | null>(null)
   const [selectedRfqId, setSelectedRfqId] = useState<number | null>(null)
   const [recentlyPublishedRfqId, setRecentlyPublishedRfqId] = useState<number | null>(null)
   const [expandedRfqIds, setExpandedRfqIds] = useState<number[]>([])
-  const [requestFilter, setRequestFilter] = useState<"all" | "my_rfqs" | "eligible" | VendorRfq["status"]>("all")
+  const [requestFilter, setRequestFilter] = useState<"all" | "my_rfqs" | "my_bids" | "eligible" | "my_orders" | VendorRfq["status"]>("all")
   const [hasActiveSub, setHasActiveSub] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [tenderTypeFilter, setTenderTypeFilter] = useState<"all" | VendorRfq["tender_type"]>("all")
@@ -370,12 +390,18 @@ function RfqPageContent() {
       }
 
       try {
-        const [rfqData, productData] = await Promise.all([getRfqs(), getProducts()])
+        const [rfqData, productData, orderData] = await Promise.all([
+          getRfqs(),
+          getProducts(),
+          getOrders().catch(() => []),
+        ])
         setRfqs(rfqData)
         setProducts(productData)
+        setOrders(orderData)
         
         sessionStorage.setItem("rfq_rfqs", JSON.stringify(rfqData))
         sessionStorage.setItem("rfq_products", JSON.stringify(productData))
+        sessionStorage.setItem("rfq_orders", JSON.stringify(orderData))
       } catch (error) {
         setMessage(getApiErrorMessage(error, "Could not load the RFQ workspace. Your login is still active; please refresh or try again."))
       } finally {
@@ -389,8 +415,11 @@ function RfqPageContent() {
   useEffect(() => {
     const interval = window.setInterval(async () => {
       try {
-        const data = hasAuthToken() ? await getRfqs() : await getPublicRfqs()
-        setRfqs(data)
+        const rfqPromise = hasAuthToken() ? getRfqs() : getPublicRfqs()
+        const orderPromise = hasAuthToken() ? getOrders().catch(() => []) : Promise.resolve([])
+        const [rfqData, orderData] = await Promise.all([rfqPromise, orderPromise])
+        setRfqs(rfqData)
+        setOrders(orderData)
       } catch {
         // Keep silent during background refresh.
       }
@@ -569,8 +598,15 @@ function RfqPageContent() {
   )
 
   const refreshRfqs = async () => {
-    const data = hasAuthToken() ? await getRfqs() : await getPublicRfqs()
-    setRfqs(data)
+    try {
+      const rfqPromise = hasAuthToken() ? getRfqs() : getPublicRfqs()
+      const orderPromise = hasAuthToken() ? getOrders().catch(() => []) : Promise.resolve([])
+      const [rfqData, orderData] = await Promise.all([rfqPromise, orderPromise])
+      setRfqs(rfqData)
+      setOrders(orderData)
+    } catch {
+      // Ignore background or user action refetch error
+    }
   }
 
   const startEditingRfq = (rfq: VendorRfq) => {
@@ -642,9 +678,10 @@ function RfqPageContent() {
   }
 
   const handleSaveRfq = async () => {
-    if (!hasAuthToken() || userRole !== "buyer") {
-      setMessage("Please login as a buyer to publish an RFQ.")
-      router.push("/login?next=%2Fbuyer%2Frfq")
+    if (!hasAuthToken() || (userRole !== "buyer" && userRole !== "supplier")) {
+      setMessage("Please login to publish an RFQ.")
+      const nextParam = encodeURIComponent(pathname)
+      router.push(`/login?next=${nextParam}`)
       return
     }
 
@@ -923,6 +960,30 @@ function RfqPageContent() {
     }
   }
   const baseRecords = userRole === "buyer" ? rfqs : userRole === "supplier" ? visibleSupplierRfqs : rfqs
+
+  const findSupplierQuote = (rfq: VendorRfq) => {
+    return rfq.quotations.find((quote) => {
+      const quoteVendorId = quote.supplier_vendor_id
+      if (supplierVendorProfile && quoteVendorId && quoteVendorId === supplierVendorProfile) return true
+      if (quote.supplier_name?.trim().toLowerCase() === username.trim().toLowerCase()) return true
+      if (supplierCompanyName && quote.supplier_company?.trim().toLowerCase() === supplierCompanyName.trim().toLowerCase()) return true
+      return false
+    })
+  }
+
+  const isMyOrderRfq = (rfq: VendorRfq) => {
+    if (!rfq.awarded_order_id) return false
+    if (userRole === "buyer") {
+      return rfq.buyer_name === username
+    }
+    if (userRole === "supplier") {
+      if (supplierVendorProfile && rfq.awarded_vendor_id === supplierVendorProfile) return true
+      const winningQuote = rfq.quotations.find((q) => q.id === rfq.awarded_quote_id)
+      return winningQuote ? isSupplierQuoteOwner(winningQuote) : false
+    }
+    return false
+  }
+
   const records = useMemo(
     () => {
       const filtered = baseRecords.filter((item) => {
@@ -931,10 +992,18 @@ function RfqPageContent() {
             ? true
             : requestFilter === "my_rfqs"
               ? item.buyer_name === username
-              : requestFilter === "eligible"
-                ? item.status === "open" && supplierListings.some((listing) => listing.product_type === item.product_type)
-                : item.status === requestFilter
+              : requestFilter === "my_bids"
+                ? findSupplierQuote(item) !== undefined
+                : requestFilter === "eligible"
+                  ? item.status === "open" && supplierListings.some((listing) => listing.product_type === item.product_type)
+                  : requestFilter === "my_orders"
+                    ? isMyOrderRfq(item)
+                    : item.status === requestFilter
         const matchesTenderType = tenderTypeFilter === "all" || item.tender_type === tenderTypeFilter
+        const matchesSupplier =
+          supplierFilter === "all" ||
+          item.quotations.some((q) => q.supplier_vendor_id === Number(supplierFilter)) ||
+          item.awarded_vendor_id === Number(supplierFilter)
         const normalizedQuery = searchQuery.trim().toLowerCase()
         const matchesQuery =
           normalizedQuery.length === 0 ||
@@ -943,7 +1012,7 @@ function RfqPageContent() {
           (item.buyer_company || item.buyer_name).toLowerCase().includes(normalizedQuery) ||
           item.delivery_location.toLowerCase().includes(normalizedQuery)
 
-        return matchesStatus && matchesTenderType && matchesQuery
+        return matchesStatus && matchesTenderType && matchesSupplier && matchesQuery
       })
 
       return [...filtered].sort((a, b) => {
@@ -958,7 +1027,7 @@ function RfqPageContent() {
         return b.id - a.id
       })
     },
-    [baseRecords, requestFilter, tenderTypeFilter, searchQuery, sortBy]
+    [baseRecords, requestFilter, tenderTypeFilter, supplierFilter, searchQuery, sortBy, username, supplierVendorProfile, supplierCompanyName]
   )
   const supplierCanQuote = supplierListings.length > 0
   const latestPublishedRfq =
@@ -969,24 +1038,21 @@ function RfqPageContent() {
   const isSupplierRoute = pathname?.startsWith("/supplier") || userRole === "supplier"
   const supplierRfqAuthNext = encodeURIComponent("/supplier/rfq")
 
-  const findSupplierQuote = (rfq: VendorRfq) => {
-    return rfq.quotations.find((quote) => {
-      const quoteVendorId = quote.supplier_vendor_id
-      if (supplierVendorProfile && quoteVendorId && quoteVendorId === supplierVendorProfile) return true
-      if (quote.supplier_name?.trim().toLowerCase() === username.trim().toLowerCase()) return true
-      if (supplierCompanyName && quote.supplier_company?.trim().toLowerCase() === supplierCompanyName.trim().toLowerCase()) return true
-      return false
-    })
-  }
-
-  const filterTabs: Array<{ key: "all" | "my_rfqs" | "eligible" | VendorRfq["status"]; label: string; count: number }> = [
+  const filterTabs: Array<{ key: "all" | "my_rfqs" | "my_bids" | "eligible" | "my_orders" | VendorRfq["status"]; label: string; count: number }> = [
     { key: "all", label: userRole === "buyer" ? "All RFQs" : "All Requests", count: baseRecords.length },
+    ...(userRole === "buyer"
+      ? [
+          { key: "my_rfqs" as const, label: "My RFQs", count: baseRecords.filter((item) => item.buyer_name === username).length }
+        ]
+      : []),
     ...(userRole === "supplier"
       ? [
-          { key: "my_rfqs" as const, label: "My Subcontracting", count: baseRecords.filter((item) => item.buyer_name === username).length },
+          { key: "my_rfqs" as const, label: "My RFQs (Subcontracted)", count: baseRecords.filter((item) => item.buyer_name === username).length },
+          { key: "my_bids" as const, label: "My Bids / Quoted", count: baseRecords.filter((item) => findSupplierQuote(item) !== undefined).length },
           { key: "eligible" as const, label: "Eligible to Bid", count: baseRecords.filter((item) => item.status === "open" && supplierListings.some((listing) => listing.product_type === item.product_type)).length }
         ]
       : []),
+    { key: "my_orders" as const, label: "My Orders", count: baseRecords.filter((item) => isMyOrderRfq(item)).length },
     { key: "open", label: "Open", count: baseRecords.filter((item) => item.status === "open").length },
     { key: "under_review", label: "Under Review", count: baseRecords.filter((item) => item.status === "under_review").length },
     { key: "closed", label: "Closed", count: baseRecords.filter((item) => item.status === "closed").length },
@@ -1117,7 +1183,7 @@ function RfqPageContent() {
                         {rfqForm.tender_document ? (
                           <div className="mt-2 flex items-center gap-2">
                             <span className="text-xs font-bold text-emerald-700 flex items-center gap-1">
-                              <CheckCircle className="h-4 w-4 text-emerald-650" />
+                              <CheckCircle className="h-4 w-4 text-emerald-600" />
                               <span>Selected: {rfqForm.tender_document.name}</span>
                             </span>
                             <button
@@ -1166,7 +1232,7 @@ function RfqPageContent() {
                           onChange={(event) =>
                             setRfqForm((prev) => ({
                               ...prev,
-                              tender_type: event.target.value as "open" | "limited" | "reverse",
+                              tender_type: event.target.value as "open" | "limited",
                               invited_vendors:
                                 event.target.value === "limited" ? prev.invited_vendors : [],
                             }))
@@ -1175,7 +1241,6 @@ function RfqPageContent() {
                         >
                           <option value="open">Open Bidding (All Suppliers)</option>
                           <option value="limited">Limited Bidding (Shortlisted Only)</option>
-                          <option value="reverse">Reverse Auction</option>
                         </select>
                       </label>
 
@@ -1195,7 +1260,7 @@ function RfqPageContent() {
                           <Tag className="h-4 w-4 text-slate-500" />
                           <span>Commercial Term Bidding</span>
                         </p>
-                        <p className="mt-1 leading-relaxed text-slate-550 font-semibold">
+                        <p className="mt-1 leading-relaxed text-slate-500 font-semibold">
                           Prices will be collected from supplier quotations. Budget estimate cap is not required to publish.
                         </p>
                       </div>
@@ -1251,7 +1316,7 @@ function RfqPageContent() {
                             onClick={setAllVendorsOption}
                             className={`rounded-xl border px-4 py-2 text-xs font-bold transition cursor-pointer ${rfqForm.tender_type === "open" && rfqForm.invited_vendors.length === 0
                               ? "border-blue-600 bg-blue-50 text-blue-700 shadow-sm shadow-blue-500/5"
-                              : "border-slate-200 bg-white text-slate-750 hover:bg-slate-50"
+                              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                               }`}
                           >
                             All Registered Suppliers
@@ -1270,7 +1335,7 @@ function RfqPageContent() {
                                 onClick={() => handleVendorToggle(vendor.vendor_id)}
                                 className={`rounded-xl border p-3 text-left text-xs transition cursor-pointer flex flex-col justify-between ${selected
                                   ? "border-blue-600 bg-blue-50/40 text-blue-700 shadow-sm"
-                                  : "border-slate-200 bg-white text-slate-750 hover:bg-slate-50"
+                                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                                   }`}
                               >
                                 <p className="font-bold text-slate-800">{vendor.vendor_name}</p>
@@ -1290,7 +1355,7 @@ function RfqPageContent() {
                           </div>
                         ) : null}
                         {rfqForm.tender_type === "limited" && vendorDirectory.length === 0 ? (
-                          <div className="rounded-xl border border-amber-250 bg-amber-50 p-3 text-xs text-amber-800 mt-2 flex items-center gap-2">
+                          <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800 mt-2 flex items-center gap-2">
                             <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
                             <span>No supplier listings are available yet. Limited shortlists require active suppliers.</span>
                           </div>
@@ -1315,19 +1380,23 @@ function RfqPageContent() {
                               ? `Publish to ${rfqForm.invited_vendors.length} Vendor${rfqForm.invited_vendors.length > 1 ? "s" : ""}`
                               : "Publish Procurement Request"}
                       </button>
-                      {editingRfqId ? (
-                        <button
-                          type="button"
-                          onClick={cancelEditingRfq}
-                          className="rounded-xl border border-slate-250 bg-white md:hover:bg-slate-50 px-5 py-3 text-xs font-bold text-slate-700 transition cursor-pointer"
-                        >
-                          Cancel Edit
-                        </button>
-                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (editingRfqId) {
+                            cancelEditingRfq()
+                          } else {
+                            router.push(pathname)
+                          }
+                        }}
+                        className="rounded-xl border border-slate-300 bg-white md:hover:bg-slate-50 px-5 py-3 text-xs font-bold text-slate-700 transition cursor-pointer"
+                      >
+                        Cancel
+                      </button>
                     </div>
 
                     {latestPublishedRfq ? (
-                      <div className="mt-4 rounded-xl border border-emerald-250 bg-emerald-50/40 p-4 text-xs text-emerald-800">
+                      <div className="mt-4 rounded-xl border border-emerald-300 bg-emerald-50/40 p-4 text-xs text-emerald-800">
                         <p className="font-bold flex items-center gap-1 text-emerald-900">
                           <CheckCircle className="h-4 w-4 text-emerald-650" />
                           <span>Latest Published RFQ</span>
@@ -1347,14 +1416,14 @@ function RfqPageContent() {
                               href={latestPublishedRfq.tender_document_url}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex text-xs font-bold text-emerald-850 hover:underline"
+                              className="inline-flex text-xs font-bold text-emerald-800 hover:underline"
                             >
                               View Tender Document
                             </a>
                             <a
                               href={latestPublishedRfq.tender_document_url}
                               download={latestPublishedRfq.tender_document_name || `rfq-${latestPublishedRfq.id}.pdf`}
-                              className="inline-flex text-xs font-bold text-emerald-850 hover:underline"
+                              className="inline-flex text-xs font-bold text-emerald-800 hover:underline"
                             >
                               Download Document
                             </a>
@@ -1376,6 +1445,9 @@ function RfqPageContent() {
               ) : null}
 
               {(() => {
+                if (showCreateForm) {
+                  return null
+                }
                 const selectedRfq = selectedRfqId !== null ? rfqs.find((r) => r.id === selectedRfqId) : null
                 if (selectedRfqId !== null && selectedRfq) {
                   return (
@@ -1410,6 +1482,7 @@ function RfqPageContent() {
                       startEditingQuotation={startEditingQuotation}
                       message={message}
                       setMessage={setMessage}
+                      orders={orders}
                     />
                   )
                 }
@@ -1438,9 +1511,9 @@ function RfqPageContent() {
                         <span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 border border-blue-100 shadow-sm">
                           {loading ? "Loading..." : `${records.length} RFQs`}
                         </span>
-                        {userRole === "buyer" && !showCreateForm && (
+                        {(userRole === "buyer" || userRole === "supplier") && !showCreateForm && (
                           <Link
-                            href="/buyer/rfq?view=new"
+                            href={userRole === "buyer" ? "/buyer/rfq?view=new" : "/supplier/rfq?view=new"}
                             className="flex items-center gap-2 rounded-xl bg-blue-600 md:hover:bg-blue-700 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-500/10 transition duration-150 active:scale-95"
                           >
                             <Plus className="h-4 w-4" />
@@ -1474,16 +1547,15 @@ function RfqPageContent() {
                         </div>
 
                         {/* Segmented Tender Type Tabs, Search, and Sorting Row */}
-                        <div className="grid gap-4 lg:grid-cols-[auto_1fr_auto] items-center pt-3.5 border-t border-slate-100">
+                        <div className="grid gap-4 lg:grid-cols-[auto_auto_1fr_auto] items-center pt-3.5 border-t border-slate-100">
                           {/* Segmented Tender Mode Selection */}
                           <div className="flex flex-wrap items-center gap-2 bg-slate-50 border border-slate-200 p-1.5 rounded-xl w-full lg:w-fit">
-                            <span className="text-[10px] font-bold text-slate-450 uppercase tracking-wider pl-1.5">Format:</span>
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider pl-1.5">Format:</span>
                             <div className="flex flex-wrap gap-1">
                               {[
                                 { key: "all", label: "All" },
                                 { key: "open", label: "Open Market" },
                                 { key: "limited", label: "Limited" },
-                                { key: "reverse", label: "Reverse Auction" },
                               ].map((type) => {
                                 const isActive = tenderTypeFilter === type.key
                                 return (
@@ -1501,6 +1573,23 @@ function RfqPageContent() {
                                 )
                               })}
                             </div>
+                          </div>
+
+                          {/* Filter by Bidder Dropdown */}
+                          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 p-1.5 rounded-xl w-full lg:w-fit">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider pl-1.5">Bidder:</span>
+                            <select
+                              value={supplierFilter}
+                              onChange={(event) => setSupplierFilter(event.target.value)}
+                              className="text-xs font-bold bg-white border border-slate-200 rounded-lg px-2.5 py-1 outline-none focus:border-blue-500 transition cursor-pointer text-slate-700 max-w-[160px] truncate"
+                            >
+                              <option value="all">All Bidders</option>
+                              {vendorDirectory.map((vendor) => (
+                                <option key={vendor.vendor_id} value={vendor.vendor_id}>
+                                  {vendor.vendor_name}
+                                </option>
+                              ))}
+                            </select>
                           </div>
 
                           {/* Search input field */}
@@ -1553,9 +1642,9 @@ function RfqPageContent() {
                     <div className="mt-4 space-y-4">
                       {!loading && records.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16 gap-3 rounded-2xl border border-slate-200 bg-white shadow-sm text-center">
-                          <Inbox className="h-10 w-10 text-slate-355" />
-                          <h3 className="text-sm font-bold text-slate-805">No Procurement Requests</h3>
-                          <p className="text-xs text-slate-450 max-w-xs leading-normal">We couldn't find any RFQs matching your search query or status filter.</p>
+                          <Inbox className="h-10 w-10 text-slate-400" />
+                          <h3 className="text-sm font-bold text-slate-800">No Procurement Requests</h3>
+                          <p className="text-xs text-slate-400 max-w-xs leading-normal">We couldn't find any RFQs matching your search query or status filter.</p>
                         </div>
                       ) : null}
 
@@ -1618,12 +1707,7 @@ function RfqPageContent() {
                                       )}
                                     </>
                                   )}
-                                  {rfq.tender_type === "reverse" && rfq.status === "open" && (
-                                    <span className="flex items-center gap-1 bg-rose-650 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full animate-pulse">
-                                      <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" />
-                                      Live Auction
-                                    </span>
-                                  )}
+
                                 </div>
                                 <p className="mt-2 text-xs text-slate-500 line-clamp-2 leading-relaxed">
                                   {rfq.description}
@@ -1645,7 +1729,7 @@ function RfqPageContent() {
                                         <Link
                                           href={`/supplier/messages?partner_id=${rfq.buyer_user_id}`}
                                           onClick={(e) => e.stopPropagation()}
-                                          className="inline-flex items-center gap-0.5 text-[9px] font-bold text-indigo-650 md:hover:text-indigo-800 transition ml-1 px-1.5 py-0.2 bg-indigo-50 md:hover:bg-indigo-100 rounded align-middle shrink-0"
+                                          className="inline-flex items-center gap-0.5 text-[9px] font-bold text-indigo-600 md:hover:text-indigo-800 transition ml-1 px-1.5 py-0.2 bg-indigo-50 md:hover:bg-indigo-100 rounded align-middle shrink-0"
                                           title={`Chat with ${rfq.buyer_company || rfq.buyer_name}`}
                                         >
                                           <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1660,6 +1744,24 @@ function RfqPageContent() {
                                     <FileSpreadsheet className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                                     <span className="text-[11px]">Offers: <strong className="text-slate-600">{rfq.quotations.length} received</strong></span>
                                   </span>
+                                  {rfq.status === "awarded" && rfq.awarded_order_id && (() => {
+                                    const matchingOrder = orders.find(o => o.id === rfq.awarded_order_id);
+                                    const orderStatus = matchingOrder ? orderStatusLabel(matchingOrder) : null;
+                                    return (
+                                      <span className="flex items-center gap-1.5">
+                                        <CheckCircle className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                                        <Link
+                                          href={`/${userRole}/orders/${rfq.awarded_order_id}`}
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-700 hover:text-emerald-900 transition bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/50 px-2 py-0.5 rounded shadow-sm"
+                                          title="View Linked Order Details"
+                                        >
+                                          Order: HL-ORD-{String(rfq.awarded_order_id).padStart(4, "0")}
+                                          {orderStatus && ` (${orderStatus})`}
+                                        </Link>
+                                      </span>
+                                    );
+                                  })()}
                                 </div>
                               </div>
 
@@ -1701,7 +1803,7 @@ function RfqPageContent() {
                                       Submit Bid
                                     </button>
                                   )}
-                                  <div className="flex items-center justify-center w-full md:w-auto px-4 py-2.5 md:py-1.5 rounded-xl border border-blue-200 bg-blue-50 text-blue-750 md:hover:bg-blue-105 transition duration-150 text-xs md:text-[10px] font-bold md:font-black uppercase tracking-wider text-center active:scale-95">
+                                  <div className="flex items-center justify-center w-full md:w-auto px-4 py-2.5 md:py-1.5 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 md:hover:bg-blue-100 transition duration-150 text-xs md:text-[10px] font-bold md:font-black uppercase tracking-wider text-center active:scale-95 cursor-pointer">
                                     View Details &rarr;
                                   </div>
                                 </div>

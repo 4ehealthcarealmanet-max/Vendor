@@ -86,40 +86,34 @@ function ProductsPageContent() {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [products, setProducts] = useState<VendorProductService[]>(() => {
-    if (typeof window !== "undefined") {
-      const cached = sessionStorage.getItem("catalog_products")
-      if (cached) {
-        try { return JSON.parse(cached) } catch { return [] }
-      }
-    }
-    return []
-  })
-  const [isLoading, setIsLoading] = useState(() => {
-    if (typeof window !== "undefined") {
-      return !sessionStorage.getItem("catalog_products")
-    }
-    return true
-  })
+  const [products, setProducts] = useState<VendorProductService[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [username, setUsername] = useState<string>(() => {
+  const [username, setUsername] = useState<string>("")
+  const [userRole, setUserRole] = useState<"supplier" | "buyer" | "admin" | "">("")
+  const [buyerType, setBuyerType] = useState<string>("")
+
+  useEffect(() => {
     if (typeof window !== "undefined") {
-      return sessionStorage.getItem("catalog_username") || ""
+      const cachedUsername = sessionStorage.getItem("catalog_username") || ""
+      const cachedUserRole = (sessionStorage.getItem("catalog_user_role") as any) || ""
+      const cachedBuyerType = sessionStorage.getItem("catalog_buyer_type") || ""
+      
+      let cachedProducts: VendorProductService[] = []
+      const storedProducts = sessionStorage.getItem("catalog_products")
+      if (storedProducts) {
+        try { cachedProducts = JSON.parse(storedProducts) } catch {}
+      }
+
+      if (cachedUsername) setUsername(cachedUsername)
+      if (cachedUserRole) setUserRole(cachedUserRole)
+      if (cachedBuyerType) setBuyerType(cachedBuyerType)
+      if (cachedProducts.length > 0) setProducts(cachedProducts)
+
+      const hasCache = Boolean(storedProducts)
+      setIsLoading(!hasCache)
     }
-    return ""
-  })
-  const [userRole, setUserRole] = useState<"supplier" | "buyer" | "admin" | "">(() => {
-    if (typeof window !== "undefined") {
-      return (sessionStorage.getItem("catalog_user_role") as any) || ""
-    }
-    return ""
-  })
-  const [buyerType, setBuyerType] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      return sessionStorage.getItem("catalog_buyer_type") || ""
-    }
-    return ""
-  })
+  }, [])
   const [editingProductId, setEditingProductId] = useState<number | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<VendorProductService | null>(null)
   const [updating, setUpdating] = useState(false)

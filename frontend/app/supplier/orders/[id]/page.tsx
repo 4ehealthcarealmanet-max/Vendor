@@ -16,6 +16,9 @@ import {
   isAuthSessionError,
   logoutUser,
   updateOrderTracking,
+  confirmPayment,
+  makeDummyPayment,
+  markOrderReceived,
 } from "@/services"
 import type { VendorOrder, VendorProductService } from "@/services"
 
@@ -78,6 +81,24 @@ const statusChipClass = (order: VendorOrder) => {
   if (bucket === "in_progress") return "bg-amber-50 text-amber-700 border-amber-100"
   return "bg-slate-50 text-slate-650 border-slate-100"
 }
+
+const paymentStatusLabel = (status: VendorOrder["payment_status"]) => {
+  if (status === "payment_requested") return "Payment Requested"
+  if (status === "partially_paid") return "Partially Paid"
+  return readable(status)
+}
+
+const paymentStatusChipClass = (status: VendorOrder["payment_status"]) => {
+  if (status === "paid") return "bg-emerald-100 text-emerald-800 border-emerald-200"
+  if (status === "partially_paid") return "bg-blue-100 text-blue-800 border-blue-200"
+  if (status === "payment_requested") return "bg-purple-100 text-purple-800 border-purple-200"
+  if (status === "overdue") return "bg-rose-100 text-rose-800 border-rose-200"
+  return "bg-amber-100 text-amber-800 border-amber-200" // pending
+}
+
+
+const canMarkReceived = (order: VendorOrder) =>
+  order.delivery_status === "delivered" && order.status !== "goods_received" && order.status !== "completed"
 
 const nextTrackingPayload = (order: VendorOrder): Partial<Pick<VendorOrder, "status" | "delivery_status" | "tracking_note">> | null => {
   if (order.status === "po_accepted") return { status: "processing", delivery_status: "loaded", tracking_note: "Order is being processed by supplier." }
@@ -246,6 +267,36 @@ export default function SupplierOrderDetailPage() {
     }
   }
 
+  const handleConfirmPayment = async () => {
+    if (!order) return
+    try {
+      setUpdatingOrderId(order.id)
+      setFeedback("")
+      const updated = await confirmPayment(order.id)
+      setOrder(updated)
+      setFeedback(`Payment receipt confirmed for Order HL-ORD-${updated.id}.`)
+    } catch (error) {
+      setFeedback(getApiErrorMessage(error, "Could not confirm payment receipt."))
+    } finally {
+      setUpdatingOrderId(null)
+    }
+  }
+
+  const handleMarkPaid = async () => {
+    if (!order) return
+    try {
+      setUpdatingOrderId(order.id)
+      setFeedback("")
+      const updated = await makeDummyPayment(order.id)
+      setOrder(updated)
+      setFeedback(`Payment recorded. Waiting for supplier verification.`)
+    } catch (error) {
+      setFeedback(getApiErrorMessage(error, "Could not request payment verification."))
+    } finally {
+      setUpdatingOrderId(null)
+    }
+  }
+
   const handleSubcontract = async () => {
     if (!order) return
     if (!Number.isInteger(shortageQuantity) || shortageQuantity < 1) {
@@ -330,9 +381,14 @@ export default function SupplierOrderDetailPage() {
             </div>
             <div className="flex items-center gap-3 shrink-0">
               {order && (
-                <span className={`rounded-full border px-4 py-1.5 text-xs font-extrabold uppercase shadow-sm tracking-wider ${statusChipClass(order)}`}>
-                  Status: {orderStatusLabel(order)}
-                </span>
+                <>
+                  <span className={`rounded-full border px-4 py-1.5 text-xs font-extrabold uppercase shadow-sm tracking-wider ${statusChipClass(order)}`}>
+                    Status: {orderStatusLabel(order)}
+                  </span>
+                  <span className={`rounded-full border px-4 py-1.5 text-xs font-extrabold uppercase shadow-sm tracking-wider ${paymentStatusChipClass(order.payment_status)}`}>
+                    Payment: {paymentStatusLabel(order.payment_status)}
+                  </span>
+                </>
               )}
             </div>
           </div>
@@ -599,7 +655,7 @@ export default function SupplierOrderDetailPage() {
                   </h3>
 
                   <div className="space-y-2.5">
-                    {nextActionLabel(order) ? (
+                    {nextActionLabel(order) && (order.vendor_user_id === userId || order.buyer !== userId) ? (
                       <button
                         type="button"
                         onClick={moveOrderForward}
@@ -610,6 +666,61 @@ export default function SupplierOrderDetailPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                         </svg>
                         {updatingOrderId === order.id ? "Updating..." : nextActionLabel(order).toUpperCase()}
+                      </button>
+                    ) : null}
+
+                    {order.payment_status === "payment_requested" && (order.vendor_user_id === userId || order.buyer !== userId) ? (
+                      <button
+                        type="button"
+                        onClick={handleConfirmPayment}
+                        disabled={updatingOrderId === order.id}
+                        className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 py-3 text-xs font-black text-white cursor-pointer transition shadow-md hover:shadow-emerald-500/10 active:scale-[0.98] flex items-center justify-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {updatingOrderId === order.id ? "Updating..." : "CONFIRM PAYMENT"}
+                      </button>
+                    ) : null}
+
+                    {order.payment_status !== "paid" && order.payment_status !== "payment_requested" && order.buyer === userId ? (
+                      <button
+                        type="button"
+                        onClick={handleMarkPaid}
+                        disabled={updatingOrderId === order.id}
+                        className="w-full rounded-xl bg-purple-600 hover:bg-purple-700 py-3 text-xs font-black text-white cursor-pointer transition shadow-md hover:shadow-purple-500/10 active:scale-[0.98] flex items-center justify-center gap-2"
+                      >
+                        <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 8h6m-6 4h6m-6 4h6M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />
+                        </svg>
+                        {updatingOrderId === order.id ? "Updating..." : "MARK AS PAID"}
+                      </button>
+                    ) : null}
+
+                    {order.buyer === userId && canMarkReceived(order) ? (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!order) return
+                          try {
+                            setUpdatingOrderId(order.id)
+                            setFeedback("")
+                            const updated = await markOrderReceived(order.id)
+                            setOrder(updated)
+                            setFeedback(`Order HL-ORD-${updated.id} marked as goods received.`)
+                          } catch (error) {
+                            setFeedback(getApiErrorMessage(error, "Could not mark goods as received."))
+                          } finally {
+                            setUpdatingOrderId(null)
+                          }
+                        }}
+                        disabled={updatingOrderId === order.id}
+                        className="w-full rounded-xl border border-emerald-250 bg-emerald-50 hover:bg-emerald-100 py-3 text-xs font-black text-emerald-700 transition active:scale-[0.98] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                        {updatingOrderId === order.id ? "Updating..." : "MARK GOODS AS RECEIVED"}
                       </button>
                     ) : null}
 
@@ -627,7 +738,7 @@ export default function SupplierOrderDetailPage() {
                 </div>
 
                 {/* Subcontract support card */}
-                {canSubcontract(order, products) ? (
+                {order.vendor_user_id === userId && canSubcontract(order, products) ? (
                   <div className="rounded-2xl border border-[#dbe4ef] bg-[#f8fbff] p-5 shadow-[0_4px_24px_rgba(15,23,42,0.02)] space-y-4">
                     <h3 className="text-xs font-black uppercase tracking-[0.14em] text-slate-500 border-b border-slate-100 pb-2 flex items-center gap-2">
                       <svg className="w-4 h-4 text-slate-650" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -677,6 +788,10 @@ export default function SupplierOrderDetailPage() {
                       <span className="text-slate-800 font-bold capitalize">{readable(order.delivery_status)}</span>
                     </div>
                     <div className="py-2.5 flex justify-between">
+                      <span className="text-slate-400 font-medium">Payment Status:</span>
+                      <span className="text-slate-800 font-bold capitalize">{readable(order.payment_status)}</span>
+                    </div>
+                    <div className="py-2.5 flex justify-between">
                       <span className="text-slate-400 font-medium">Tracking Note:</span>
                       <span className="text-slate-700 text-right max-w-[150px] truncate block font-bold" title={order.tracking_note || ""}>
                         {order.tracking_note || "-"}
@@ -699,30 +814,36 @@ export default function SupplierOrderDetailPage() {
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
-                    Buyer Details
+                    {order.buyer === userId ? "Supplier Details" : "Buyer Details"}
                   </h3>
 
                   <div className="space-y-3.5">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm shrink-0 border border-blue-100">
-                        {order.buyer_username?.slice(0, 2).toUpperCase() || "BY"}
+                        {order.buyer === userId
+                          ? (order.vendor_name?.slice(0, 2).toUpperCase() || "SP")
+                          : (order.buyer_username?.slice(0, 2).toUpperCase() || "BY")}
                       </div>
                       <div className="min-w-0">
                         <h4 className="text-xs font-extrabold text-slate-800 truncate">
-                          {order.buyer_username || `Buyer #${order.buyer}`}
+                          {order.buyer === userId
+                            ? (order.vendor_name || `Supplier #${order.vendor}`)
+                            : (order.buyer_username || `Buyer #${order.buyer}`)}
                         </h4>
-                        <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Procurement Client</p>
+                        <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                          {order.buyer === userId ? "Subcontracted Supplier" : "Procurement Client"}
+                        </p>
                       </div>
                     </div>
 
                     <Link
-                      href={`/supplier/messages?partner_id=${order.buyer}`}
+                      href={`/supplier/messages?partner_id=${order.buyer === userId ? order.vendor_user_id : order.buyer}`}
                       className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 py-2.5 text-xs font-extrabold text-slate-700 transition active:scale-[0.98] shadow-sm cursor-pointer"
                     >
                       <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-slate-500" fill="none" stroke="currentColor" strokeWidth="1.8">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                       </svg>
-                      Open Chat with Buyer
+                      Open Chat with {order.buyer === userId ? "Supplier" : "Buyer"}
                     </Link>
                   </div>
                 </div>

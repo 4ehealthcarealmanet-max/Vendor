@@ -20,6 +20,8 @@ import {
   logoutUser,
   reorderFromOrder,
   updateOrderTracking,
+  confirmPayment,
+  makeDummyPayment,
 } from "@/services"
 import type { VendorOrder, VendorProductService } from "@/services"
 
@@ -82,6 +84,21 @@ const statusChipClass = (order: VendorOrder) => {
   if (bucket === "in_progress") return "bg-[#eef4ff] text-[#2459c4]"
   return "bg-[#f3f7ff] text-[#3b5fb8]"
 }
+
+const paymentStatusLabel = (status: VendorOrder["payment_status"]) => {
+  if (status === "payment_requested") return "Payment Requested"
+  if (status === "partially_paid") return "Partially Paid"
+  return readable(status)
+}
+
+const paymentStatusChipClass = (status: VendorOrder["payment_status"]) => {
+  if (status === "paid") return "bg-emerald-100 text-emerald-800"
+  if (status === "partially_paid") return "bg-blue-100 text-blue-800"
+  if (status === "payment_requested") return "bg-purple-100 text-purple-800"
+  if (status === "overdue") return "bg-rose-100 text-rose-800"
+  return "bg-amber-100 text-amber-800" // pending
+}
+
 
 const nextTrackingPayload = (order: VendorOrder): Partial<Pick<VendorOrder, "status" | "delivery_status" | "tracking_note">> | null => {
   if (order.status === "po_accepted") return { status: "processing", delivery_status: "loaded", tracking_note: "Order is being processed by supplier." }
@@ -185,62 +202,52 @@ const printOrderPdf = (order: VendorOrder, products: VendorProductService[]) => 
 export default function OrderPage() {
   const pathname = usePathname()
   const router = useRouter()
-  const [products, setProducts] = useState<VendorProductService[]>(() => {
-    if (typeof window !== "undefined") {
-      const cached = sessionStorage.getItem("orders_products")
-      if (cached) {
-        try { return JSON.parse(cached) } catch { return [] }
-      }
-    }
-    return []
-  })
-  const [orders, setOrders] = useState<VendorOrder[]>(() => {
-    if (typeof window !== "undefined") {
-      const cached = sessionStorage.getItem("orders_list")
-      if (cached) {
-        try { return JSON.parse(cached) } catch { return [] }
-      }
-    }
-    return []
-  })
-  const [userId, setUserId] = useState<number | null>(() => {
-    if (typeof window !== "undefined") {
-      const cached = sessionStorage.getItem("orders_user_id")
-      return cached ? Number(cached) : null
-    }
-    return null
-  })
-  const [username, setUsername] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      return sessionStorage.getItem("orders_username") || ""
-    }
-    return ""
-  })
-  const [userRole, setUserRole] = useState<"supplier" | "buyer" | "admin" | "">(() => {
-    if (typeof window !== "undefined") {
-      return (sessionStorage.getItem("orders_user_role") as any) || ""
-    }
-    return ""
-  })
-  const [buyerType, setBuyerType] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      return sessionStorage.getItem("orders_buyer_type") || ""
-    }
-    return ""
-  })
+  const [products, setProducts] = useState<VendorProductService[]>([])
+  const [orders, setOrders] = useState<VendorOrder[]>([])
+  const [userId, setUserId] = useState<number | null>(null)
+  const [username, setUsername] = useState<string>("")
+  const [userRole, setUserRole] = useState<"supplier" | "buyer" | "admin" | "">("")
+  const [buyerType, setBuyerType] = useState<string>("")
   const [feedback, setFeedback] = useState<string>("")
   const [orderFilter, setOrderFilter] = useState<SupplierOrderFilter>("all")
   const [orderSearch, setOrderSearch] = useState("")
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null)
   const [shortageQuantity, setShortageQuantity] = useState<number>(1)
+  const [supplierRoleFilter, setSupplierRoleFilter] = useState<"all" | "supplying" | "buying">("all")
   const [hasActiveSub, setHasActiveSub] = useState(true)
-  const [loading, setLoading] = useState(() => {
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
     if (typeof window !== "undefined") {
-      return !(sessionStorage.getItem("orders_products") && sessionStorage.getItem("orders_list") && sessionStorage.getItem("orders_username"))
+      const cachedUsername = sessionStorage.getItem("orders_username") || ""
+      const cachedUserRole = (sessionStorage.getItem("orders_user_role") as any) || ""
+      const cachedBuyerType = sessionStorage.getItem("orders_buyer_type") || ""
+      const cachedUserId = sessionStorage.getItem("orders_user_id")
+
+      let cachedProducts: VendorProductService[] = []
+      const storedProducts = sessionStorage.getItem("orders_products")
+      if (storedProducts) {
+        try { cachedProducts = JSON.parse(storedProducts) } catch {}
+      }
+
+      let cachedOrders: VendorOrder[] = []
+      const storedOrders = sessionStorage.getItem("orders_list")
+      if (storedOrders) {
+        try { cachedOrders = JSON.parse(storedOrders) } catch {}
+      }
+
+      if (cachedUsername) setUsername(cachedUsername)
+      if (cachedUserRole) setUserRole(cachedUserRole)
+      if (cachedBuyerType) setBuyerType(cachedBuyerType)
+      if (cachedUserId) setUserId(Number(cachedUserId))
+      if (cachedProducts.length > 0) setProducts(cachedProducts)
+      if (cachedOrders.length > 0) setOrders(cachedOrders)
+
+      const hasCache = Boolean(storedProducts && storedOrders && cachedUsername)
+      setLoading(!hasCache)
     }
-    return true
-  })
+  }, [])
 
   useEffect(() => {
     const loadData = async () => {
@@ -306,23 +313,39 @@ export default function OrderPage() {
   const isSupplierRoute = pathname?.startsWith("/supplier") || userRole === "supplier"
   const userOrders = useMemo(() => {
     if (userRole === "buyer") return orders.filter((order) => order.buyer === userId)
-    if (userRole === "supplier") return orders.filter((order) => order.vendor_user_id === userId)
+    if (userRole === "supplier") {
+      return orders.filter((order) => order.vendor_user_id === userId || order.buyer === userId)
+    }
     return orders
   }, [orders, userId, userRole])
-  const selectedOrder = useMemo(() => userOrders.find((order) => order.id === selectedOrderId) ?? null, [userOrders, selectedOrderId])
+
+  const roleFilteredOrders = useMemo(() => {
+    if (userRole !== "supplier") return userOrders
+    if (supplierRoleFilter === "supplying") {
+      return userOrders.filter((order) => order.vendor_user_id === userId)
+    }
+    if (supplierRoleFilter === "buying") {
+      return userOrders.filter((order) => order.buyer === userId)
+    }
+    return userOrders
+  }, [userOrders, supplierRoleFilter, userRole, userId])
+
+  const selectedOrder = useMemo(() => roleFilteredOrders.find((order) => order.id === selectedOrderId) ?? null, [roleFilteredOrders, selectedOrderId])
+
   const orderTabs: Array<{ key: SupplierOrderFilter; label: string; count: number }> = useMemo(
     () => [
-      { key: "all", label: "All Orders", count: userOrders.length },
-      { key: "pending", label: "Pending", count: userOrders.filter((order) => orderBucket(order) === "pending").length },
-      { key: "in_progress", label: "In Progress", count: userOrders.filter((order) => orderBucket(order) === "in_progress").length },
-      { key: "shipped", label: "Shipped", count: userOrders.filter((order) => orderBucket(order) === "shipped").length },
-      { key: "completed", label: "Completed", count: userOrders.filter((order) => orderBucket(order) === "completed").length },
+      { key: "all", label: "All Orders", count: roleFilteredOrders.length },
+      { key: "pending", label: "Pending", count: roleFilteredOrders.filter((order) => orderBucket(order) === "pending").length },
+      { key: "in_progress", label: "In Progress", count: roleFilteredOrders.filter((order) => orderBucket(order) === "in_progress").length },
+      { key: "shipped", label: "Shipped", count: roleFilteredOrders.filter((order) => orderBucket(order) === "shipped").length },
+      { key: "completed", label: "Completed", count: roleFilteredOrders.filter((order) => orderBucket(order) === "completed").length },
     ],
-    [userOrders]
+    [roleFilteredOrders]
   )
+
   const filteredOrders = useMemo(() => {
     const query = orderSearch.trim().toLowerCase()
-    return userOrders.filter((order) => {
+    return roleFilteredOrders.filter((order) => {
       const matchesFilter = orderFilter === "all" || orderBucket(order) === orderFilter
       const searchable = [
         `HL-ORD-${order.id}`,
@@ -333,8 +356,11 @@ export default function OrderPage() {
         `Vendor #${order.vendor}`,
         order.buyer_type || "",
         order.status,
+        orderStatusLabel(order),
         order.delivery_status,
+        readable(order.delivery_status),
         order.payment_status,
+        paymentStatusLabel(order.payment_status),
         order.tracking_note,
         orderProductSummary(order, products),
       ]
@@ -342,7 +368,7 @@ export default function OrderPage() {
         .toLowerCase()
       return matchesFilter && (!query || searchable.includes(query))
     })
-  }, [orderFilter, orderSearch, userOrders, products])
+  }, [orderFilter, orderSearch, roleFilteredOrders, products])
   const moveOrderForward = async (order: VendorOrder) => {
     try {
       setUpdatingOrderId(order.id)
@@ -389,6 +415,24 @@ export default function OrderPage() {
       () => markOrderReceived(order.id),
       (updated) => `Order HL-ORD-${updated.id} marked as goods received.`,
       "Could not mark goods as received."
+    )
+  }
+
+  const handleMakePayment = async (order: VendorOrder) => {
+    await runOrderMutation(
+      order,
+      () => makeDummyPayment(order.id),
+      (updated) => `Payment recorded. Waiting for supplier verification.`,
+      "Could not request payment verification."
+    )
+  }
+
+  const handleConfirmPayment = async (order: VendorOrder) => {
+    await runOrderMutation(
+      order,
+      () => confirmPayment(order.id),
+      (updated) => `Payment receipt confirmed for Order HL-ORD-${updated.id}.`,
+      "Could not confirm payment receipt."
     )
   }
 
@@ -510,7 +554,7 @@ export default function OrderPage() {
                     <div className="min-w-0">
                       <p className="text-[9px] sm:text-[10px] font-extrabold text-slate-400 uppercase tracking-wider truncate">Total Volume</p>
                       <h3 className="text-sm sm:text-base lg:text-lg font-black text-slate-800 mt-0.5 truncate">
-                        {money(userOrders.reduce((sum, o) => sum + toNumber(o.total_amount), 0))}
+                        {money(roleFilteredOrders.reduce((sum, o) => sum + toNumber(o.total_amount), 0))}
                       </h3>
                     </div>
                   </div>
@@ -526,7 +570,7 @@ export default function OrderPage() {
                     <div className="min-w-0">
                       <p className="text-[9px] sm:text-[10px] font-extrabold text-slate-400 uppercase tracking-wider truncate">Active Ops</p>
                       <h3 className="text-sm sm:text-base lg:text-lg font-black text-slate-800 mt-0.5 truncate">
-                        {userOrders.filter(o => ["in_progress", "shipped"].includes(orderBucket(o))).length} Orders
+                        {roleFilteredOrders.filter(o => ["in_progress", "shipped"].includes(orderBucket(o))).length} Orders
                       </h3>
                     </div>
                   </div>
@@ -542,7 +586,7 @@ export default function OrderPage() {
                     <div className="min-w-0">
                       <p className="text-[9px] sm:text-[10px] font-extrabold text-slate-400 uppercase tracking-wider truncate">New POs</p>
                       <h3 className="text-sm sm:text-base lg:text-lg font-black text-slate-800 mt-0.5 truncate">
-                        {userOrders.filter(o => o.status === "po_released").length} Pending
+                        {roleFilteredOrders.filter(o => o.status === "po_released").length} Pending
                       </h3>
                     </div>
                   </div>
@@ -558,7 +602,7 @@ export default function OrderPage() {
                     <div className="min-w-0">
                       <p className="text-[9px] sm:text-[10px] font-extrabold text-slate-400 uppercase tracking-wider truncate">Fulfilled</p>
                       <h3 className="text-sm sm:text-base lg:text-lg font-black text-slate-800 mt-0.5 truncate">
-                        {userOrders.filter(o => orderBucket(o) === "completed").length} Done
+                        {roleFilteredOrders.filter(o => orderBucket(o) === "completed").length} Done
                       </h3>
                     </div>
                   </div>
@@ -570,6 +614,38 @@ export default function OrderPage() {
               ) : null}
 
               <section className="supplier-orders-panel rounded-xl border border-[#dbe4ef] bg-white p-4 shadow-[0_10px_28px_rgba(15,23,42,0.05)]">
+                {/* Transaction Role Segmented Toggle (Supplying vs Buying) */}
+                <div className="flex justify-start border-b border-slate-100 pb-4 mb-4">
+                  <div className="inline-flex rounded-xl p-1 bg-slate-100/80 border border-slate-200/50 shadow-inner">
+                    {(
+                      [
+                        { key: "all", label: "All Transactions" },
+                        { key: "supplying", label: "Supplying (Sales)" },
+                        { key: "buying", label: "Buying (Subcontracts)" },
+                      ] as const
+                    ).map((option) => {
+                      const active = supplierRoleFilter === option.key
+                      return (
+                        <button
+                          key={option.key}
+                          type="button"
+                          onClick={() => {
+                            setSupplierRoleFilter(option.key)
+                            setOrderFilter("all") // Reset status filter on toggle to avoid empty states
+                          }}
+                          className={`rounded-lg px-4 py-2 text-xs font-black transition-all cursor-pointer ${
+                            active
+                              ? "bg-white text-blue-600 shadow-sm border border-slate-200/40"
+                              : "text-slate-500 hover:text-slate-800 border border-transparent"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div className="flex flex-wrap gap-1.5">
                     {orderTabs.map((tab) => (
@@ -607,10 +683,13 @@ export default function OrderPage() {
                     <thead className="bg-[#f8fafc] text-[#0f172a]">
                       <tr>
                         <th className="px-5 py-4 font-bold">Order ID</th>
-                        <th className="px-5 py-4 font-bold">Buyer Name (Hospital)</th>
+                        <th className="px-5 py-4 font-bold">
+                          {supplierRoleFilter === "buying" ? "Supplier Name" : supplierRoleFilter === "supplying" ? "Buyer Name" : "Buyer / Supplier"}
+                        </th>
                         <th className="px-5 py-4 font-bold">Ordered Product Summary</th>
                         <th className="px-5 py-4 font-bold">Amount</th>
                         <th className="px-5 py-4 font-bold">Order Status</th>
+                        <th className="px-5 py-4 font-bold">Payment Status</th>
                         <th className="px-5 py-4 text-right font-bold">Actions</th>
                       </tr>
                     </thead>
@@ -618,7 +697,19 @@ export default function OrderPage() {
                       {filteredOrders.map((order) => (
                         <tr key={order.id} className="supplier-order-row transition hover:bg-[#fbfcff]">
                           <td className="px-5 py-4 font-bold text-[#0f172a]">HL-ORD-{String(order.id).padStart(4, "0")}</td>
-                          <td className="px-5 py-4 font-semibold text-[#0f172a]">{order.buyer_username || `Buyer #${order.buyer}`}</td>
+                          <td className="px-5 py-4 font-semibold text-[#0f172a]">
+                            {order.buyer === userId ? (
+                              <span className="flex flex-col">
+                                <span className="text-slate-800">{order.vendor_name || `Supplier #${order.vendor}`}</span>
+                                <span className="text-[10px] text-slate-400 font-medium">Subcontracted Supplier</span>
+                              </span>
+                            ) : (
+                              <span className="flex flex-col">
+                                <span className="text-slate-800">{order.buyer_username || `Buyer #${order.buyer}`}</span>
+                                <span className="text-[10px] text-slate-400 font-medium">Client</span>
+                              </span>
+                            )}
+                          </td>
                           <td className="px-5 py-4 text-xs text-slate-500 max-w-[200px] truncate" title={orderProductSummary(order, products)}>
                             {orderProductSummary(order, products)}
                           </td>
@@ -629,12 +720,17 @@ export default function OrderPage() {
                             </span>
                           </td>
                           <td className="px-5 py-4">
+                            <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${paymentStatusChipClass(order.payment_status)}`}>
+                              {paymentStatusLabel(order.payment_status)}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4">
                             <div className="flex justify-end gap-2">
                               <Link
-                                href={`/supplier/messages?partner_id=${order.buyer}`}
+                                href={`/supplier/messages?partner_id=${order.buyer === userId ? order.vendor_user_id : order.buyer}`}
                                 className="flex items-center gap-1 border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-750 rounded-lg cursor-pointer transition shadow-sm"
-                                aria-label="Message Buyer"
-                                title="Message Buyer"
+                                aria-label={order.buyer === userId ? "Message Supplier" : "Message Buyer"}
+                                title={order.buyer === userId ? "Message Supplier" : "Message Buyer"}
                               >
                                 <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
                                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -666,7 +762,7 @@ export default function OrderPage() {
                       ))}
                       {filteredOrders.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="px-5 py-12 text-center text-[#64748b]">No orders matched this filter or search.</td>
+                          <td colSpan={7} className="px-5 py-12 text-center text-[#64748b]">No orders matched this filter or search.</td>
                         </tr>
                       ) : null}
                     </tbody>
@@ -692,12 +788,21 @@ export default function OrderPage() {
                               HL-ORD-{String(order.id).padStart(4, "0")}
                             </span>
                             <h4 className="text-sm font-bold text-slate-800 mt-1.5 truncate max-w-[160px]">
-                              {order.buyer_username || `Buyer #${order.buyer}`}
+                              {order.buyer === userId ? (
+                                <span className="text-slate-850">To: {order.vendor_name || `Supplier #${order.vendor}`}</span>
+                              ) : (
+                                <span className="text-slate-850">From: {order.buyer_username || `Buyer #${order.buyer}`}</span>
+                              )}
                             </h4>
                           </div>
-                          <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold capitalize shrink-0 ${statusChipClass(order)}`}>
-                            {orderStatusLabel(order)}
-                          </span>
+                          <div className="flex flex-col items-end gap-1.5 shrink-0">
+                            <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold capitalize ${statusChipClass(order)}`}>
+                              {orderStatusLabel(order)}
+                            </span>
+                            <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold capitalize ${paymentStatusChipClass(order.payment_status)}`}>
+                              {paymentStatusLabel(order.payment_status)}
+                            </span>
+                          </div>
                         </div>
 
                         {/* Product Summary */}
@@ -726,7 +831,7 @@ export default function OrderPage() {
                             View Details
                           </Link>
                           <Link
-                            href={`/supplier/messages?partner_id=${order.buyer}`}
+                            href={`/supplier/messages?partner_id=${order.buyer === userId ? order.vendor_user_id : order.buyer}`}
                             className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white md:hover:bg-slate-50 py-2.5 text-xs font-bold text-slate-750 transition active:scale-95"
                           >
                             Chat
@@ -880,6 +985,7 @@ export default function OrderPage() {
                         <th className="px-5 py-4 font-bold">Ordered Product Summary</th>
                         <th className="px-5 py-4 font-bold">Amount</th>
                         <th className="px-5 py-4 font-bold">Order Status</th>
+                        <th className="px-5 py-4 font-bold">Payment Status</th>
                         <th className="px-5 py-4 text-right font-bold">Actions</th>
                       </tr>
                     </thead>
@@ -895,6 +1001,11 @@ export default function OrderPage() {
                           <td className="px-5 py-4">
                             <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${statusChipClass(order)}`}>
                               {orderStatusLabel(order)}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${paymentStatusChipClass(order.payment_status)}`}>
+                              {paymentStatusLabel(order.payment_status)}
                             </span>
                           </td>
                           <td className="px-5 py-4">
@@ -935,7 +1046,7 @@ export default function OrderPage() {
                       ))}
                       {filteredOrders.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="px-5 py-12 text-center text-[#64748b]">No procurement orders found matching current criteria.</td>
+                          <td colSpan={8} className="px-5 py-12 text-center text-[#64748b]">No procurement orders found matching current criteria.</td>
                         </tr>
                       ) : null}
                     </tbody>
@@ -964,9 +1075,14 @@ export default function OrderPage() {
                               {order.vendor_name || `Vendor #${order.vendor}`}
                             </h4>
                           </div>
-                          <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold capitalize shrink-0 ${statusChipClass(order)}`}>
-                            {orderStatusLabel(order)}
-                          </span>
+                          <div className="flex flex-col items-end gap-1.5 shrink-0">
+                            <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold capitalize ${statusChipClass(order)}`}>
+                              {orderStatusLabel(order)}
+                            </span>
+                            <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold capitalize ${paymentStatusChipClass(order.payment_status)}`}>
+                              {paymentStatusLabel(order.payment_status)}
+                            </span>
+                          </div>
                         </div>
 
                         {/* Product Summary */}
@@ -1125,7 +1241,7 @@ export default function OrderPage() {
               </div>
 
               <div className="mt-5 grid gap-3 grid-cols-2 xl:grid-cols-4">
-                {userRole === "buyer" ? (
+                {selectedOrder.buyer === userId ? (
                   <InfoBox label="Vendor" value={selectedOrder.vendor_name || `Vendor #${selectedOrder.vendor}`} />
                 ) : (
                   <InfoBox label="Buyer" value={selectedOrder.buyer_username || `Buyer #${selectedOrder.buyer}`} />
@@ -1134,6 +1250,8 @@ export default function OrderPage() {
                 <InfoBox label="Order Date" value={shortDate(selectedOrder.created_at)} />
                 <InfoBox label="Amount" value={money(selectedOrder.total_amount)} />
                 <InfoBox label="Order Status" value={orderStatusLabel(selectedOrder)} />
+                <InfoBox label="Delivery Status" value={readable(selectedOrder.delivery_status)} />
+                <InfoBox label="Payment Status" value={paymentStatusLabel(selectedOrder.payment_status)} />
                 <InfoBox label="Items" value={orderProductSummary(selectedOrder, products)} />
               </div>
 
@@ -1180,6 +1298,28 @@ export default function OrderPage() {
                       Download PDF
                     </button>
 
+                    {selectedOrder.buyer === userId && selectedOrder.payment_status !== "paid" && selectedOrder.payment_status !== "payment_requested" ? (
+                      <button
+                        type="button"
+                        onClick={() => handleMakePayment(selectedOrder)}
+                        disabled={updatingOrderId === selectedOrder.id}
+                        className="rounded-xl border border-purple-200 bg-purple-50 px-4 py-3 text-sm font-black text-purple-700 disabled:opacity-60"
+                      >
+                        {updatingOrderId === selectedOrder.id ? "Updating..." : "Mark as Paid"}
+                      </button>
+                    ) : null}
+
+                    {selectedOrder.payment_status === "payment_requested" && (selectedOrder.vendor_user_id === userId || selectedOrder.buyer !== userId) ? (
+                      <button
+                        type="button"
+                        onClick={() => handleConfirmPayment(selectedOrder)}
+                        disabled={updatingOrderId === selectedOrder.id}
+                        className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700 disabled:opacity-60"
+                      >
+                        {updatingOrderId === selectedOrder.id ? "Updating..." : "Confirm Payment"}
+                      </button>
+                    ) : null}
+
                     {isSupplierRoute && nextActionLabel(selectedOrder) && (selectedOrder.vendor_user_id === userId || selectedOrder.buyer !== userId) ? (
                       <button
                         type="button"
@@ -1214,7 +1354,7 @@ export default function OrderPage() {
                     ) : null}
                   </div>
 
-                  {isSupplierRoute && canSubcontract(selectedOrder, products) ? (
+                  {isSupplierRoute && selectedOrder.vendor_user_id === userId && canSubcontract(selectedOrder, products) ? (
                     <div className="mt-5 rounded-xl border border-[#dbe4ef] bg-[#f8fbff] p-4">
                       <p className="text-sm font-bold text-[#0f172a]">Need subcontract support?</p>
                       <p className="mt-1 text-sm text-[#64748b]">

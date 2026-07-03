@@ -15,7 +15,6 @@ class VendorRfq(models.Model):
     TENDER_TYPE_CHOICES = [
         ("open", "Open"),
         ("limited", "Limited"),
-        ("reverse", "Reverse"),
     ]
     STATUS_CHOICES = [
         ("open", "Open"),

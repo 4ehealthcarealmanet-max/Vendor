@@ -13,6 +13,23 @@ import type { VendorRfq, VendorQuotation } from "@/services"
 // ----------------------------------------------------
 // Formatting and Math Helpers
 // ----------------------------------------------------
+const orderStatusLabel = (order: any) => {
+  if (order.status === "po_released") return "Pending"
+  if (order.status === "po_accepted") return "Accepted"
+  if (order.status === "partially_subcontracted") return "Processing"
+  if (order.status === "ready_to_dispatch") return "Ready"
+  if (order.status === "goods_received") return "Completed"
+  return order.status.replaceAll("_", " ")
+}
+
+const statusChipClass = (order: any) => {
+  const status = order.status;
+  if (status === "completed" || status === "goods_received" || order.delivery_status === "delivered") return "bg-emerald-50 text-emerald-700 border-emerald-100"
+  if (status === "shipped" || status === "delivered" || order.delivery_status === "in_transit" || order.delivery_status === "out_for_delivery") return "bg-blue-50 text-blue-700 border-blue-100"
+  if (status === "processing" || status === "ready_to_dispatch" || status === "po_accepted" || order.delivery_status === "loaded") return "bg-amber-50 text-amber-700 border-amber-100"
+  return "bg-slate-50 text-slate-600 border-slate-100"
+}
+
 const formatDisplayDate = (value: string | null) => {
   if (!value) return "-"
   const parsed = new Date(value)
@@ -37,7 +54,7 @@ const formatDisplayDateTime = (value?: string | null) => {
   })
 }
 
-const formatTenderType = (value: VendorRfq["tender_type"]) => {
+const formatTenderType = (value: string) => {
   if (value === "open") return "Open Tender"
   if (value === "limited") return "Limited Tender"
   return "Reverse Auction"
@@ -200,7 +217,7 @@ function BidTrendChart({ quotations, targetBudget }: { quotations: any[]; target
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
         <div>
           <h4 className="text-[10px] font-black tracking-wider text-slate-400 uppercase">RFQ Price Index & Bidding Trend</h4>
-          <h3 className="text-sm font-extrabold text-slate-805 mt-0.5">Live Quotation Downward Progression</h3>
+          <h3 className="text-sm font-extrabold text-slate-800 mt-0.5">Live Quotation Downward Progression</h3>
         </div>
         
         {/* Metric widgets */}
@@ -220,7 +237,7 @@ function BidTrendChart({ quotations, targetBudget }: { quotations: any[]; target
             </div>
           )}
           {savings > 0 && (
-            <div className="rounded-xl border border-emerald-105 bg-emerald-50/40 px-3.5 py-1.5 min-w-[100px] col-span-2 sm:col-span-1">
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 px-3.5 py-1.5 min-w-[100px] col-span-2 sm:col-span-1">
               <p className="text-[8px] font-extrabold uppercase text-emerald-600 tracking-wider">Est. Price Delta</p>
               <p className="text-xs font-black text-emerald-700 mt-0.5">
                 -₹{savings.toLocaleString("en-IN")}
@@ -482,6 +499,7 @@ export interface RfqDetailPageProps {
   startEditingQuotation: (rfq: any, quote: any) => void
   message: string
   setMessage: (msg: string) => void
+  orders?: any[]
 }
 
 // ----------------------------------------------------
@@ -518,6 +536,7 @@ export default function RfqDetailPage({
   startEditingQuotation,
   message,
   setMessage,
+  orders = [],
 }: RfqDetailPageProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -553,7 +572,7 @@ export default function RfqDetailPage({
               router.push(pathname)
             }
           }}
-          className="inline-flex items-center gap-2 text-xs font-bold text-slate-655 md:hover:text-slate-950 transition-all duration-200 bg-white md:hover:bg-slate-50 border border-slate-200 md:hover:border-slate-350 rounded-xl px-4.5 py-2.5 shadow-sm active:scale-[0.98] group cursor-pointer"
+          className="inline-flex items-center gap-2 text-xs font-bold text-slate-700 md:hover:text-slate-950 transition-all duration-200 bg-white md:hover:bg-slate-50 border border-slate-200 md:hover:border-slate-300 rounded-xl px-4.5 py-2.5 shadow-sm active:scale-[0.98] group cursor-pointer"
         >
           <ArrowLeft className="h-4 w-4 transition-transform duration-200 md:group-hover:-translate-x-1 text-slate-500 md:group-hover:text-slate-950" />
           <span>Back to Requests List</span>
@@ -579,7 +598,7 @@ export default function RfqDetailPage({
                 {formatRfqStatus(selectedRfq.status)}
               </span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-805 leading-tight">
+            <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-800 leading-tight">
               {selectedRfq.title}
             </h2>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-400 pt-1">
@@ -598,7 +617,7 @@ export default function RfqDetailPage({
                   {userRole === "supplier" && selectedRfq.buyer_user_id && (
                     <Link
                       href={`/supplier/messages?partner_id=${selectedRfq.buyer_user_id}`}
-                      className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-650 md:hover:text-indigo-800 transition ml-1.5 px-2 py-0.5 bg-indigo-50 md:hover:bg-indigo-100 rounded align-middle"
+                      className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-600 md:hover:text-indigo-800 transition ml-1.5 px-2 py-0.5 bg-indigo-50 md:hover:bg-indigo-100 rounded align-middle"
                       title={`Chat with ${selectedRfq.buyer_company || selectedRfq.buyer_name}`}
                     >
                       <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2">
@@ -637,13 +656,13 @@ export default function RfqDetailPage({
 
             {/* PDF Spec */}
             {selectedRfq.tender_document_url && (
-              <div className="rounded-xl border border-blue-105 bg-blue-50/20 p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 w-full min-w-0 overflow-hidden">
+              <div className="rounded-xl border border-blue-100 bg-blue-50/20 p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 w-full min-w-0 overflow-hidden">
                 <div className="flex items-start gap-3 w-full min-w-0 flex-1">
                   <div className="p-2.5 bg-blue-100/60 rounded-xl text-blue-600 shrink-0">
                     <FileText className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-slate-850 break-all lg:break-words">{selectedRfq.tender_document_name || `RFQ-${selectedRfq.id}.pdf`}</p>
+                    <p className="text-xs font-bold text-slate-800 break-all lg:break-words">{selectedRfq.tender_document_name || `RFQ-${selectedRfq.id}.pdf`}</p>
                     <p className="text-[10px] text-slate-400 mt-0.5">Uploaded: {formatDisplayDateTime(selectedRfq.tender_document_uploaded_at)}</p>
                     {selectedRfq.tender_document_note && (
                       <p className="text-xs text-slate-500 mt-1.5 italic break-words">Note: {selectedRfq.tender_document_note}</p>
@@ -677,7 +696,7 @@ export default function RfqDetailPage({
           <div className="space-y-4">
             <div className="rounded-xl border border-slate-200 p-4 sm:p-5 bg-slate-50/30">
               <h4 className="text-xs font-black tracking-wider text-slate-400 uppercase border-b border-slate-200/50 pb-2 mb-3">Target Invitation</h4>
-              <p className="text-xs font-semibold text-slate-705 leading-relaxed">
+              <p className="text-xs font-semibold text-slate-700 leading-relaxed">
                 {selectedRfq.invited_vendors.length > 0
                   ? selectedRfq.invited_vendors.map((vendor) => vendor.vendor_name).join(", ")
                   : "Open Market — Open to all qualified suppliers."}
@@ -695,153 +714,106 @@ export default function RfqDetailPage({
             )}
 
             {selectedRfq.awarded_quote_id && (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 text-xs text-emerald-805 flex items-start gap-2">
-                <CheckCircle className="h-4.5 w-4.5 text-emerald-600 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-bold">Award Complete</p>
-                  <p className="mt-0.5">
-                    Awarded to: {selectedRfq.quotations.find(q => q.id === selectedRfq.awarded_quote_id)?.supplier_company || "Selected Vendor"}.
-                  </p>
+              <div className="space-y-3 w-full">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 text-xs text-emerald-800 flex items-start gap-2">
+                  <CheckCircle className="h-4.5 w-4.5 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold">Award Complete</p>
+                    <p className="mt-0.5">
+                      Awarded to: {selectedRfq.quotations.find(q => q.id === selectedRfq.awarded_quote_id)?.supplier_company || "Selected Vendor"}.
+                    </p>
+                  </div>
                 </div>
+
+                {selectedRfq.awarded_order_id && (() => {
+                  const linkedOrder = orders.find(o => o.id === selectedRfq.awarded_order_id);
+                  if (!linkedOrder) {
+                    return (
+                      <div className="rounded-xl border border-blue-200 bg-blue-50/30 p-4 text-xs text-blue-800 flex flex-col gap-2.5">
+                        <div className="flex items-start gap-2">
+                          <Package className="h-4.5 w-4.5 text-blue-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-bold">Associated Order</p>
+                            <p className="mt-0.5 text-slate-500 font-semibold">Order Reference ID: HL-ORD-{String(selectedRfq.awarded_order_id).padStart(4, "0")}</p>
+                          </div>
+                        </div>
+                        <div className="mt-1 pl-6">
+                          <Link
+                            href={`/${userRole}/orders/${selectedRfq.awarded_order_id}`}
+                            className="inline-flex items-center gap-1 bg-blue-600 hover:bg-blue-700 px-3.5 py-1.5 rounded-lg text-white font-bold text-[11px] shadow-sm transition active:scale-95 cursor-pointer"
+                          >
+                            <span>Go to Order Workspace &rarr;</span>
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-xs text-slate-800 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Package className="h-4.5 w-4.5 text-blue-600 shrink-0" />
+                          <h5 className="font-bold text-slate-700">Associated Order HL-ORD-{String(linkedOrder.id).padStart(4, "0")}</h5>
+                        </div>
+                        <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-extrabold uppercase ${statusChipClass(linkedOrder)}`}>
+                          {orderStatusLabel(linkedOrder)}
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4 bg-white p-3 rounded-lg border border-slate-200 text-[11px] text-slate-500">
+                        <div>
+                          <span className="text-[9px] font-black uppercase text-slate-400 block tracking-wider">Total Value</span>
+                          <span className="font-bold text-slate-700">INR {Number(linkedOrder.total_amount).toLocaleString()}</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] font-black uppercase text-slate-400 block tracking-wider">Delivery Status</span>
+                          <span className="font-bold text-slate-700 capitalize">{linkedOrder.delivery_status.replaceAll("_", " ")}</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] font-black uppercase text-slate-400 block tracking-wider">Payment Status</span>
+                          <span className="font-bold text-slate-700 capitalize">{linkedOrder.payment_status.replaceAll("_", " ")}</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] font-black uppercase text-slate-400 block tracking-wider">Latest Update</span>
+                          <span className="font-bold text-slate-700 truncate block max-w-full" title={linkedOrder.tracking_note}>{linkedOrder.tracking_note || "No updates yet"}</span>
+                        </div>
+                      </div>
+
+                      <div className="pt-1">
+                        <Link
+                          href={`/${userRole}/orders/${linkedOrder.id}`}
+                          className="inline-flex items-center gap-1 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-xl text-white font-bold text-[11px] shadow-sm transition active:scale-95 cursor-pointer"
+                        >
+                          <span>Go to Order Workspace &rarr;</span>
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>
         </div>
 
-        {/* Reverse Auction Compete */}
-        {selectedRfq.tender_type === "reverse" && (() => {
-          const lowestQuote = getLowestBid(selectedRfq.quotations)
-          const isAuctionLive = selectedRfq.status === "open"
-          return (
-            <div className="rounded-2xl border border-rose-100 bg-rose-50/20 p-5 space-y-4 shadow-sm relative overflow-hidden">
-              {isAuctionLive && (
-                <div className="absolute top-4 right-4 flex items-center gap-1.5 bg-rose-600 text-white text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow animate-pulse">
-                  <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" />
-                  Live Auction
-                </div>
-              )}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-rose-100/60 pb-3">
-                <div>
-                  <h4 className="text-sm font-bold text-slate-805 flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
-                    Reverse Auction Dashboard
-                  </h4>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Suppliers compete downwards to win the contract.</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider">Target Budget</p>
-                  <p className="text-base font-extrabold text-slate-700">INR {selectedRfq.target_budget.toLocaleString()}</p>
-                </div>
-              </div>
 
-              {userRole === "supplier" && selectedRfq.buyer_name !== username && isAuctionLive && (() => {
-                const supplierQuote = selectedRfq.quotations.find((q) => q.supplier_name === username)
-                if (!supplierQuote) {
-                  return (
-                    <div className="rounded-xl bg-blue-50 border border-blue-150 p-3.5 flex items-center gap-3">
-                      <Info className="h-5 w-5 text-blue-505 shrink-0" />
-                      <div>
-                        <p className="text-xs font-bold text-blue-900">You haven't bid yet!</p>
-                        <p className="text-[10px] text-blue-600 mt-0.5">Submit your quotation below to enter the auction and secure L1 status.</p>
-                      </div>
-                    </div>
-                  )
-                }
-                const isL1 = lowestQuote && supplierQuote.id === lowestQuote.id
-                if (isL1) {
-                  return (
-                    <div className="rounded-xl bg-emerald-50 border border-emerald-150 p-3.5 flex items-center gap-3 animate-pulse">
-                      <CheckCircle className="h-5 w-5 text-emerald-650 shrink-0" />
-                      <div>
-                        <p className="text-xs font-bold text-emerald-955">🎉 You are currently L1 (Leading Bidder)!</p>
-                        <p className="text-[10px] text-emerald-600 mt-0.5">Your bid of INR {supplierQuote.unit_price.toLocaleString()} is the lowest.</p>
-                      </div>
-                    </div>
-                  )
-                } else {
-                  return (
-                    <div className="rounded-xl bg-amber-50 border border-amber-150 p-3.5 flex items-center gap-3">
-                      <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-amber-900">⚠️ You have been outbid!</p>
-                        <p className="text-[10px] text-amber-600 mt-0.5">Your bid: INR {supplierQuote.unit_price.toLocaleString()} | L1 Bid: INR {lowestQuote?.unit_price.toLocaleString()}.</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveQuoteRfqId(selectedRfq.id)
-                          const nextBid = lowestQuote ? Math.max(0, lowestQuote.unit_price - 100) : selectedRfq.target_budget
-                          setQuoteForm({
-                            product_id: supplierQuote.product_id || 0,
-                            unit_price: nextBid,
-                            lead_time_days: supplierQuote.lead_time_days || 7,
-                            validity_days: supplierQuote.validity_days || 30,
-                            notes: "Competing in Live Auction",
-                          })
-                        }}
-                        className="rounded-lg bg-amber-655 hover:bg-amber-700 px-3 py-1.5 text-[10px] font-black text-white uppercase tracking-wider transition cursor-pointer shrink-0"
-                      >
-                        Quick Underbid
-                      </button>
-                    </div>
-                  )
-                }
-              })()}
-
-              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-xl bg-white border border-slate-100 p-3 flex flex-col justify-center">
-                  <span className="text-[10px] font-bold uppercase text-slate-400">Current L1 Bid</span>
-                  <span className="text-lg font-black text-rose-600 mt-1">
-                    {lowestQuote ? `INR ${lowestQuote.unit_price.toLocaleString()}` : "No Bids Yet"}
-                  </span>
-                </div>
-                <div className="rounded-xl bg-white border border-slate-100 p-3 flex flex-col justify-center">
-                  <span className="text-[10px] font-bold uppercase text-slate-400">Est. Total Savings</span>
-                  <span className="text-lg font-black text-emerald-600 mt-1">
-                    {lowestQuote 
-                      ? `INR ${((selectedRfq.target_budget - lowestQuote.unit_price) * selectedRfq.quantity).toLocaleString()}` 
-                      : "INR 0"
-                    }
-                  </span>
-                </div>
-                <div className="rounded-xl bg-white border border-slate-100 p-3 flex flex-col justify-center">
-                  <span className="text-[10px] font-bold uppercase text-slate-400">Auction Bid Count</span>
-                  <span className="text-lg font-black text-slate-700 mt-1 flex items-center gap-1.5">
-                    {selectedRfq.quotations.length} Bids
-                    {isAuctionLive && <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-ping" />}
-                  </span>
-                </div>
-                <div className="rounded-xl bg-white border border-slate-100 p-3 flex flex-col justify-center">
-                  <span className="text-[10px] font-bold uppercase text-slate-400">Time Remaining</span>
-                  <span className="text-xs font-black text-slate-700 mt-1">
-                    <CountdownTimer deadline={selectedRfq.quote_deadline} />
-                  </span>
-                </div>
-              </div>
-            </div>
-          )
-        })()}
 
         {/* Supplier Sourcing Quote Submission Form */}
         {userRole === "supplier" && selectedRfq.buyer_name !== username && selectedRfq.status !== "awarded" && selectedRfq.status !== "closed" ? (
-          <div className="mt-5 border-t border-slate-150 pt-4">
+          <div className="mt-5 border-t border-slate-200 pt-4">
             {activeQuoteRfqId === selectedRfq.id ? (
-              <div className="grid gap-3 rounded-2xl border border-blue-101 bg-blue-50/20 p-5 md:grid-cols-2 animate-fade-in-up">
+              <div className="grid gap-3 rounded-2xl border border-blue-200 bg-blue-50/20 p-5 md:grid-cols-2 animate-fade-in-up">
                 <div className="md:col-span-2 border-b border-blue-100 pb-3 mb-2">
                   <h3 className="text-sm font-black text-blue-900 flex items-center gap-1.5">
                     <FileSpreadsheet className="h-4.5 w-4.5 text-blue-600" />
-                    <span>
-                      {selectedRfq.tender_type === "reverse"
-                        ? "Submit Auction Bid (Compete Downwards)"
-                        : "Submit Sourcing Quotation"}
-                    </span>
+                    <span>Submit Sourcing Quotation</span>
                   </h3>
                   <p className="text-[11px] text-blue-600/80 font-medium mt-0.5">
                     Fill in your product unit offer price, estimated lead time, and validity days to place your bid.
                   </p>
                 </div>
                 {!quoteForm || matchingSupplierListings.length === 0 ? (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-805 md:col-span-2 flex items-center gap-2">
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 md:col-span-2 flex items-center gap-2">
                     <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
                     <span>No matching active {selectedRfq.product_type} listings are available in your catalog for this request.</span>
                   </div>
@@ -886,7 +858,20 @@ export default function RfqDetailPage({
                   />
                 </label>
 
-                <label className="grid gap-1 text-xs font-bold text-slate-550 md:col-span-2">
+                <label className="grid gap-1 text-xs font-bold text-slate-500">
+                  <span>Quote Validity (days)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={quoteForm.validity_days}
+                    onChange={(event) =>
+                      setQuoteForm((prev: any) => ({ ...prev, validity_days: Number(event.target.value) }))
+                    }
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold outline-none transition focus:border-blue-500"
+                  />
+                </label>
+
+                <label className="grid gap-1 text-xs font-bold text-slate-500 md:col-span-2">
                   <span>Commercial Notes</span>
                   <textarea
                     rows={3}
@@ -940,7 +925,7 @@ export default function RfqDetailPage({
                         setActiveQuoteRfqId(null)
                         setQuoteForm(emptyQuoteForm)
                       }}
-                      className="rounded-xl border border-slate-250 bg-white hover:bg-slate-50 px-5 py-2.5 text-xs font-bold text-slate-700 transition cursor-pointer"
+                      className="rounded-xl border border-slate-300 bg-white hover:bg-slate-50 px-5 py-2.5 text-xs font-bold text-slate-700 transition cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -956,21 +941,21 @@ export default function RfqDetailPage({
                     setQuoteForm(emptyQuoteForm)
                   }}
                   disabled={!supplierCanQuote}
-                  className="rounded-xl bg-blue-650 hover:bg-blue-700 px-5 py-3 text-xs font-bold text-white transition active:scale-[0.98] cursor-pointer shadow-sm shadow-blue-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded-xl bg-blue-600 hover:bg-blue-700 px-5 py-3 text-xs font-bold text-white transition active:scale-[0.98] cursor-pointer shadow-sm shadow-blue-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Submit Sourcing Quotation
                 </button>
                 {!supplierCanQuote && (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 text-xs text-amber-805 flex items-start gap-2.5 max-w-xl">
-                    <AlertCircle className="h-4.5 w-4.5 text-amber-650 shrink-0 mt-0.5" />
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 text-xs text-amber-800 flex items-start gap-2.5 max-w-xl">
+                    <AlertCircle className="h-4.5 w-4.5 text-amber-600 shrink-0 mt-0.5" />
                     <div>
                       <p className="font-bold text-amber-900">Quotation Submission Blocked</p>
-                      <p className="mt-0.5 text-[11px] leading-relaxed text-amber-750">
+                      <p className="mt-0.5 text-[11px] leading-relaxed text-amber-700">
                         You currently have 0 active products in your catalog. You must add at least 1 active product to your catalog before you can submit quotations to buyers.
                       </p>
                       <Link
                         href="/supplier/products"
-                        className="mt-2 inline-flex items-center gap-1 font-bold text-amber-900 underline hover:text-amber-955 text-[11px] cursor-pointer"
+                        className="mt-2 inline-flex items-center gap-1 font-bold text-amber-900 underline hover:text-amber-950 text-[11px] cursor-pointer"
                       >
                         Go to My Products Catalog &rarr;
                       </Link>
@@ -992,7 +977,7 @@ export default function RfqDetailPage({
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h4 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
               <FileText className="h-4 w-4 text-slate-500" />
-              <span>{selectedRfq.tender_type === "reverse" ? "Live Quotations Received" : "Quotations Received"}</span>
+              <span>Quotations Received</span>
               <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-extrabold text-slate-600 border border-slate-200">
                 {selectedRfq.quotations.length}
               </span>
@@ -1038,7 +1023,7 @@ export default function RfqDetailPage({
                         setSelectedRfqId(null);
                       }}
                       disabled={submitting}
-                      className="flex items-center gap-1 border border-rose-250 hover:bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-705 rounded-lg cursor-pointer transition"
+                      className="flex items-center gap-1 border border-rose-300 hover:bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700 rounded-lg cursor-pointer transition"
                     >
                       <Trash2 className="h-3 w-3" />
                       <span>Delete RFQ</span>
@@ -1051,8 +1036,8 @@ export default function RfqDetailPage({
 
           {selectedRfq.quotations.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 gap-2 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-center">
-              <FileText className="h-6 w-6 text-slate-350" />
-              <p className="text-xs font-medium text-slate-455">No quotations submitted yet.</p>
+              <FileText className="h-6 w-6 text-slate-400" />
+              <p className="text-xs font-medium text-slate-500">No quotations submitted yet.</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -1077,13 +1062,13 @@ export default function RfqDetailPage({
                         const isAwarded = selectedRfq.awarded_quote_id === quote.id
                         return (
                           <tr key={quote.id} className="border-b border-slate-100 last:border-none hover:bg-slate-50/65 transition align-middle">
-                            <td className="px-4 py-3 font-bold text-slate-805">
+                            <td className="px-4 py-3 font-bold text-slate-800">
                               <div className="flex items-center gap-2">
                                 <span>{quote.supplier_company || quote.supplier_name}</span>
                                 {quote.supplier_user_id && (
                                   <Link
                                     href={`/${userRole}/messages?partner_id=${quote.supplier_user_id}`}
-                                    className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-650 hover:text-blue-800 transition ml-1 px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded align-middle"
+                                    className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 transition ml-1 px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 rounded align-middle"
                                     title={`Chat with ${quote.supplier_company || quote.supplier_name}`}
                                   >
                                     <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1094,12 +1079,12 @@ export default function RfqDetailPage({
                                 )}
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-slate-655 font-medium">{quote.product_name}</td>
+                            <td className="px-4 py-3 text-slate-700 font-medium">{quote.product_name}</td>
                             <td className="px-4 py-3 font-extrabold text-slate-700">INR {quote.unit_price.toLocaleString()}</td>
-                            <td className="px-4 py-3 text-slate-650">{quote.lead_time_days} days</td>
-                            <td className="px-4 py-3 text-slate-650">{quote.validity_days} days</td>
+                            <td className="px-4 py-3 text-slate-600">{quote.lead_time_days} days</td>
+                            <td className="px-4 py-3 text-slate-600">{quote.validity_days} days</td>
                             <td className="px-4 py-3 text-slate-500 max-w-xs truncate" title={quote.notes}>{quote.notes || "-"}</td>
-                            <td className="px-4 py-3 text-slate-550">
+                            <td className="px-4 py-3 text-slate-500">
                               {quote.created_at
                                 ? new Date(quote.created_at).toLocaleString([], {
                                     dateStyle: "medium",
@@ -1114,7 +1099,7 @@ export default function RfqDetailPage({
                                     Awarded
                                   </span>
                                 ) : quote.status === "rejected" ? (
-                                  <span className="inline-flex rounded-lg bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-707 border border-rose-100" title={quote.rejection_reason || "Rejected"}>
+                                  <span className="inline-flex rounded-lg bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700 border border-rose-100" title={quote.rejection_reason || "Rejected"}>
                                     Rejected
                                   </span>
                                 ) : selectedRfq.status === "awarded" || selectedRfq.status === "closed" ? (
@@ -1134,7 +1119,7 @@ export default function RfqDetailPage({
                                       type="button"
                                       onClick={() => openRejectQuotationModal(selectedRfq.id, quote.id)}
                                       disabled={submitting}
-                                      className="flex items-center gap-1 border border-rose-200 hover:bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-705 rounded-lg cursor-pointer transition"
+                                      className="flex items-center gap-1 border border-rose-200 hover:bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700 rounded-lg cursor-pointer transition"
                                     >
                                       <AlertCircle className="h-3.5 w-3.5" />
                                       <span>Reject</span>
@@ -1178,12 +1163,12 @@ export default function RfqDetailPage({
                   return (
                     <div
                       key={quote.id}
-                      className="rounded-2xl border border-slate-150 bg-white p-4 shadow-[0_4px_16px_rgba(15,23,42,0.02)] space-y-3.5"
+                      className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_4px_16px_rgba(15,23,42,0.02)] space-y-3.5"
                     >
                       {/* Supplier Row */}
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <h4 className="text-sm font-black text-slate-805 truncate">
+                          <h4 className="text-sm font-black text-slate-800 truncate">
                             {quote.supplier_company || quote.supplier_name}
                           </h4>
                           <span className="text-[10px] text-slate-400">
@@ -1198,7 +1183,7 @@ export default function RfqDetailPage({
                         {quote.supplier_user_id && (
                           <Link
                             href={`/${userRole}/messages?partner_id=${quote.supplier_user_id}`}
-                            className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-650 px-2.5 py-1 bg-blue-50 active:bg-blue-100 rounded-xl transition"
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 px-2.5 py-1 bg-blue-50 active:bg-blue-100 rounded-xl transition"
                           >
                             <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -1211,12 +1196,12 @@ export default function RfqDetailPage({
                       {/* Product details & Price */}
                       <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-2">
                         <div className="flex justify-between items-center text-xs">
-                          <span className="text-slate-450 font-medium">Listing Product:</span>
+                          <span className="text-slate-500 font-medium">Listing Product:</span>
                           <span className="text-slate-700 font-bold truncate max-w-[150px]">{quote.product_name}</span>
                         </div>
                         <div className="flex justify-between items-center text-xs">
-                          <span className="text-slate-450 font-medium">Unit Price:</span>
-                          <span className="text-sm font-black text-slate-805">INR {quote.unit_price.toLocaleString()}</span>
+                          <span className="text-slate-500 font-medium">Unit Price:</span>
+                          <span className="text-sm font-black text-slate-800">INR {quote.unit_price.toLocaleString()}</span>
                         </div>
                       </div>
 
@@ -1303,7 +1288,7 @@ export default function RfqDetailPage({
           )}
 
           {userRole === "supplier" && editingQuotationContext?.rfqId === selectedRfq.id ? (
-            <div className="mt-4 grid gap-3 rounded-2xl border border-blue-101 bg-blue-50/20 p-5 md:grid-cols-2 animate-fade-in-up">
+            <div className="mt-4 grid gap-3 rounded-2xl border border-blue-200 bg-blue-50/20 p-5 md:grid-cols-2 animate-fade-in-up">
               <div className="md:col-span-2 border-b border-blue-100 pb-3 mb-2">
                 <h3 className="text-sm font-black text-blue-900 flex items-center gap-1.5">
                   <FileSpreadsheet className="h-4.5 w-4.5 text-blue-600" />
@@ -1315,14 +1300,14 @@ export default function RfqDetailPage({
               </div>
 
               {editingMatchingSupplierListings.length === 0 ? (
-                <div className="rounded-xl border border-amber-250 bg-amber-50 px-4 py-3 text-xs text-amber-808 md:col-span-2 flex items-center gap-2">
+                <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-800 md:col-span-2 flex items-center gap-2">
                   <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
                   <span>No matching active listings available for this RFQ.</span>
                 </div>
               ) : null}
 
 
-              <label className="grid gap-1 text-xs font-bold text-slate-505">
+              <label className="grid gap-1 text-xs font-bold text-slate-500">
                 <span>Unit Price (INR)</span>
                 <input
                   type="number"
@@ -1412,7 +1397,7 @@ export default function RfqDetailPage({
                   <button
                     type="button"
                     onClick={cancelEditingQuotation}
-                    className="rounded-xl border border-slate-250 bg-white hover:bg-slate-50 px-5 py-2.5 text-xs font-bold text-slate-700 transition cursor-pointer"
+                    className="rounded-xl border border-slate-300 bg-white hover:bg-slate-50 px-5 py-2.5 text-xs font-bold text-slate-700 transition cursor-pointer"
                   >
                     Cancel
                   </button>

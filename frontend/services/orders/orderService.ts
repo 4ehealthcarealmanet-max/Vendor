@@ -51,6 +51,10 @@ export const makeDummyPayment = async (orderId: number) => {
   return postOrderAction<VendorOrder>(orderId, "make-payment")
 }
 
+export const confirmPayment = async (orderId: number) => {
+  return postOrderAction<VendorOrder>(orderId, "confirm-payment")
+}
+
 export const markPaymentOverdue = async (orderId: number) => {
   return postOrderAction<VendorOrder>(orderId, "mark-payment-overdue")
 }
