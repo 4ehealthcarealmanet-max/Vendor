@@ -13,6 +13,7 @@ import {
   getProducts,
   isAuthSessionError,
   markOrderReceived,
+  makeDummyPayment,
   logoutUser,
   reorderFromOrder,
 } from "@/services"
@@ -77,6 +78,21 @@ const statusChipClass = (order: VendorOrder) => {
   if (bucket === "in_progress") return "bg-amber-50 text-amber-700 border-amber-100"
   return "bg-slate-50 text-slate-650 border-slate-100"
 }
+
+const paymentStatusLabel = (status: VendorOrder["payment_status"]) => {
+  if (status === "payment_requested") return "Payment Requested"
+  if (status === "partially_paid") return "Partially Paid"
+  return readable(status)
+}
+
+const paymentStatusChipClass = (status: VendorOrder["payment_status"]) => {
+  if (status === "paid") return "bg-emerald-100 text-emerald-800 border-emerald-200"
+  if (status === "partially_paid") return "bg-blue-100 text-blue-800 border-blue-200"
+  if (status === "payment_requested") return "bg-purple-100 text-purple-800 border-purple-200"
+  if (status === "overdue") return "bg-rose-100 text-rose-800 border-rose-200"
+  return "bg-amber-100 text-amber-800 border-amber-200" // pending
+}
+
 
 const canMarkReceived = (order: VendorOrder) =>
   order.delivery_status === "delivered" && order.status !== "goods_received" && order.status !== "completed"
@@ -239,6 +255,15 @@ export default function OrderDetailPage() {
     )
   }
 
+  const handleMarkPaid = async () => {
+    if (!order) return
+    await runOrderMutation(
+      () => makeDummyPayment(order.id),
+      (updated) => `Payment recorded. Waiting for supplier verification.`,
+      "Could not request payment verification."
+    )
+  }
+
   const handleReorder = async () => {
     if (!order) return
     try {
@@ -320,9 +345,14 @@ export default function OrderDetailPage() {
             </div>
             <div className="flex items-center gap-3 shrink-0">
               {order && (
-                <span className={`rounded-full border px-4 py-1.5 text-xs font-extrabold uppercase shadow-sm tracking-wider ${statusChipClass(order)}`}>
-                  Status: {orderStatusLabel(order)}
-                </span>
+                <>
+                  <span className={`rounded-full border px-4 py-1.5 text-xs font-extrabold uppercase shadow-sm tracking-wider ${statusChipClass(order)}`}>
+                    Status: {orderStatusLabel(order)}
+                  </span>
+                  <span className={`rounded-full border px-4 py-1.5 text-xs font-extrabold uppercase shadow-sm tracking-wider ${paymentStatusChipClass(order.payment_status)}`}>
+                    Payment: {paymentStatusLabel(order.payment_status)}
+                  </span>
+                </>
               )}
             </div>
           </div>
@@ -600,6 +630,20 @@ export default function OrderDetailPage() {
                       DOWNLOAD PDF INVOICE
                     </button>
 
+                    {order.payment_status !== "paid" && order.payment_status !== "payment_requested" ? (
+                      <button
+                        type="button"
+                        onClick={handleMarkPaid}
+                        disabled={updatingOrderId === order.id}
+                        className="w-full rounded-xl bg-purple-600 hover:bg-purple-700 py-3 text-xs font-black text-white cursor-pointer transition shadow-md hover:shadow-purple-500/10 active:scale-[0.98] flex items-center justify-center gap-2"
+                      >
+                        <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 8h6m-6 4h6m-6 4h6M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />
+                        </svg>
+                        {updatingOrderId === order.id ? "Updating..." : "MARK AS PAID"}
+                      </button>
+                    ) : null}
+
                     {canMarkReceived(order) ? (
                       <button
                         type="button"
@@ -645,6 +689,10 @@ export default function OrderDetailPage() {
                     <div className="py-2.5 flex justify-between">
                       <span className="text-slate-400 font-medium">Delivery Status:</span>
                       <span className="text-slate-800 font-bold capitalize">{readable(order.delivery_status)}</span>
+                    </div>
+                    <div className="py-2.5 flex justify-between">
+                      <span className="text-slate-400 font-medium">Payment Status:</span>
+                      <span className="text-slate-800 font-bold capitalize">{readable(order.payment_status)}</span>
                     </div>
                     <div className="py-2.5 flex justify-between">
                       <span className="text-slate-400 font-medium">Order Sub-total:</span>

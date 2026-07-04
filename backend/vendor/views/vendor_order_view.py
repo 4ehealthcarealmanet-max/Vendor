@@ -42,9 +42,22 @@ class VendorOrderViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         # Users see orders where they are either the buyer or the vendor.
-        return VendorOrder.objects.filter(
-            Q(buyer=self.request.user) | Q(vendor__user=self.request.user)
-        ).distinct().order_by("-id")
+        return (
+            VendorOrder.objects.select_related(
+                "buyer",
+                "buyer__account_profile",
+                "vendor",
+                "vendor__user",
+            )
+            .prefetch_related(
+                "items",
+                "items__product",
+                "events",
+            )
+            .filter(Q(buyer=self.request.user) | Q(vendor__user=self.request.user))
+            .distinct()
+            .order_by("-id")
+        )
 
     def perform_create(self, serializer):
         # Both buyers and suppliers can place orders (suppliers for subcontracting).
@@ -154,20 +167,6 @@ class VendorOrderViewSet(viewsets.ModelViewSet):
             order.status = "completed"
         order.save(update_fields=["status", "delivery_status", "goods_received_at"])
 
-        # Increase stock for buyer if they are also a vendor (subcontracting fulfillment)
-        try:
-            buyer_profile = VendorProfile.objects.get(user=request.user)
-            for item in order.items.all():
-                matching_product = VendorProductService.objects.filter(
-                    vendor=buyer_profile,
-                    name=item.product.name
-                ).first()
-                if matching_product:
-                    matching_product.stock += item.quantity
-                    matching_product.save(update_fields=["stock"])
-        except VendorProfile.DoesNotExist:
-            pass
-
         log_order_event(
             order,
             message="Buyer confirmed the goods were received.",
@@ -202,13 +201,11 @@ class VendorOrderViewSet(viewsets.ModelViewSet):
     def make_payment(self, request, pk=None):
         order = self._get_buyer_order(request.user)
 
-        order.payment_status = "paid"
-        if order.status == "goods_received":
-            order.status = "completed"
-        order.save(update_fields=["payment_status", "status"])
+        order.payment_status = "payment_requested"
+        order.save(update_fields=["payment_status"])
         log_order_event(
             order,
-            message="Dummy payment recorded by buyer.",
+            message="Payment confirmation requested by buyer.",
             event_type="payment_updated",
             user=request.user,
         )
@@ -217,8 +214,46 @@ class VendorOrderViewSet(viewsets.ModelViewSet):
         Notification.create_notification(
             user=order.buyer,
             n_type="success",
-            title="Order Payment Completed",
-            message=f"You completed/recorded payment for Order HL-ORD-{str(order.id).zfill(4)}.",
+            title="Payment Confirmation Requested",
+            message=f"You requested payment confirmation for Order HL-ORD-{str(order.id).zfill(4)}.",
+            details=f"Payment status: payment_requested | Total Amount: ₹{order.total_amount}",
+            url="/buyer/orders"
+        )
+
+        # Notify the supplier
+        if order.vendor and order.vendor.user:
+            Notification.create_notification(
+                user=order.vendor.user,
+                n_type="info",
+                title="Payment Confirmation Requested",
+                message=f"Buyer has requested payment confirmation for Order HL-ORD-{str(order.id).zfill(4)}.",
+                details=f"Payment status: payment_requested | Total Amount: ₹{order.total_amount}",
+                url="/supplier/orders"
+            )
+
+        return Response(self.get_serializer(order).data)
+
+    @action(detail=True, methods=["post"], url_path="confirm-payment")
+    def confirm_payment(self, request, pk=None):
+        order = self._get_supplier_order(request.user)
+
+        order.payment_status = "paid"
+        if order.status == "goods_received":
+            order.status = "completed"
+        order.save(update_fields=["payment_status", "status"])
+        log_order_event(
+            order,
+            message="Payment receipt confirmed by supplier.",
+            event_type="payment_updated",
+            user=request.user,
+        )
+
+        # Notify the buyer
+        Notification.create_notification(
+            user=order.buyer,
+            n_type="success",
+            title="Order Payment Confirmed",
+            message=f"Supplier has confirmed receipt of payment for Order HL-ORD-{str(order.id).zfill(4)}.",
             details=f"Payment status: paid | Total Amount: ₹{order.total_amount}",
             url="/buyer/orders"
         )
@@ -228,8 +263,8 @@ class VendorOrderViewSet(viewsets.ModelViewSet):
             Notification.create_notification(
                 user=order.vendor.user,
                 n_type="success",
-                title="Order Payment Received",
-                message=f"Buyer has recorded payment for Order HL-ORD-{str(order.id).zfill(4)}.",
+                title="Payment Confirmed",
+                message=f"You confirmed receipt of payment for Order HL-ORD-{str(order.id).zfill(4)}.",
                 details=f"Payment status: paid | Total Amount: ₹{order.total_amount}",
                 url="/supplier/orders"
             )

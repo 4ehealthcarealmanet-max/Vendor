@@ -41,13 +41,16 @@ class HasActiveSubscription(BasePermission):
             return True
 
         # Check active subscription
-        now = timezone.now()
-        has_sub = UserSubscription.objects.filter(
-            user=user,
-            status="active",
-            start_date__lte=now,
-            end_date__gte=now
-        ).exists()
+        has_sub = getattr(user, "_has_active_subscription", None)
+        if has_sub is None:
+            now = timezone.now()
+            has_sub = UserSubscription.objects.filter(
+                user=user,
+                status="active",
+                start_date__lte=now,
+                end_date__gte=now
+            ).exists()
+            setattr(user, "_has_active_subscription", has_sub)
 
         if has_sub:
             return True

@@ -1,7 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.db.models import Q, Max
+from django.db.models import Q, Max, Subquery, OuterRef, Count
 from django.contrib.auth.models import User
 from django.core.files.storage import default_storage
 from vendor.models.vendor_message import VendorMessage
@@ -42,20 +42,27 @@ class VendorMessageViewSet(viewsets.ModelViewSet):
                 partner_ids.add(msg.sender_id)
             if msg.receiver_id != user.id:
                 partner_ids.add(msg.receiver_id)
-                
-        partners = User.objects.filter(id__in=partner_ids)
+                 
+        latest_message_subquery = VendorMessage.objects.filter(
+            Q(sender=user, receiver=OuterRef("id")) | Q(sender=OuterRef("id"), receiver=user)
+        ).order_by("-created_at")
+
+        unread_subquery = VendorMessage.objects.filter(
+            sender=OuterRef("id"),
+            receiver=user,
+            is_read=False
+        ).values("receiver").annotate(cnt=Count("id")).values("cnt")
+
+        partners = User.objects.filter(id__in=partner_ids).select_related(
+            "account_profile", "vendor_profile"
+        ).annotate(
+            last_message_content=Subquery(latest_message_subquery.values("content")[:1]),
+            last_message_time=Subquery(latest_message_subquery.values("created_at")[:1]),
+            unread_cnt=Subquery(unread_subquery)
+        )
         
         results = []
         for partner in partners:
-            # Get last message
-            last_msg = messages.filter(
-                Q(sender=user, receiver=partner) | Q(sender=partner, receiver=user)
-            ).order_index = ["-created_at"]
-            
-            last_msg = messages.filter(
-                Q(sender=user, receiver=partner) | Q(sender=partner, receiver=user)
-            ).order_by("-created_at").first()
-            
             # Get role or profile details
             role = "unknown"
             company_name = partner.username
@@ -82,9 +89,9 @@ class VendorMessageViewSet(viewsets.ModelViewSet):
                 "partner_email": partner.email,
                 "partner_role": role,
                 "company_name": company_name,
-                "last_message": last_msg.content if last_msg else "",
-                "last_message_time": last_msg.created_at if last_msg else None,
-                "unread_count": messages.filter(sender=partner, receiver=user, is_read=False).count()
+                "last_message": partner.last_message_content or "",
+                "last_message_time": partner.last_message_time,
+                "unread_count": partner.unread_cnt or 0
             })
             
         # Sort conversations by last message time descending
@@ -112,7 +119,7 @@ class VendorMessageViewSet(viewsets.ModelViewSet):
 
         # If user is buyer, contacts are all verified suppliers (vendors)
         if role == "buyer":
-            profiles = VendorProfile.objects.filter(verification_status="verified")
+            profiles = VendorProfile.objects.select_related("user").filter(verification_status="verified")
             contacts = []
             for p in profiles:
                 contacts.append({
@@ -126,7 +133,7 @@ class VendorMessageViewSet(viewsets.ModelViewSet):
         else:
             # If user is supplier, they can message buyers they have orders with, or all buyers
             # Let's return all users whose role is buyer
-            profiles = AccountProfile.objects.filter(role="buyer")
+            profiles = AccountProfile.objects.select_related("user").filter(role="buyer")
             contacts = []
             for p in profiles:
                 contacts.append({

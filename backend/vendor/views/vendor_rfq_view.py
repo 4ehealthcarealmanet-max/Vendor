@@ -42,6 +42,7 @@ class VendorRfqViewSet(viewsets.ModelViewSet):
                 "awarded_quote",
                 "awarded_vendor",
                 "awarded_order",
+                "source_order",
             )
             .prefetch_related(
                 "invitations__vendor__user",
@@ -77,15 +78,20 @@ class VendorRfqViewSet(viewsets.ModelViewSet):
         # Notify all suppliers about the new RFQ
         from django.contrib.auth.models import User
         suppliers = User.objects.filter(account_profile__role="supplier")
+        notifications = []
         for supplier in suppliers:
-            Notification.create_notification(
-                user=supplier,
-                n_type="info",
-                title="New Procurement Request",
-                message=f"RFQ #{rfq.id} for \"{rfq.title}\" has been published.",
-                details=f"Qty: {rfq.quantity} units | Budget: ₹{rfq.target_budget} | Delivery: {rfq.delivery_location}",
-                url=f"/supplier/rfq?rfqId={rfq.id}"
+            notifications.append(
+                Notification(
+                    user=supplier,
+                    type="info",
+                    title="New Procurement Request",
+                    message=f"RFQ #{rfq.id} for \"{rfq.title}\" has been published.",
+                    details=f"Qty: {rfq.quantity} units | Budget: ₹{rfq.target_budget} | Delivery: {rfq.delivery_location}",
+                    url=f"/supplier/rfq?rfqId={rfq.id}"
+                )
             )
+        if notifications:
+            Notification.objects.bulk_create(notifications)
 
     def perform_update(self, serializer):
         rfq = self.get_object()

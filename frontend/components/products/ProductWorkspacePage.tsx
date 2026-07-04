@@ -92,6 +92,28 @@ function ProductsPageContent() {
   const [username, setUsername] = useState<string>("")
   const [userRole, setUserRole] = useState<"supplier" | "buyer" | "admin" | "">("")
   const [buyerType, setBuyerType] = useState<string>("")
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const cachedUsername = sessionStorage.getItem("catalog_username") || ""
+      const cachedUserRole = (sessionStorage.getItem("catalog_user_role") as any) || ""
+      const cachedBuyerType = sessionStorage.getItem("catalog_buyer_type") || ""
+      
+      let cachedProducts: VendorProductService[] = []
+      const storedProducts = sessionStorage.getItem("catalog_products")
+      if (storedProducts) {
+        try { cachedProducts = JSON.parse(storedProducts) } catch {}
+      }
+
+      if (cachedUsername) setUsername(cachedUsername)
+      if (cachedUserRole) setUserRole(cachedUserRole)
+      if (cachedBuyerType) setBuyerType(cachedBuyerType)
+      if (cachedProducts.length > 0) setProducts(cachedProducts)
+
+      const hasCache = Boolean(storedProducts)
+      setIsLoading(!hasCache)
+    }
+  }, [])
   const [editingProductId, setEditingProductId] = useState<number | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<VendorProductService | null>(null)
   const [updating, setUpdating] = useState(false)
@@ -186,7 +208,7 @@ function ProductsPageContent() {
   useEffect(() => {
     let active = true
     const fetchProducts = async (isPoll = false) => {
-      if (!isPoll) {
+      if (!isPoll && !sessionStorage.getItem("catalog_products")) {
         setIsLoading(true)
       }
       setError(null)
@@ -209,10 +231,15 @@ function ProductsPageContent() {
           setUserRole(me.role)
           setBuyerType(me.buyer_type || "")
           setHasActiveSub(me.has_active_subscription ?? true)
+          
+          sessionStorage.setItem("catalog_username", me.username)
+          sessionStorage.setItem("catalog_user_role", me.role)
+          sessionStorage.setItem("catalog_buyer_type", me.buyer_type || "")
         }
         const data = await getProducts()
         if (active) {
           setProducts(data)
+          sessionStorage.setItem("catalog_products", JSON.stringify(data))
         }
       } catch (error) {
         if (isAuthSessionError(error)) {

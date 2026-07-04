@@ -230,11 +230,52 @@ const createActivityFeed = (rfqs: VendorRfq[], orders: VendorOrder[]) => {
 
 export default function BuyerDashboardPage() {
   const router = useRouter()
-  const [user, setUser] = useState<AuthUser | null>(null)
-  const [products, setProducts] = useState<VendorProductService[]>([])
-  const [orders, setOrders] = useState<VendorOrder[]>([])
-  const [rfqs, setRfqs] = useState<VendorRfq[]>([])
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    if (typeof window !== "undefined") {
+      const cached = sessionStorage.getItem("buyer_user")
+      if (cached) {
+        try { return JSON.parse(cached) } catch { return null }
+      }
+    }
+    return null
+  })
+  const [products, setProducts] = useState<VendorProductService[]>(() => {
+    if (typeof window !== "undefined") {
+      const cached = sessionStorage.getItem("buyer_products")
+      if (cached) {
+        try { return JSON.parse(cached) } catch { return [] }
+      }
+    }
+    return []
+  })
+  const [orders, setOrders] = useState<VendorOrder[]>(() => {
+    if (typeof window !== "undefined") {
+      const cached = sessionStorage.getItem("buyer_orders")
+      if (cached) {
+        try { return JSON.parse(cached) } catch { return [] }
+      }
+    }
+    return []
+  })
+  const [rfqs, setRfqs] = useState<VendorRfq[]>(() => {
+    if (typeof window !== "undefined") {
+      const cached = sessionStorage.getItem("buyer_rfqs")
+      if (cached) {
+        try { return JSON.parse(cached) } catch { return [] }
+      }
+    }
+    return []
+  })
+  const [loading, setLoading] = useState(() => {
+    if (typeof window !== "undefined") {
+      const hasCached = sessionStorage.getItem("buyer_products") &&
+                        sessionStorage.getItem("buyer_orders") &&
+                        sessionStorage.getItem("buyer_rfqs") &&
+                        sessionStorage.getItem("buyer_user")
+      return !hasCached
+    }
+    return true
+  })
   const [error, setError] = useState("")
   const [searchText, setSearchText] = useState("")
   const [ledgerFilter, setLedgerFilter] = useState<"all" | "open" | "under_review" | "awarded" | "closed">("all")
@@ -262,6 +303,12 @@ export default function BuyerDashboardPage() {
         setProducts(productData)
         setOrders(orderData)
         setRfqs(rfqData)
+
+        // Cache for next visit
+        sessionStorage.setItem("buyer_user", JSON.stringify(me))
+        sessionStorage.setItem("buyer_products", JSON.stringify(productData))
+        sessionStorage.setItem("buyer_orders", JSON.stringify(orderData))
+        sessionStorage.setItem("buyer_rfqs", JSON.stringify(rfqData))
       } catch (loadError) {
         if (isAuthSessionError(loadError)) {
           clearToken()

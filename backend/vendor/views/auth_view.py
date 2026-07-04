@@ -38,6 +38,8 @@ def _build_user_payload(user, account_profile):
         if active_sub and active_sub.plan:
             active_plan_id = active_sub.plan.id
 
+    setattr(user, "_has_active_subscription", has_sub)
+
     return {
         "id": user.id,
         "username": user.username,
@@ -190,7 +192,7 @@ def admin_users_view(request):
         return denial
 
     users = (
-        User.objects.select_related("account_profile")
+        User.objects.select_related("account_profile", "vendor_profile", "buyer_profile")
         .filter(account_profile__role__in=["buyer", "supplier"])
         .order_by("-date_joined", "-id")
     )
@@ -201,7 +203,10 @@ def admin_users_view(request):
         # Fetch additional verification info
         verification_info = {}
         if profile.role == "supplier":
-            vp = VendorProfile.objects.filter(user=user).first()
+            try:
+                vp = user.vendor_profile
+            except (VendorProfile.DoesNotExist, AttributeError):
+                vp = None
             if vp:
                 verification_info = {
                     "company_name": vp.company_name,
@@ -233,7 +238,10 @@ def admin_users_view(request):
                     "longitude": vp.longitude,
                 }
         else:
-            bp = BuyerProfile.objects.filter(user=user).first()
+            try:
+                bp = user.buyer_profile
+            except (BuyerProfile.DoesNotExist, AttributeError):
+                bp = None
             if bp:
                 verification_info = {
                     "company_name": bp.organization_name,
