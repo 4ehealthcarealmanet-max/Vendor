@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedVendor Portal - Developer Documentation</title>
+    
+    <!-- Fonts & Styles -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Prism.js Light Syntax Highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet" />
+    
+    <!-- Custom styling to ensure rich aesthetics in pure white/light mode -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #ffffff;
+            color: #1e293b; /* Slate 800 */
+        }
+        pre, code {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9; /* Slate 100 */
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; /* Slate 300 */
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; /* Slate 400 */
+        }
+        
+        /* Markdown rendering styles */
+        .prose h1 {
+            color: #0f172a;
+            font-weight: 800;
+            font-size: 2.25rem;
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 0.75rem;
+        }
+        .prose h2 {
+            color: #1e293b;
+            font-weight: 700;
+            font-size: 1.5rem;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 0.5rem;
+        }
+        .prose h3 {
+            color: #334155;
+            font-weight: 600;
+            font-size: 1.25rem;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .prose p {
+            margin-bottom: 1.25rem;
+            line-height: 1.75;
+            color: #475569;
+        }
+        .prose ul, .prose ol {
+            margin-bottom: 1.25rem;
+            padding-left: 1.5rem;
+            color: #475569;
+        }
+        .prose ul {
+            list-style-type: disc;
+        }
+        .prose ol {
+            list-style-type: decimal;
+        }
+        .prose li {
+            margin-bottom: 0.5rem;
+        }
+        .prose table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1.5rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+        }
+        .prose th {
+            background-color: #f8fafc;
+            font-weight: 600;
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border: 1px solid #e2e8f0;
+            color: #0f172a;
+        }
+        .prose td {
+            padding: 0.75rem 1rem;
+            border: 1px solid #e2e8f0;
+            color: #334155;
+        }
+        .prose tr:hover {
+            background-color: #f8fafc;
+        }
+        .prose pre {
+            margin-top: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-radius: 0.5rem;
+            background-color: #f8fafc !important;
+            border: 1px solid #e2e8f0;
+        }
+        .prose code {
+            background-color: #f1f5f9;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            font-size: 0.875em;
+            color: #0f172a;
+        }
+        .prose pre code {
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+            font-size: 0.875rem;
+            color: inherit;
+        }
+        .prose hr {
+            border: 0;
+            border-top: 1px solid #e2e8f0;
+            margin: 2.5rem 0;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-white">
+
+    <!-- Top Navigation Header -->
+    <header class="sticky top-0 z-40 w-full flex items-center justify-between px-6 py-4 bg-white border-b border-gray-100 shadow-sm shadow-gray-50/50">
+        <div class="flex items-center gap-3">
+            <div class="flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600">
+                <i class="fa-solid fa-handshake-angle text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold text-gray-900 leading-none">MedVendor</h1>
+                <span class="text-xs font-semibold text-indigo-600 tracking-wider uppercase">Procurement Documentation</span>
+            </div>
+        </div>
+        
+        <!-- Status indicator -->
+        <div class="flex items-center gap-2">
+            <span class="flex w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="text-sm font-medium text-gray-600">MedVendor Core System</span>
+        </div>
+    </header>
+
+    <!-- App Content Wrapper -->
+    <div class="flex-1 flex w-full">
+        
+        <!-- Sidebar Drawer -->
+        <aside class="w-80 border-r border-gray-100 bg-gray-50/50 p-6 flex flex-col gap-6 shrink-0 h-[calc(100vh-73px)] sticky top-[73px] overflow-y-auto">
+            
+            <!-- Global Doc Search -->
+            <div class="relative">
+                <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none text-gray-400">
+                    <i class="fa-solid fa-magnifying-glass text-sm"></i>
+                </div>
+                <input type="text" id="search-input" placeholder="Search documentation..." 
+                       class="w-full pl-9 pr-4 py-2 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-200 placeholder:text-gray-400">
+                
+                <!-- Search Result Dropdown -->
+                <div id="search-results" class="hidden absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-lg z-50 max-h-80 overflow-y-auto"></div>
+            </div>
+
+            <!-- Nav Links List -->
+            <nav class="flex flex-col gap-5 flex-1">
+                <div>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5 px-3">Standard Guide</h3>
+                    <ul class="flex flex-col gap-1">
+                        <li>
+                            <button data-doc="system-architecture" class="nav-link w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-50 transition-colors duration-150">
+                                <i class="fa-solid fa-network-wired text-gray-400"></i> System Architecture
+                            </button>
+                        </li>
+                        <li>
+                            <button data-doc="frontend-developer-guide" class="nav-link w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-50 transition-colors duration-150">
+                                <i class="fa-solid fa-code text-gray-400"></i> Frontend Developer Guide
+                            </button>
+                        </li>
+                        <li>
+                            <button data-doc="setup-and-maintenance" class="nav-link w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-50 transition-colors duration-150">
+                                <i class="fa-solid fa-screwdriver-wrench text-gray-400"></i> Setup & Maintenance
+                            </button>
+                        </li>
+                        <li>
+                            <button data-doc="user-workflows" class="nav-link w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-50 transition-colors duration-150">
+                                <i class="fa-solid fa-people-arrows text-gray-400"></i> User Workflows
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5 px-3">API Documentation</h3>
+                    <ul class="flex flex-col gap-1">
+                        <li>
+                            <button data-doc="backend-api-reference" class="nav-link w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-50 transition-colors duration-150">
+                                <i class="fa-solid fa-link text-gray-400"></i> Backend API Reference
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+            
+            <!-- Sidebar Footer -->
+            <div class="pt-4 border-t border-gray-100 flex items-center gap-3 text-xs text-gray-500">
+                <i class="fa-regular fa-copyright"></i> 2026 MedVendor Inc.
+            </div>
+        </aside>
+
+        <!-- Main Workspace Area -->
+        <main class="flex-1 flex min-w-0 bg-white">
+            
+            <!-- Article Body -->
+            <article class="flex-1 px-12 py-10 max-w-4xl overflow-y-auto h-[calc(100vh-73px)]">
+                <div id="content-area" class="prose max-w-none"></div>
+            </article>
+
+            <!-- Table of Contents Sidebar -->
+            <aside id="toc-wrapper" class="w-64 border-l border-gray-100 p-8 shrink-0 h-[calc(100vh-73px)] sticky top-[73px] overflow-y-auto hidden">
+                <h3 class="text-xs font-bold text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-align-left text-indigo-500"></i> Page Outline
+                </h3>
+                <ul id="toc-container" class="flex flex-col gap-2.5 text-xs"></ul>
+            </aside>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    
+    <!-- Prism Languages -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-typescript.min.js"></script>
+    
+    <!-- Mermaid ESM module initialization -->
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ 
+            startOnLoad: false, 
+            theme: 'neutral',
+            securityLevel: 'loose'
+        });
+        window.mermaid = mermaid;
+    </script>
+
+    <!-- Documentation Contents Injection -->
+    <script>
+        const DOCS = {
+            "system-architecture": `# System Architecture
+
+This document provides a comprehensive overview of the MedVendor Procurement platform's architecture, database design, and key system integrations.
+
+---
+
+## 1. System Overview
+MedVendor is a multi-actor B2B medical procurement platform designed to streamline **Request For Quotations (RFQs)**, **Order Orchestration**, **Product/Service Listings**, **In-app Messaging**, and **Razorpay-based Subscription Management**.
+
+The system facilitates secure transactions, audit logs, and status tracking between two main user roles: **Buyers** (Hospitals, Pharmacies, NGOs, Clinics) and **Suppliers/Vendors**.
+
+---
+
+## 2. Technical Stack
+The application is split into a decoupled frontend and backend:
+
+*   **Frontend**: 
+    *   **Framework**: Next.js (App Router)
+    *   **Language**: TypeScript
+    *   **Styling**: TailwindCSS & Lucide icons
+    *   **Hosting Target**: Vercel
+*   **Backend**:
+    *   **Framework**: Django & Django REST Framework (DRF)
+    *   **Database**: PostgreSQL (Supabase)
+    *   **Storage**: Cloudinary (for product images & onboarding documents)
+    *   **Payment Gateway**: Razorpay (for subscription payments)
+    *   **Hosting Target**: Render
+
+---
+
+## 3. Database Schema
+
+The database model is built on top of Django's native \`contrib.auth.models.User\` and contains the following custom tables:
+
+### medvendor_account_profiles
+Extends the core User model to specify user role and verification status.
+*   \`user\` (One-to-One with User)
+*   \`role\` ("supplier" | "buyer", default "buyer")
+*   \`status\` ("pending" | "approved" | "rejected", default "pending")
+*   \`buyer_type\` ("hospital" | "pharmacy" | "ngo" | "clinic", default "")
+*   \`created_at\` (DateTimeField)
+
+### medvendor_buyer_profiles
+Stores detailed organization information for Buyers.
+*   \`user\` (One-to-One with User)
+*   \`organization_name\` (CharField)
+*   \`buyer_type\` (CharField)
+*   \`gst_number\` (CharField)
+*   \`address\` (TextField)
+*   \`procurement_contact_name\` (CharField)
+*   \`payment_terms\` (CharField)
+*   \`categories_needed\` (TextField)
+
+### medvendor_vendor_profiles
+Stores detailed business verification details for Suppliers.
+*   \`user\` (One-to-One with User)
+*   \`company_name\` (CharField)
+*   \`brand_name\` (CharField)
+*   \`gst_number\` (CharField)
+*   \`license_number\` (CharField)
+*   \`business_category\` (CharField)
+*   \`verification_status\` ("pending" | "verified" | "rejected")
+*   \`bank_account_name\` / \`bank_account_number\` / \`ifsc_code\`
+
+### medvendor_vendor_product_services
+Defines the products and services offered by verified Suppliers.
+*   \`vendor\` (ForeignKey to \`medvendor_vendor_profiles\`)
+*   \`name\` (CharField)
+*   \`description\` (TextField)
+*   \`product_type\` ("product" | "service")
+*   \`price\` (DecimalField)
+*   \`stock\` (IntegerField)
+*   \`is_active\` (BooleanField)
+
+### medvendor_vendor_rfqs
+Represents a Request For Quotation created by a Buyer or Supplier (for subcontracting).
+*   \`buyer\` (ForeignKey to User)
+*   \`title\` / \`description\` (CharField/TextField)
+*   \`product_type\` ("product" | "service")
+*   \`quantity\` (PositiveIntegerField)
+*   \`target_budget\` (DecimalField)
+*   \`quote_deadline\` / \`expected_delivery_date\` (DateField)
+*   \`status\` ("open" | "under_review" | "awarded" | "closed")
+*   \`awarded_quote\` (ForeignKey to \`medvendor_vendor_quotations\`)
+*   \`source_order\` (ForeignKey to \`medvendor_vendor_orders\` - used for subcontracting shortages)
+
+### medvendor_vendor_quotations
+Represents a quotation bid submitted by a Supplier.
+*   \`rfq\` (ForeignKey to \`medvendor_vendor_rfqs\`)
+*   \`supplier_vendor\` (ForeignKey to \`medvendor_vendor_profiles\`)
+*   \`product\` (ForeignKey to \`medvendor_vendor_product_services\`)
+*   \`unit_price\` (DecimalField)
+*   \`lead_time_days\` (PositiveIntegerField)
+*   \`validity_days\` (PositiveIntegerField)
+*   \`status\` ("submitted" | "rejected" | "awarded")
+
+### medvendor_vendor_orders
+Purchase Orders created after an RFQ award or direct reorder.
+*   \`buyer\` (ForeignKey to User)
+*   \`vendor\` (ForeignKey to \`medvendor_vendor_profiles\`)
+*   \`status\` ("po_released" | "po_accepted" | "processing" | "partially_subcontracted" | "ready_to_dispatch" | "shipped" | "delivered" | "goods_received" | "completed" | "cancelled")
+*   \`payment_status\` ("pending" | "partially_paid" | "paid" | "overdue" | "payment_requested")
+*   \`delivery_status\` ("not_started" | "loaded" | "in_transit" | "out_for_delivery" | "delivered")
+*   \`total_amount\` (DecimalField)
+
+---
+
+## 4. Architectural Workflows
+
+### System Architecture Flow
+\`\`\`mermaid
+graph TD
+    User[Web Client / React] -->|HTTPS/REST| NextJS[Next.js Frontend]
+    NextJS -->|API Requests| Django[Django Backend API]
+    Django -->|ORM| Postgres[(Supabase PostgreSQL)]
+    Django -->|Storage SDK| Cloudinary[(Cloudinary File Storage)]
+    Django -->|Payment API| Razorpay[Razorpay Payment Gateway]
+\`\`\`
+
+### Database ERD Overview
+\`\`\`mermaid
+erDiagram
+    User ||--o| AccountProfile : "has profile"
+    User ||--o| BuyerProfile : "has organization"
+    User ||--o| VendorProfile : "has business details"
+    VendorProfile ||--o{ VendorProductService : "owns"
+    VendorProductService ||--o{ VendorProductServiceImage : "contains"
+    User ||--o{ VendorRfq : "creates"
+    VendorRfq ||--o{ VendorQuotation : "receives"
+    VendorProfile ||--o{ VendorQuotation : "submits"
+    VendorQuotation ||--o| VendorOrder : "generates"
+\`\`\`
+`,
+
+            "frontend-developer-guide": `# Frontend Developer Guide
+
+This document describes the structure and coding patterns of the Next.js frontend application.
+
+---
+
+## 1. Project Directory Structure
+The frontend application uses the Next.js App Router format, located under \`/frontend\`.
+
+\`\`\`
+frontend/
+├── app/                  # Next.js App Router files
+│   ├── admin/            # Admin pages (Dashboard, Verification Settings)
+│   ├── buyer/            # Buyer module (RFQs, Orders, Subscriptions, Messages)
+│   ├── supplier/         # Supplier module (Listings, Bids, Orders, Analytics)
+│   ├── vendor/           # Unified sub-pages for products and analytics
+│   ├── login/            # Authentication login page
+│   ├── register/         # Multi-role registration form
+│   ├── globals.css       # Core Tailwind CSS styles
+│   └── layout.tsx        # Base root layout wrapper
+├── components/           # Shared reusable layout & interactive UI components
+│   ├── ui/               # Generic primitive widgets (Buttons, Inputs, Dialogs)
+│   └── layout/           # Sidebar navigation, User profile menus
+├── services/             # Core network/API client logic
+│   └── utils/
+│       └── apiConfig.ts  # API URL orchestrator
+├── types/                # Core TypeScript interfaces
+└── next.config.ts        # Next.js configuration settings
+\`\`\`
+
+---
+
+## 2. API Configurations & Integrations
+
+The file \`services/utils/apiConfig.ts\` controls all API connections:
+*   It looks for \`process.env.NEXT_PUBLIC_API_BASE_URL\` or can be overridden via \`MANUAL_API_BASE_URL\`.
+*   It standardizes backend URLs (trimming trailing slashes) and sets sub-paths:
+    *   \`API_URLS.BASE\`: Root backend URL
+    *   \`API_URLS.VENDOR\`: Vendor API namespace (\`/api/vendor\`)
+    *   \`API_URLS.AUTH\`: Auth path (\`/api/vendor/auth\`)
+
+---
+
+## 3. Role-Based Routing & Authorization
+
+Redirects are based on the user's role:
+*   **Admin Dashboard** (\`/app/admin/*\`): Restructured page to monitor system users and verify/approve newly registered accounts.
+*   **Buyer Dashboard** (\`/app/buyer/*\`): Restricted to accounts with \`role: "buyer"\`. Houses procurement workflows.
+*   **Supplier Dashboard** (\`/app/supplier/*\`): Restricted to accounts with \`role: "supplier"\`. Handles bidding and inventory.
+
+A global middleware or Layout check validates the user state via the \`/api/vendor/auth/me/\` endpoint. If a user is not logged in or attempts to access a path that does not match their \`role\`, they are redirected to \`/login\`.
+
+---
+
+## 4. UI Components & Styling
+
+*   **Tailwind CSS**: The visual grid and components leverage Tailwind CSS properties defined in \`globals.css\` and \`tailwind.config.js\`.
+*   **Forms**: Profile updates and registration use modular forms with state validators. Document attachments (e.g. GST documents, medical licenses) are uploaded to the backend and stored securely in Cloudinary.
+*   **Sidebar Layouts**: Separate, specialized navigation sidebars are rendered for Buyers and Suppliers, ensuring clean, role-tailored workspace actions.
+`,
+
+            "setup-and-maintenance": `# Setup And Maintenance Guide
+
+This document describes how to configure, run, deploy, and maintain both the frontend and backend modules of the MedVendor Procurement platform.
+
+---
+
+## 1. Local Development Setup
+
+### Backend Setup
+1.  **Environment**: Requires Python 3.10+ (Check \`.python-version\`).
+2.  **Dependencies**: Create a virtual environment and install dependencies:
+    \`\`\`bash
+    cd backend
+    python -m venv venv
+    source venv/bin/activate
+    pip install -r requirements.txt
+    \`\`\`
+3.  **Environment Configuration**: Create a \`.env\` file from the example:
+    \`\`\`bash
+    cp .env.example .env
+    \`\`\`
+    *Open \`.env\` and fill in your database, Cloudinary, and Razorpay parameters.*
+4.  **Database Migrations**: Run migration scripts to initialize the Supabase database schema:
+    \`\`\`bash
+    python manage.py migrate
+    \`\`\`
+5.  **Create Admin**: Initialize the platform superuser:
+    \`\`\`bash
+    python manage.py createsuperuser
+    \`\`\`
+6.  **Run Server**: Start the local development server:
+    \`\`\`bash
+    python manage.py runserver
+    \`\`\`
+
+### Frontend Setup
+1.  **Node Version**: Requires Node.js 18+ (Check \`.nvmrc\`).
+2.  **Dependencies**: Install npm packages:
+    \`\`\`bash
+    cd frontend
+    npm install
+    \`\`\`
+3.  **Environment Configuration**: Create \`.env\` file:
+    \`\`\`bash
+    cp .env.example .env
+    \`\`\`
+    Ensure \`NEXT_PUBLIC_API_BASE_URL\` points to the local backend (usually \`http://127.0.0.1:8000\`).
+4.  **Run Application**: Start Next.js in development mode:
+    \`\`\`bash
+    npm run dev
+    \`\`\`
+
+---
+
+## 2. Environment Variables Summary
+
+### Backend Key Configurations
+*   \`DJANGO_SECRET_KEY\`: Long, secure, random string for cryptographic signatures.
+*   \`DJANGO_DEBUG\`: \`True\` in local development, \`False\` in production.
+*   \`DATABASE_URL\`: PostgreSQL connection string.
+*   \`CORS_ALLOWED_ORIGINS\` & \`CSRF_TRUSTED_ORIGINS\`: Comma-separated list of approved frontend domains.
+*   \`CLOUDINARY_KEY\` / \`CLOUDINARY_NAME\` / \`CLOUDINARY_SECRET\`: Credentials to upload media items.
+*   \`PLATFORM_RAZORPAY_KEY_ID\` / \`PLATFORM_RAZORPAY_KEY_SECRET\`: Razorpay keys for verification checks.
+
+---
+
+## 3. Platform Deployment Guide
+
+### Backend (Render Deployment)
+1.  Connect your repository to Render as a **Web Service**.
+2.  Set the **Root Directory** to \`backend\`.
+3.  Configure the **Build Command** to \`pip install -r requirements.txt\` and the **Start Command** to \`gunicorn config.wsgi:application\` (defined in \`Procfile\`).
+4.  Configure all environment variables in Render dashboard settings.
+5.  Ensure \`DJANGO_ALLOWED_HOSTS\` includes your new Render domain.
+
+### Frontend (Vercel Deployment)
+1.  Import the repository into Vercel.
+2.  In the project configuration:
+    *   Set **Root Directory** to \`frontend\`.
+    *   Framework Preset: **Next.js**.
+    *   Build Command: \`npm run build\`.
+3.  Add the environment variable \`NEXT_PUBLIC_API_BASE_URL\` pointing to your Render backend API URL.
+
+---
+
+## 4. Cache & Maintenance Procedures
+*   **Subscription Plan Caching**: Subscription plans are cached for 24 hours to reduce database read overhead. If you update plans through Django Admin, cache signals in \`subscription_view.py\` automatically clear keys (e.g. \`subscription_plans_buyer\`) so changes reflect immediately.
+*   **Static Assets**: Whitenoise is used to compress and serve static files for the Django Admin portal. Remember to execute \`python manage.py collectstatic\` on build servers.
+`,
+
+            "user-workflows": `# User Workflows
+
+This document outlines the end-to-end lifecycles and step-by-step procedures for the primary actions performed on the MedVendor platform.
+
+---
+
+## 1. Actor Onboarding Workflow
+To ensure platform compliance, all users must complete a structured onboarding and verification pipeline:
+
+\`\`\`mermaid
+sequenceDiagram
+    participant User as Supplier/Buyer
+    participant Admin as Platform Admin
+    participant DB as System Database
+
+    User->>DB: Registers (role, credentials)
+    DB->>User: Account created (status: pending)
+    User->>DB: Completes profile (uploads GST, License, address)
+    Admin->>DB: Reviews profile docs in Admin Panel
+    alt Documents Valid
+        Admin->>DB: Approves User (status: approved)
+        DB->>User: Grants access to dashboards
+    else Documents Invalid
+        Admin->>DB: Rejects User (status: rejected)
+        DB->>User: Blocks account login
+    end
+\`\`\`
+
+1.  **Register**: The user registers on the \`/register\` page, choosing either the **Supplier** or **Buyer** role.
+2.  **Submit Profile Documents**: Upon initial login, they are directed to a profile page. They must fill out organization information, including GST number, and upload licenses or registration documents.
+3.  **Admin Review**: A platform administrator logs into \`/admin\` and views the users list. They review the uploaded documents and click "Approve" or "Reject".
+4.  **Verification Bypass**: Once the user is marked \`approved\`, they bypass the onboarding check and can access their respective workspace page (/buyer or /supplier).
+
+---
+
+## 2. Request For Quotation (RFQ) Lifecycle
+Buyers publish RFQs to source supplies, and Suppliers submit bids to fulfill them:
+
+1.  **RFQ Publication**: A verified Buyer creates a procurement request (RFQ), specifying details such as quantity, delivery location, budget, deadline, and tender type (Open or Limited).
+2.  **Notification Dispatch**: The platform automatically dispatches notifications to all registered Suppliers, notifying them of a new opportunity.
+3.  **Bidding (Quotation Submission)**: Interested Suppliers browse live RFQs and submit quotes. They link their bid to an existing product in their catalog, specify their unit price, delivery lead time, validity, and notes.
+4.  **Evaluation**: The Buyer compares the bids in their dashboard. They can reject unviable quotations (providing rejection reasons) or award the RFQ.
+5.  **Awarding & Purchase Order Generation**: When the Buyer awards a quotation:
+    *   The RFQ status changes to \`awarded\`.
+    *   The quotation status changes to \`awarded\`.
+    *   A Purchase Order (PO) is automatically generated in the \`medvendor_vendor_orders\` table with status \`po_released\`.
+    *   An email notification is dispatched to the winning supplier containing PO details.
+
+---
+
+## 3. Order Tracking, Logistics & Payment
+Once a Purchase Order is generated, both parties track fulfillment, delivery, and payment:
+
+\`\`\`mermaid
+stateDiagram-v2
+    [*] --> PO_Released : Buyer Awards RFQ
+    PO_Released --> PO_Accepted : Supplier Accepts PO
+    PO_Accepted --> Processing : Supplier Starts Packing
+    Processing --> Shipped : Supplier Ships Goods
+    Shipped --> Goods_Received : Buyer Confirms Delivery
+    Goods_Received --> Completed : Payment Confirmed by Supplier
+    Completed --> [*]
+\`\`\`
+
+### Fulfillment & Tracking Steps:
+1.  **PO Acceptance**: The Supplier views the released PO in \`/supplier/orders\` and clicks **Accept**. The status changes to \`po_accepted\`.
+2.  **Fulfillment**: The Supplier updates the order status to \`processing\`.
+3.  **Shipment**: Once shipped, the Supplier updates the tracking details, setting status to \`shipped\`, delivery status to \`in_transit\`, and adding carrier details/tracking notes.
+4.  **Delivery Confirmation**: Upon physical receipt of goods, the Buyer logs in and clicks **Confirm Delivery**. This sets the order status to \`goods_received\` and delivery status to \`delivered\`.
+
+### Payment & Closure:
+1.  **Payment Request**: The Buyer triggers payment processing and clicks **Submit Payment**. This updates the order payment status to \`payment_requested\`.
+2.  **Payment Confirmation**: The Supplier verifies the receipt of funds and clicks **Confirm Payment**. This sets payment status to \`paid\`.
+3.  **Closeout**: Once both delivery (\`delivered\`) and payment (\`paid\`) are verified, the order status transitions to \`completed\`.
+4.  **Reordering**: Buyers can click **Reorder** on any previous order to clone the item list and trigger a new PO instantly.
+
+---
+
+## 4. Supplier Shortage Subcontracting
+If a Supplier accepts a PO but encounters inventory shortages, they can subcontract a portion of the order:
+
+1.  **Initiate Subcontract**: The Supplier opens the active order and enters the shortage quantity they cannot fulfill.
+2.  **Derived RFQ Generation**: The system creates a new RFQ where the Supplier acts as the "Buyer". This RFQ is marked as a \`subcontract\` type and links back to the original order.
+3.  **Order Flagging**: The original order status changes to \`partially_subcontracted\`.
+4.  **Bidding & Fulfilling**: Other platform suppliers bid on this subcontract RFQ. Once awarded, the sub-order is completed, resolving the supply gap for the main Supplier.
+`,
+
+            "backend-api-reference": `# Backend API Reference
+
+All requests must include the header \`Authorization: Token <your_token>\` unless specified as **Public** or **AllowAny**.
+
+---
+
+## 1. Authentication & Account Management
+
+### Register Account
+*   **Endpoint**: \`POST /api/vendor/auth/register/\`
+*   **Access**: Public (AllowAny)
+*   **Request Payload**:
+    \`\`\`json
+    {
+      "username": "supplier_john",
+      "password": "SecurePassword123",
+      "email": "john@example.com",
+      "role": "supplier"
+    }
+    \`\`\`
+*   **Response (201 Created)**:
+    \`\`\`json
+    {
+      "message": "Registration successful. Please complete your profile.",
+      "token": "a1b2c3d4e5f6g7h8i9j0...",
+      "user": {
+        "id": 12,
+        "username": "supplier_john",
+        "email": "john@example.com",
+        "role": "supplier",
+        "status": "pending"
+      }
+    }
+    \`\`\`
+
+### Login
+*   **Endpoint**: \`POST /api/vendor/auth/login/\`
+*   **Access**: Public (AllowAny)
+*   **Request Payload**:
+    \`\`\`json
+    {
+      "username": "supplier_john",
+      "password": "SecurePassword123"
+    }
+    \`\`\`
+*   **Response (200 OK)**:
+    \`\`\`json
+    {
+      "token": "a1b2c3d4e5f6g7h8i9j0...",
+      "user": {
+        "id": 12,
+        "username": "supplier_john",
+        "email": "john@example.com",
+        "role": "supplier",
+        "status": "approved",
+        "has_active_subscription": true,
+        "active_subscription_plan_id": 2
+      }
+    }
+    \`\`\`
+
+### Get My Info
+*   **Endpoint**: \`GET /api/vendor/auth/me/\`
+*   **Access**: Authenticated / Admin Token
+*   **Response (200 OK)**:
+    \`\`\`json
+    {
+      "id": 12,
+      "username": "supplier_john",
+      "email": "john@example.com",
+      "role": "supplier",
+      "status": "approved",
+      "buyer_type": null,
+      "has_active_subscription": true,
+      "active_subscription_plan_id": 2
+    }
+    \`\`\`
+
+### Update User Profile
+*   **Endpoint**: \`POST /api/vendor/auth/profile/update/\`
+*   **Access**: Authenticated (Supplier or Buyer)
+*   **Request Payload (Supplier Profile example)**:
+    \`\`\`json
+    {
+      "company_name": "Acme Pharma",
+      "brand_name": "Acme Care",
+      "gst_number": "22AAAAA0000A1Z5",
+      "license_number": "DL-12345",
+      "business_category": "Pharmaceuticals",
+      "address": "123 Health Ave, Mumbai",
+      "city": "Mumbai",
+      "state": "Maharashtra",
+      "pincode": "400001",
+      "contact_name": "John Doe",
+      "phone": "+919876543210"
+    }
+    \`\`\`
+*   **Response (200 OK)**:
+    \`\`\`json
+    {
+      "detail": "Profile updated successfully.",
+      "profile": { ... }
+    }
+    \`\`\`
+
+---
+
+## 2. Admin Management
+
+### List Platform Users
+*   **Endpoint**: \`GET /api/vendor/auth/admin/users/\`
+*   **Access**: Admin Access (Header: \`Authorization: Bearer <admin_session_token>\`)
+*   **Response (200 OK)**:
+    \`\`\`json
+    [
+      {
+        "id": 12,
+        "username": "supplier_john",
+        "email": "john@example.com",
+        "role": "supplier",
+        "status": "pending",
+        "verification_info": {
+          "company_name": "Acme Pharma",
+          "gst_number": "22AAAAA0000A1Z5"
+        }
+      }
+    ]
+    \`\`\`
+
+### Update User Status
+*   **Endpoint**: \`POST /api/vendor/auth/admin/users/<int:user_id>/status/\`
+*   **Access**: Admin Access
+*   **Request Payload**:
+    \`\`\`json
+    {
+      "status": "approved"
+    }
+    \`\`\`
+*   **Response (200 OK)**:
+    \`\`\`json
+    {
+      "detail": "User approved.",
+      "user": {
+        "id": 12,
+        "status": "approved"
+      }
+    }
+    \`\`\`
+
+---
+
+## 3. Product & Service Catalog
+
+### List Listings
+*   **Endpoint**: \`GET /api/vendor/products/\`
+*   **Access**: Public / Authenticated
+*   **Query Parameters**: \`search\` (filter by name/description), \`vendor\` (filter by supplier ID)
+
+### Create Listing
+*   **Endpoint**: \`POST /api/vendor/products/\`
+*   **Access**: Authenticated (Supplier role + Active Subscription)
+*   **Request Payload**:
+    \`\`\`json
+    {
+      "name": "N95 Surgical Mask",
+      "description": "Premium 5-ply filter masks.",
+      "product_type": "product",
+      "price": "45.00",
+      "stock": 10000,
+      "is_active": true
+    }
+    \`\`\`
+
+---
+
+## 4. Requests For Quotation (RFQ) & Bidding
+
+### Create RFQ
+*   **Endpoint**: \`POST /api/vendor/rfqs/\`
+*   **Access**: Authenticated (Buyer or Supplier for subcontracting)
+*   **Request Payload**:
+    \`\`\`json
+    {
+      "title": "Need 5000 units of Surgical Masks",
+      "description": "Urgent requirement for general clinic use.",
+      "product_type": "product",
+      "quantity": 5000,
+      "target_budget": "200000.00",
+      "delivery_location": "Vikas Clinic, Pune",
+      "expected_delivery_date": "2026-08-15",
+      "quote_deadline": "2026-07-25",
+      "tender_type": "open"
+    }
+    \`\`\`
+
+### Submit Bid/Quotation
+*   **Endpoint**: \`POST /api/vendor/rfqs/<int:rfq_id>/submit-quotation/\`
+*   **Access**: Authenticated (Supplier)
+*   **Request Payload**:
+    \`\`\`json
+    {
+      "product_id": 4,
+      "unit_price": "38.50",
+      "lead_time_days": 5,
+      "validity_days": 15,
+      "notes": "Can deliver via air express."
+    }
+    \`\`\`
+
+### Award RFQ
+*   **Endpoint**: \`POST /api/vendor/rfqs/<int:rfq_id>/award/\`
+*   **Access**: Authenticated (Buyer)
+*   **Request Payload**:
+    \`\`\`json
+    {
+      "quotation_id": 7
+    }
+    \`\`\`
+*   **Response (200 OK)**:
+    - Awards the quote.
+    - Locks the RFQ status to \`awarded\`.
+    - Automatically generates a new Order with status \`po_released\`.
+
+---
+
+## 5. Order Orchestration & Logistics
+
+### Accept Purchase Order (PO)
+*   **Endpoint**: \`POST /api/vendor/orders/<int:order_id>/accept-po/\`
+*   **Access**: Authenticated (Supplier linked to the order)
+*   **Response (200 OK)**: Sets status to \`po_accepted\`.
+
+### Update Tracking (Supplier)
+*   **Endpoint**: \`POST /api/vendor/orders/<int:order_id>/update-tracking/\`
+*   **Access**: Authenticated (Supplier)
+*   **Request Payload**:
+    \`\`\`json
+    {
+      "status": "shipped",
+      "delivery_status": "in_transit",
+      "tracking_note": "Dispatched via DHL. Tracking ID: DHL98341"
+    }
+    \`\`\`
+
+### Confirm Goods Received (Buyer)
+*   **Endpoint**: \`POST /api/vendor/orders/<int:order_id>/mark-received/\`
+*   **Access**: Authenticated (Buyer)
+*   **Response (200 OK)**: Sets status to \`goods_received\` and delivery status to \`delivered\`.
+
+### Trigger Payment (Buyer)
+*   **Endpoint**: \`POST /api/vendor/orders/<int:order_id>/make-payment/\`
+*   **Access**: Authenticated (Buyer)
+*   **Response (200 OK)**: Sets payment status to \`payment_requested\`.
+
+### Confirm Payment Received (Supplier)
+*   **Endpoint**: \`POST /api/vendor/orders/<int:order_id>/confirm-payment/\`
+*   **Access**: Authenticated (Supplier)
+*   **Response (200 OK)**: Sets payment status to \`paid\`. If goods were already received, sets order status to \`completed\`.
+
+### Initiate Subcontracting (Supplier)
+*   **Endpoint**: \`POST /api/vendor/orders/<int:order_id>/subcontract/\`
+*   **Access**: Authenticated (Supplier)
+*   **Request Payload**:
+    \`\`\`json
+    {
+      "shortage_quantity": 1200
+    }
+    \`\`\`
+*   **Response (201 Created)**: 
+    *   Creates a derived Subcontract RFQ for \`1200\` units.
+    *   Sets original order status to \`partially_subcontracted\`.
+
+---
+
+## 6. Subscription & Payments
+
+### List Subscription Plans
+*   **Endpoint**: \`GET /api/vendor/subscriptions/plans/\`
+*   **Access**: Authenticated
+*   **Response (200 OK)**: Lists active plans targeted for the caller's role.
+
+### Initialize Razorpay Payment
+*   **Endpoint**: \`POST /api/vendor/subscriptions/initialize/\`
+*   **Access**: Authenticated
+*   **Request Payload**:
+    \`\`\`json
+    {
+      "plan_id": 2
+    }
+    \`\`\`
+*   **Response (200 OK)**:
+    \`\`\`json
+    {
+      "order_id": "order_Hj2389djk0S2d",
+      "amount_paise": 49900,
+      "currency": "INR",
+      "key_id": "rzp_test_...",
+      "plan_id": 2
+    }
+    \`\`\`
+
+### Verify Razorpay Payment Signature
+*   **Endpoint**: \`POST /api/vendor/subscriptions/verify/\`
+*   **Access**: Authenticated
+*   **Request Payload**:
+    \`\`\`json
+    {
+      "plan_id": 2,
+      "razorpay_order_id": "order_Hj2389djk0S2d",
+      "razorpay_payment_id": "pay_Kk8345jsdK",
+      "razorpay_signature": "signature_hash_value"
+    }
+    \`\`\`
+*   **Response (200 OK)**: Activates subscription for the user.
+`
+        };
+
+        // Utility to parse standard alerts to custom visual alerts
+        function parseAlerts(html) {
+            return html
+                .replace(/<blockquote>\s*<p>\s*\[!NOTE\]([\s\S]*?)<\/p>\s*<\/blockquote>/gi, 
+                    '<div class="p-4 my-4 bg-blue-50 border-l-4 border-blue-500 text-blue-900 rounded-r-md"><div class="flex items-center font-semibold mb-1"><i class="fa-solid fa-circle-info mr-2"></i> Note</div><p class="text-sm m-0">$1</p></div>')
+                .replace(/<blockquote>\s*<p>\s*\[!TIP\]([\s\S]*?)<\/p>\s*<\/blockquote>/gi, 
+                    '<div class="p-4 my-4 bg-green-50 border-l-4 border-green-500 text-green-900 rounded-r-md"><div class="flex items-center font-semibold mb-1"><i class="fa-solid fa-lightbulb mr-2"></i> Tip</div><p class="text-sm m-0">$1</p></div>')
+                .replace(/<blockquote>\s*<p>\s*\[!IMPORTANT\]([\s\S]*?)<\/p>\s*<\/blockquote>/gi, 
+                    '<div class="p-4 my-4 bg-indigo-50 border-l-4 border-indigo-500 text-indigo-900 rounded-r-md"><div class="flex items-center font-semibold mb-1"><i class="fa-solid fa-triangle-exclamation mr-2"></i> Important</div><p class="text-sm m-0">$1</p></div>')
+                .replace(/<blockquote>\s*<p>\s*\[!WARNING\]([\s\S]*?)<\/p>\s*<\/blockquote>/gi, 
+                    '<div class="p-4 my-4 bg-amber-50 border-l-4 border-amber-500 text-amber-900 rounded-r-md"><div class="flex items-center font-semibold mb-1"><i class="fa-solid fa-circle-exclamation mr-2"></i> Warning</div><p class="text-sm m-0">$1</p></div>')
+                .replace(/<blockquote>\s*<p>\s*\[!CAUTION\]([\s\S]*?)<\/p>\s*<\/blockquote>/gi, 
+                    '<div class="p-4 my-4 bg-red-50 border-l-4 border-red-500 text-red-900 rounded-r-md"><div class="flex items-center font-semibold mb-1"><i class="fa-solid fa-hand mr-2"></i> Caution</div><p class="text-sm m-0">$1</p></div>');
+        }
+
+        // Custom Marked config to support mermaid blocks and code formatting styles
+        marked.use({
+            renderer: {
+                code(code, lang) {
+                    if (lang === 'mermaid') {
+                        return `<pre class="mermaid">${code}</pre>`;
+                    }
+                    return `<pre class="rounded-lg bg-gray-50 border border-gray-100 p-4 overflow-x-auto"><code class="language-${lang || 'plaintext'}">${code}</code></pre>`;
+                }
+            }
+        });
+
+        // Run mermaid renders safely
+        async function renderMermaid() {
+            if (window.mermaid) {
+                try {
+                    await window.mermaid.run({
+                        querySelector: '.mermaid'
+                    });
+                } catch (e) {
+                    console.error("Mermaid error: ", e);
+                }
+            }
+        }
+
+        // Add code block copy triggers
+        function addCopyButtons() {
+            const preBlocks = document.querySelectorAll('#content-area pre:not(.mermaid)');
+            preBlocks.forEach((pre) => {
+                if (pre.querySelector('.copy-btn')) return;
+                
+                pre.classList.add('relative');
+                const button = document.createElement('button');
+                button.className = 'copy-btn absolute top-2 right-2 px-2 py-1 text-xs text-gray-400 bg-white border border-gray-200 rounded hover:bg-gray-50 hover:text-gray-600 transition-colors focus:outline-none';
+                button.innerHTML = '<i class="fa-regular fa-copy"></i> Copy';
+                
+                button.addEventListener('click', () => {
+                    const code = pre.querySelector('code').innerText;
+                    navigator.clipboard.writeText(code).then(() => {
+                        button.innerHTML = '<i class="fa-solid fa-check text-green-500"></i> Copied!';
+                        setTimeout(() => {
+                            button.innerHTML = '<i class="fa-regular fa-copy"></i> Copy';
+                        }, 2000);
+                    });
+                });
+                
+                pre.appendChild(button);
+            });
+        }
+
+        // Table of contents builder
+        function generateTOC() {
+            const container = document.getElementById('toc-container');
+            container.innerHTML = '';
+            
+            const content = document.getElementById('content-area');
+            const headings = content.querySelectorAll('h2, h3');
+            
+            if (headings.length === 0) {
+                document.getElementById('toc-wrapper').classList.add('hidden');
+                return;
+            }
+            
+            document.getElementById('toc-wrapper').classList.remove('hidden');
+            
+            headings.forEach((heading) => {
+                const id = heading.id || heading.textContent.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+                heading.id = id;
+                
+                const li = document.createElement('li');
+                li.className = heading.tagName === 'H2' ? 'mb-2' : 'ml-4 mb-1.5 text-xs';
+                
+                const a = document.createElement('a');
+                a.href = `#${id}`;
+                a.className = 'text-gray-500 hover:text-indigo-600 transition-colors duration-150 block truncate';
+                a.textContent = heading.textContent;
+                a.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    heading.scrollIntoView({ behavior: 'smooth' });
+                    window.history.pushState(null, null, `#${id}`);
+                });
+                
+                li.appendChild(a);
+                container.appendChild(li);
+            });
+        }
+
+        // Load specific document
+        function loadDoc(docId) {
+            const mdContent = DOCS[docId];
+            if (!mdContent) return;
+            
+            document.querySelectorAll('.nav-link').forEach(link => {
+                if (link.dataset.doc === docId) {
+                    link.classList.add('bg-indigo-50', 'text-indigo-600', 'font-semibold');
+                    link.classList.remove('text-gray-600', 'hover:bg-gray-50');
+                } else {
+                    link.classList.remove('bg-indigo-50', 'text-indigo-600', 'font-semibold');
+                    link.classList.add('text-gray-600', 'hover:bg-gray-50');
+                }
+            });
+
+            const parsed = marked.parse(mdContent);
+            const parsedWithAlerts = parseAlerts(parsed);
+            
+            document.getElementById('content-area').innerHTML = parsedWithAlerts;
+            
+            if (window.Prism) {
+                Prism.highlightAllUnder(document.getElementById('content-area'));
+            }
+            
+            setTimeout(() => {
+                renderMermaid();
+                addCopyButtons();
+            }, 100);
+            
+            generateTOC();
+            window.location.hash = docId;
+            document.querySelector('article').scrollTop = 0;
+        }
+
+        // Sidebar and Search Triggers
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+                loadDoc(link.dataset.doc);
+            });
+        });
+
+        // Search engine logic
+        const searchInput = document.getElementById('search-input');
+        const searchResults = document.getElementById('search-results');
+
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            if (!query) {
+                searchResults.classList.add('hidden');
+                searchResults.innerHTML = '';
+                return;
+            }
+            
+            searchResults.classList.remove('hidden');
+            searchResults.innerHTML = '';
+            
+            let matches = [];
+            
+            for (const [docId, content] of Object.entries(DOCS)) {
+                const lines = content.split('\n');
+                let docTitle = docId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                
+                lines.forEach((line) => {
+                    if (line.startsWith('#') && line.toLowerCase().includes(query)) {
+                        const title = line.replace(/#/g, '').trim();
+                        matches.push({
+                            docId,
+                            type: 'heading',
+                            text: title,
+                            context: docTitle
+                        });
+                    } else if (line.toLowerCase().includes(query) && line.trim().length > 10) {
+                        const index = line.toLowerCase().indexOf(query);
+                        const start = Math.max(0, index - 20);
+                        const end = Math.min(line.length, index + query.length + 30);
+                        const snippet = (start > 0 ? '...' : '') + line.substring(start, end).trim() + (end < line.length ? '...' : '');
+                        matches.push({
+                            docId,
+                            type: 'text',
+                            text: snippet,
+                            context: docTitle
+                        });
+                    }
+                });
+            }
+            
+            if (matches.length === 0) {
+                searchResults.innerHTML = '<div class="p-3 text-sm text-gray-400">No results found</div>';
+                return;
+            }
+            
+            matches.slice(0, 8).forEach((match) => {
+                const div = document.createElement('div');
+                div.className = 'p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors duration-150';
+                div.innerHTML = `
+                    <div class="text-xs font-semibold text-indigo-500 mb-0.5">${match.context}</div>
+                    <div class="text-sm font-medium text-gray-700">${match.text}</div>
+                `;
+                div.addEventListener('click', () => {
+                    loadDoc(match.docId);
+                    searchResults.classList.add('hidden');
+                    searchInput.value = '';
+                });
+                searchResults.appendChild(div);
+            });
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                searchResults.classList.add('hidden');
+            }
+        });
+
+        // Initialize App
+        window.addEventListener('DOMContentLoaded', () => {
+            const hash = window.location.hash.replace('#', '');
+            if (hash && DOCS[hash]) {
+                loadDoc(hash);
+            } else {
+                loadDoc("system-architecture");
+            }
+        });
+    </script>
+</body>
+</html>
