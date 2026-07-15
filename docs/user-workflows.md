@@ -9,9 +9,9 @@ To ensure platform compliance, all users must complete a structured onboarding a
 
 ```mermaid
 sequenceDiagram
-    participant User as Supplier/Buyer
-    participant Admin as Platform Admin
-    participant DB as System Database
+    participant User as "Supplier/Buyer"
+    participant Admin as "Platform Admin"
+    participant DB as "System Database"
 
     User->>DB: Registers (role, credentials)
     DB->>User: Account created (status: pending)

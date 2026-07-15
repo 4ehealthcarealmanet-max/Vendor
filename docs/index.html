@@ -248,15 +248,14 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-typescript.min.js"></script>
     
-    <!-- Mermaid ESM module initialization -->
-    <script type="module">
-        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    <!-- Synchronous UMD build of Mermaid v9 (prevents race conditions and works natively) -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@9.4.3/dist/mermaid.min.js"></script>
+    <script>
         mermaid.initialize({ 
             startOnLoad: false, 
             theme: 'neutral',
             securityLevel: 'loose'
         });
-        window.mermaid = mermaid;
     </script>
 
     <!-- Documentation Contents Injection -->
@@ -374,11 +373,11 @@ Purchase Orders created after an RFQ award or direct reorder.
 ### System Architecture Flow
 \`\`\`mermaid
 graph TD
-    User[Web Client / React] -->|HTTPS/REST| NextJS[Next.js Frontend]
-    NextJS -->|API Requests| Django[Django Backend API]
-    Django -->|ORM| Postgres[(Supabase PostgreSQL)]
-    Django -->|Storage SDK| Cloudinary[(Cloudinary File Storage)]
-    Django -->|Payment API| Razorpay[Razorpay Payment Gateway]
+    User["Web Client / React"] -->|HTTPS/REST| NextJS["Next.js Frontend"]
+    NextJS -->|API Requests| Django["Django Backend API"]
+    Django -->|ORM| Postgres[("Supabase PostgreSQL")]
+    Django -->|Storage SDK| Cloudinary[("Cloudinary File Storage")]
+    Django -->|Payment API| Razorpay["Razorpay Payment Gateway"]
 \`\`\`
 
 ### Database ERD Overview
@@ -969,22 +968,40 @@ All requests must include the header \`Authorization: Token <your_token>\` unles
         // Custom Marked config to support mermaid blocks and code formatting styles
         marked.use({
             renderer: {
-                code(code, lang) {
-                    if (lang === 'mermaid') {
-                        return `<pre class="mermaid">${code}</pre>`;
+                code(codeOrToken, lang) {
+                    let codeText = "";
+                    let codeLang = "";
+                    
+                    if (typeof codeOrToken === 'object' && codeOrToken !== null) {
+                        codeText = codeOrToken.text || "";
+                        codeLang = codeOrToken.lang || "";
+                    } else {
+                        codeText = codeOrToken || "";
+                        codeLang = lang || "";
                     }
-                    return `<pre class="rounded-lg bg-gray-50 border border-gray-100 p-4 overflow-x-auto"><code class="language-${lang || 'plaintext'}">${code}</code></pre>`;
+                    
+                    if (codeLang === 'mermaid') {
+                        return `<pre class="mermaid">${codeText}</pre>`;
+                    }
+                    return `<pre class="rounded-lg bg-gray-50 border border-gray-100 p-4 overflow-x-auto"><code class="language-${codeLang || 'plaintext'}">${codeText}</code></pre>`;
                 }
             }
         });
 
-        // Run mermaid renders safely
+        // Run mermaid renders safely with unescaping HTML entities
         async function renderMermaid() {
             if (window.mermaid) {
                 try {
-                    await window.mermaid.run({
-                        querySelector: '.mermaid'
+                    const elements = document.querySelectorAll('.mermaid');
+                    elements.forEach((el) => {
+                        // Decode HTML entities (e.g. -&&gt; to ->>) so Mermaid parser understands the diagrams
+                        const txt = el.innerHTML;
+                        const doc = new DOMParser().parseFromString(txt, 'text/html');
+                        el.textContent = doc.documentElement.textContent;
                     });
+                    
+                    // Call the mermaid.init API
+                    mermaid.init(undefined, '.mermaid');
                 } catch (e) {
                     console.error("Mermaid error: ", e);
                 }

@@ -110,11 +110,11 @@ Purchase Orders created after an RFQ award or direct reorder.
 ### System Architecture Flow
 ```mermaid
 graph TD
-    User[Web Client / React] -->|HTTPS/REST| NextJS[Next.js Frontend]
-    NextJS -->|API Requests| Django[Django Backend API]
-    Django -->|ORM| Postgres[(Supabase PostgreSQL)]
-    Django -->|Storage SDK| Cloudinary[(Cloudinary File Storage)]
-    Django -->|Payment API| Razorpay[Razorpay Payment Gateway]
+    User["Web Client / React"] -->|HTTPS/REST| NextJS["Next.js Frontend"]
+    NextJS -->|API Requests| Django["Django Backend API"]
+    Django -->|ORM| Postgres[("Supabase PostgreSQL")]
+    Django -->|Storage SDK| Cloudinary[("Cloudinary File Storage")]
+    Django -->|Payment API| Razorpay["Razorpay Payment Gateway"]
 ```
 
 ### Database ERD Overview
